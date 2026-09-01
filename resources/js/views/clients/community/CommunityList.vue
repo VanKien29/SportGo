@@ -267,6 +267,7 @@ import PublicNavbar from '@/components/PublicNavbar.vue';
 import ReportModal from '@/components/ReportModal.vue';
 import { api } from '@/services/api.js';
 import { getAuth } from '@/stores/auth.js';
+import { businessDateLabel } from '@/utils/businessTime.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -823,10 +824,7 @@ function initial(name) {
 }
 
 function formatDate(value) {
-  if (!value) return 'Chưa rõ ngày';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Chưa rõ ngày';
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+  return businessDateLabel(value) || 'Chưa rõ ngày';
 }
 
 function timeAgo(value) {

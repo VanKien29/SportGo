@@ -120,7 +120,7 @@ class DashboardController extends Controller
             ->whereIn('id', $clusterIds)
             ->avg('rating_avg') ?? 0;
 
-        $today = now()->toDateString();
+        $today = Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->toDateString();
         $todayBookingQuery = Booking::query()
             ->whereIn('venue_cluster_id', $clusterIds)
             ->whereDate('booking_date', $today);
@@ -525,15 +525,15 @@ class DashboardController extends Controller
 
     private function resolvePeriod(string $key, ?string $dateFrom, ?string $dateTo): array
     {
-        $today = now()->startOfDay();
+        $today = Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->startOfDay();
 
         [$from, $to, $label] = match ($key) {
             '7_days' => [$today->copy()->subDays(6), $today->copy(), '7 ngày gần nhất'],
             '30_days' => [$today->copy()->subDays(29), $today->copy(), '30 ngày gần nhất'],
             'this_month' => [$today->copy()->startOfMonth(), $today->copy(), 'Tháng này'],
             'custom' => [
-                Carbon::parse($dateFrom)->startOfDay(),
-                Carbon::parse($dateTo)->startOfDay(),
+                Carbon::parse($dateFrom, (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->startOfDay(),
+                Carbon::parse($dateTo, (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->startOfDay(),
                 'Khoảng tùy chọn',
             ],
             default => [$today->copy(), $today->copy(), 'Hôm nay'],
@@ -675,7 +675,7 @@ class DashboardController extends Controller
     private function emptyTodayBookingSummary(): array
     {
         return [
-            'date' => now()->toDateString(),
+            'date' => Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->toDateString(),
             'total' => 0,
             'pending_approval' => 0,
             'pending_payment' => 0,

@@ -47,8 +47,8 @@ class PermissionRevokePolicyEvaluator
 
     private function processLedger(VenuePlatformFeeLedger $ledger, array $config, SystemPolicy $policy, ?int $ruleId): void
     {
-        $now = Carbon::now();
-        $dueDate = Carbon::parse($ledger->due_date);
+        $now = Carbon::now($this->platformFeeTimezone())->startOfDay();
+        $dueDate = $this->platformFeeDate($ledger->due_date);
         $daysDiff = (int) $now->diffInDays($dueDate, false); // negative if overdue
 
         if ($daysDiff < 0) {
@@ -63,6 +63,20 @@ class PermissionRevokePolicyEvaluator
                 ], $config);
             }
         }
+    }
+
+    private function platformFeeTimezone(): string
+    {
+        return (string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function platformFeeDate(mixed $value): Carbon
+    {
+        $date = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : Carbon::parse((string) $value, $this->platformFeeTimezone())->format('Y-m-d');
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->platformFeeTimezone());
     }
 
     private function triggerAction(VenuePlatformFeeLedger $ledger, SystemPolicy $policy, ?int $ruleId, string $actionKey, array $data, array $config): void

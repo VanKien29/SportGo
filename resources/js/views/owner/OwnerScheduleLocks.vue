@@ -765,12 +765,13 @@ import { ownerScheduleLockService } from "../../services/ownerScheduleLocks.js";
 import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
+import { businessDateString } from "../../utils/businessTime.js";
 
 export default {
     name: "OwnerScheduleLocks",
     components: { ConfirmModal, MiniCalendar },
     data() {
-        const today = new Date().toISOString().split("T")[0];
+        const today = businessDateString();
 
         return {
             today,
@@ -882,8 +883,8 @@ export default {
             );
         },
         dateCount() {
-            const start = new Date(`${this.form.start_date}T00:00:00`);
-            const end = new Date(`${this.form.end_date}T00:00:00`);
+            const start = new Date(`${this.form.start_date}T00:00:00Z`);
+            const end = new Date(`${this.form.end_date}T00:00:00Z`);
             if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
                 return 0;
             }

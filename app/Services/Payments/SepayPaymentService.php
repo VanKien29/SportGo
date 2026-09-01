@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Events\BookingPaymentUpdated;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\PaymentLog;
@@ -99,11 +100,7 @@ class SepayPaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($booking->source !== 'counter') {
-                throw new RuntimeException('Chỉ hỗ trợ tạo QR thu tiền cho booking tại quầy.');
-            }
-
-            if (in_array($booking->status, ['cancelled', 'expired', 'rejected'], true)) {
+            if (in_array($booking->status, ['cancelled', 'expired', 'rejected', 'no_show'], true)) {
                 throw new RuntimeException('Booking này không còn ở trạng thái có thể thu tiền.');
             }
 
@@ -362,6 +359,26 @@ class SepayPaymentService
                 'payment' => $payment->fresh(),
             ];
         });
+
+        $payment = $result['payment'] ?? null;
+        if ($payment?->booking_id) {
+            $booking = Booking::query()->find($payment->booking_id);
+            if ($booking?->customer_id) {
+                try {
+                    broadcast(new BookingPaymentUpdated(
+                        $booking->id,
+                        $booking->customer_id,
+                        $payment->id,
+                        (string) $payment->status,
+                        (string) $booking->status,
+                    ));
+                } catch (\Throwable $exception) {
+                    // A websocket outage must not make SePay retry a webhook
+                    // that has already been processed successfully.
+                    report($exception);
+                }
+            }
+        }
 
         return $result;
     }

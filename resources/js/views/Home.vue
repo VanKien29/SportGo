@@ -342,13 +342,7 @@ import PublicNavbar from "../components/PublicNavbar.vue";
 import AppIcon from "../components/AppIcon.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
-
-function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { businessDateString } from "../utils/businessTime.js";
 
 export default {
   name: "HomeView",
@@ -358,7 +352,7 @@ export default {
   },
   data() {
     return {
-      today: localDateString(),
+      today: businessDateString(),
       selectedSportTab: "all",
       sportsCategories: [
         { id: "all", name: "Tất cả bộ môn", desc: "Hơn 500+ sân thể thao" },
@@ -373,7 +367,7 @@ export default {
         ward_code: "",
         ward_name: "",
         court_type_id: "",
-        booking_date: localDateString(),
+        booking_date: businessDateString(),
         start_time: "18:00:00",
       },
       provincesList: [],
@@ -461,7 +455,7 @@ export default {
       this.search.ward_code = "";
       this.search.ward_name = "";
       this.search.court_type_id = "";
-      this.search.booking_date = localDateString();
+      this.search.booking_date = businessDateString();
       this.search.start_time = "18:00:00";
       this.wardsList = [];
     },

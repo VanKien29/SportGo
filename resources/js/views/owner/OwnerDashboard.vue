@@ -828,6 +828,7 @@ import AppIcon from '../../components/AppIcon.vue';
 import { api } from '../../services/api.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 import { getAuth } from '../../stores/auth.js';
+import { businessDateString, businessTimeString } from '../../utils/businessTime.js';
 
 const emptyStats = () => ({
   bookings: 0,
@@ -864,7 +865,7 @@ export default {
   components: { AppIcon },
   data() {
     const todayStr = this.localDateString();
-    const now = new Date();
+    const [year, month] = todayStr.split('-').map(Number);
     return {
       user: getAuth() || {},
       selectedCluster: null,
@@ -874,8 +875,8 @@ export default {
       customDateTo: todayStr,
       tempDateFrom: todayStr,
       tempDateTo: todayStr,
-      calMonth: now.getMonth(),
-      calYear: now.getFullYear(),
+      calMonth: month - 1,
+      calYear: year,
       isCalendarModalOpen: false,
       isLoading: true,
       error: '',
@@ -945,7 +946,7 @@ export default {
       return this.user.fullName || this.user.full_name || this.user.username || 'Chủ sân';
     },
     greeting() {
-      const hour = new Date().getHours();
+      const hour = Number(businessTimeString().slice(0, 2));
       return hour < 11 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
     },
     hasClusters() {
@@ -1211,10 +1212,7 @@ export default {
       return from === to ? this.formatDate(from) : `${this.formatDate(from)} – ${this.formatDate(to)}`;
     },
     localDateString(value = new Date()) {
-      const year = value.getFullYear();
-      const month = String(value.getMonth() + 1).padStart(2, '0');
-      const day = String(value.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return businessDateString(value);
     },
   },
 };

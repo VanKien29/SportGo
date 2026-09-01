@@ -104,18 +104,17 @@ import AppIcon from '../AppIcon.vue';
 import ConfirmModal from '../ConfirmModal.vue';
 import { platformFeePlanService } from '../../services/platformFeePlan.service.js';
 import { createTier, deleteTier, getTiers, updateTier } from '../../services/platformFeeTier.service.js';
+import { addCalendarDays, businessDateLabel, businessDateString } from '../../utils/businessTime.js';
 
 const rules = () => [1, 3, 6, 9, 12].map((months) => ({ months, discount_percent: 0, is_active: true }));
 const emptyConfirm = () => ({ open: false, action: '', target: null, title: '', message: '', consequence: '', confirmText: 'Xác nhận', type: 'warning' });
-const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
 export default {
   name: 'PlatformFeePlanManager', components: { AppIcon, ConfirmModal }, props: { planId: { type: [Number, String], required: true } },
   data() { return { plan: null, impact: null, form: {}, tiers: [], loading: true, tiersLoading: true, busy: false, tab: 'settings', effectiveFrom: '', errors: {}, tierErrors: {}, tierModal: false, tierForm: {}, confirm: emptyConfirm(), toast: '', toastType: 'success' }; },
   computed: {
     isDraft() { return this.plan?.status === 'draft'; },
     normalizedRules() { return rules().map((fallback) => this.plan?.prepay_discounts?.find((item) => Number(item.months) === fallback.months) || fallback); },
-    minimumEffectiveDate() { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + Number(this.form.notice_days || this.plan?.notice_days || 1)); return localDate(date); },
+    minimumEffectiveDate() { return addCalendarDays(businessDateString(), Number(this.form.notice_days || this.plan?.notice_days || 1)); },
   },
   watch: { planId: 'load' }, mounted() { this.load(); },
   methods: {
@@ -135,7 +134,7 @@ export default {
     nextMinimum() { const active = this.tiers.filter((item) => item.is_active); if (!active.length) return 1; return Math.max(...active.map((item) => Number(item.min_courts))) + 1; },
     errorFor(field) { return this.errors[field]?.[0] || ''; }, tierError(field) { return this.tierErrors[field]?.[0] || ''; },
     statusLabel(status) { return ({ draft: 'Nháp', scheduled: 'Chờ áp dụng', active: 'Đang áp dụng', retired: 'Ngừng áp dụng' })[status] || status; },
-    date(value) { return value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '-'; },
+    date(value) { return businessDateLabel(value) || '-'; },
     dateRange(plan) { return plan.effective_from ? `${this.date(plan.effective_from)} - ${plan.effective_to ? this.date(plan.effective_to) : 'không thời hạn'}` : 'Chưa lên lịch'; },
     rangeLabel(tier) { return tier.max_courts == null ? `Từ ${tier.min_courts} sân trở lên` : `${tier.min_courts} - ${tier.max_courts} sân`; },
     money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); }, number(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 }); },

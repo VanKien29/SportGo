@@ -660,6 +660,7 @@ import AppTabs from '../../components/common/AppTabs.vue';
 import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { api } from '../../services/api.js';
 import { ownerPartnerTerminationService } from '../../services/ownerPartnerTermination';
+import { addCalendarDays, businessDateString } from '../../utils/businessTime.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -679,8 +680,9 @@ const bankAccounts = ref([]);
 const activeTab = ref('info');
 
 const showCalendarPicker = ref(false);
-const calendarYear = ref(new Date().getFullYear());
-const calendarMonth = ref(new Date().getMonth());
+const calendarToday = businessDateString();
+const calendarYear = ref(Number(calendarToday.slice(0, 4)));
+const calendarMonth = ref(Number(calendarToday.slice(5, 7)) - 1);
 
 const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 
@@ -702,7 +704,7 @@ const monthDaysGrid = computed(() => {
   if (startDayOfWeek < 0) startDayOfWeek = 6;
 
   const totalDays = lastDay.getDate();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = businessDateString();
 
   const days = [];
   for (let i = 0; i < startDayOfWeek; i++) {
@@ -733,12 +735,7 @@ function selectCalendarDate(dateStr) {
 }
 
 function quickSelectDays(daysToAdd) {
-  const target = new Date();
-  target.setDate(target.getDate() + daysToAdd);
-  const yyyy = target.getFullYear();
-  const mm = String(target.getMonth() + 1).padStart(2, '0');
-  const dd = String(target.getDate()).padStart(2, '0');
-  form.requested_effective_date = `${yyyy}-${mm}-${dd}`;
+  form.requested_effective_date = addCalendarDays(businessDateString(), daysToAdd);
 }
 
 function prevMonth() {

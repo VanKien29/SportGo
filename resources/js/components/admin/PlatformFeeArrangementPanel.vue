@@ -55,13 +55,13 @@
 import AppIcon from '../AppIcon.vue';
 import VenueClusterCombobox from './VenueClusterCombobox.vue';
 import { platformFeeArrangementService } from '../../services/platformFeeArrangement.service.js';
+import { addCalendarDays, businessDateLabel } from '../../utils/businessTime.js';
 const meta = () => ({ current_page: 1, last_page: 1, total: 0 });
-const addDays = (value, days) => { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + days); return date.toISOString().slice(0, 10); };
 
 export default {
   name: 'PlatformFeeArrangementPanel', components: { AppIcon, VenueClusterCombobox }, emits: ['changed'],
   data() { return { items: [], meta: meta(), loading: true, busy: false, filters: { q: '', status: '', venue_cluster_id: '' }, createOpen: false, createStep: 1, form: { venue_cluster_id: '', service_months: 1, payment_due_date: '', reason: '', admin_note: '' }, preview: null, previewLoading: false, previewError: '', previewRequestToken: 0, errors: {}, detailItem: null, cancelItem: null, cancelReason: '', message: '', messageType: 'success' }; },
-  computed: { minimumDueDate() { return this.preview ? addDays(this.preview.service_end, 1) : ''; }, maximumDueDate() { return this.preview ? addDays(this.preview.service_end, 30) : ''; } },
+  computed: { minimumDueDate() { return this.preview ? addCalendarDays(String(this.preview.service_end).slice(0, 10), 1) : ''; }, maximumDueDate() { return this.preview ? addCalendarDays(String(this.preview.service_end).slice(0, 10), 30) : ''; } },
   mounted() { this.load(); },
   methods: {
     async load(page = 1) { this.loading = true; try { const result = await platformFeeArrangementService.list({ ...this.filters, page }); this.items = result.items; this.meta = result.meta; } catch (error) { this.show(error.message || 'Không tải được thỏa thuận.', 'error'); } finally { this.loading = false; } },
@@ -74,7 +74,7 @@ export default {
     async openDetail(item) { try { const response = await platformFeeArrangementService.detail(item.id); this.detailItem = response.data; } catch (error) { this.show(error.message || 'Không tải được chi tiết.', 'error'); } },
     openCancel(item) { this.cancelItem = item; this.cancelReason = ''; }, closeCancel() { if (!this.busy) this.cancelItem = null; },
     async cancelArrangement() { if (!this.cancelItem) return; this.busy = true; try { const response = await platformFeeArrangementService.cancel(this.cancelItem.id, this.cancelReason); this.cancelItem = null; this.show(response.message); await this.load(this.meta.current_page); this.$emit('changed'); } catch (error) { this.show(error.message || 'Không hủy được thỏa thuận.', 'error'); } finally { this.busy = false; } },
-    errorFor(field) { return this.errors[field]?.[0] || ''; }, date(value) { return value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '-'; }, dateTime(value) { return value ? new Date(value).toLocaleString('vi-VN') : '-'; }, money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); }, statusLabel(status) { return ({ pending_owner_acceptance: 'Chờ Chủ sân', active: 'Đang trả chậm', overdue: 'Quá hạn', fulfilled: 'Hoàn tất', cancelled: 'Đã hủy', rejected: 'Bị từ chối', expired: 'Hết hạn phản hồi' })[status] || status; }, show(message, type = 'success') { this.message = message; this.messageType = type; window.setTimeout(() => { this.message = ''; }, 4500); },
+    errorFor(field) { return this.errors[field]?.[0] || ''; }, date(value) { return businessDateLabel(value) || '-'; }, dateTime(value) { return value ? new Date(value).toLocaleString('vi-VN') : '-'; }, money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); }, statusLabel(status) { return ({ pending_owner_acceptance: 'Chờ Chủ sân', active: 'Đang trả chậm', overdue: 'Quá hạn', fulfilled: 'Hoàn tất', cancelled: 'Đã hủy', rejected: 'Bị từ chối', expired: 'Hết hạn phản hồi' })[status] || status; }, show(message, type = 'success') { this.message = message; this.messageType = type; window.setTimeout(() => { this.message = ''; }, 4500); },
   },
 };
 </script>

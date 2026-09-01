@@ -2030,16 +2030,14 @@ import MiniCalendar from "../../components/MiniCalendar.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import { venueClusterService } from "../../services/venueClusters.js";
+import { businessDateString, businessDateTime, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
 
 function toIsoDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return businessDateString(date);
 }
 
 function toWeekDayIndex(date) {
-    return (date.getDay() + 6) % 7;
+    return (businessWeekDayIndex(date) + 6) % 7;
 }
 
 const BOOKING_DAY_START = 0;
@@ -4081,8 +4079,7 @@ export default {
             if (date < this.today) return true;
             if (date > this.today) return false;
 
-            const now = new Date();
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = businessMinutes();
 
             return this.timeToMinutes(slot.start_time) <= nowMinutes;
         },
@@ -4275,7 +4272,7 @@ export default {
                     this.counterQrBookingId = response.data?.id || "";
                     this.startCounterQrPolling();
                 }
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 this.selectedSlotKeys = [];
                 this.selectedGridCourtId = "";
                 this.syncCounterRangeFields();
@@ -4406,7 +4403,7 @@ export default {
             ].filter(Boolean);
 
             this.notice = `Đã tạo ${response.data?.created_count || this.recurringPreview.length} buổi cố định${extras.length ? `, ${extras.join(", ")}` : ""}.`;
-            this.recurringConflict = null;
+            this.closeSuccessfulActionPanels();
             this.conflictSelections = {};
             this.clearVoucherSelection();
             await this.loadSchedule();
@@ -4949,6 +4946,13 @@ export default {
             if (this.bookingActionLoading) return;
             this.bookingActionConfirm = null;
         },
+        closeSuccessfulActionPanels() {
+            this.counterDrawerOpen = false;
+            this.bookingActionConfirm = null;
+            this.recurringGroupConfirm = null;
+            this.recurringGroupDetail = null;
+            this.recurringConflict = null;
+        },
         async confirmBookingAction() {
             const action = this.bookingActionConfirm;
             if (!action || this.bookingActionLoading) return;
@@ -4988,8 +4992,7 @@ export default {
                 );
                 this.selectedBusyBooking = response.data || response;
                 this.notice = "Đã cập nhật trạng thái booking.";
-                this.bookingActionConfirm = null;
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể cập nhật booking.";
@@ -5012,8 +5015,7 @@ export default {
                     { payment_method: method },
                 );
                 this.selectedBusyBooking = response.data || response;
-                this.bookingActionConfirm = null;
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể ghi nhận thu tiền.";
@@ -5174,15 +5176,15 @@ export default {
             return now < endsAt.getTime() ? "in-progress" : "ended";
         },
         occurrenceDateTime(occurrence, field) {
-            const date = this.parseDate(occurrence?.booking_date);
+            const date = String(occurrence?.booking_date || "").slice(0, 10);
             const time = this.formatTime(occurrence?.[field]);
-            if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
 
             const minutes = this.timeToMinutes(time);
             if (!Number.isFinite(minutes)) return null;
 
-            date.setHours(0, minutes, 0, 0);
-            return date;
+            const result = businessDateTime(date, time);
+            return Number.isNaN(result.getTime()) ? null : result;
         },
         occurrenceStatusLabel(occurrence) {
             const state = this.occurrenceOperationalState(occurrence);
@@ -5435,6 +5437,7 @@ export default {
                     { payment_method: method },
                 );
                 this.notice = "Đã ghi nhận thu tiền cho nhóm lịch cố định.";
+                this.closeSuccessfulActionPanels();
                 await this.loadRecurringGroups();
                 return true;
             } catch (error) {
@@ -5478,7 +5481,11 @@ export default {
             const raw = String(value);
             const date = raw.includes("T")
                 ? new Date(raw)
-                : new Date(`${raw}T00:00:00`);
+                : (() => {
+                    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                    if (!match) return new Date(NaN);
+                    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+                })();
             return Number.isNaN(date.getTime()) ? null : date;
         },
         formatIsoDate(value) {
@@ -5515,4 +5522,3 @@ export default {
     box-sizing: border-box;
 }
 </style>
-

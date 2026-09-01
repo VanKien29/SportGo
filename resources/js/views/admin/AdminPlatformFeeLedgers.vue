@@ -573,6 +573,7 @@ import {
     unlockVenueAfterPayment,
 } from "../../services/platformFeeLedger.service.js";
 import { processPlatformFeeReminders } from "../../services/platformFeeReminder.service.js";
+import { businessDateString } from "../../utils/businessTime.js";
 
 function initialFilters(routeQuery = {}) {
     return {
@@ -591,7 +592,7 @@ function initialFilters(routeQuery = {}) {
 }
 
 function today() {
-    return new Date().toISOString().slice(0, 10);
+    return businessDateString();
 }
 
 export default {

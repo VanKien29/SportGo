@@ -72,8 +72,12 @@ class FinanceController extends Controller
         ];
         $summary['total_balance'] = $summary['available_balance'] + $summary['pending_withdrawal_balance'];
 
-        $periodStart = Carbon::now()->startOfMonth()->subMonths(5);
-        $periodEnd = Carbon::now()->endOfMonth();
+        $businessTimezone = (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $storageTimezone = (string) config('app.timezone', 'UTC');
+        $periodStart = Carbon::now($businessTimezone)->startOfMonth()->subMonths(5);
+        $periodEnd = Carbon::now($businessTimezone)->endOfMonth();
+        $storagePeriodStart = $periodStart->copy()->setTimezone($storageTimezone);
+        $storagePeriodEnd = $periodEnd->copy()->setTimezone($storageTimezone);
         $cashflow = collect();
 
         for ($month = $periodStart->copy(); $month <= $periodEnd; $month->addMonth()) {
@@ -91,10 +95,10 @@ class FinanceController extends Controller
 
         OwnerWalletLedger::query()
             ->where('owner_id', $ownerId)
-            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->whereBetween('created_at', [$storagePeriodStart, $storagePeriodEnd])
             ->get(['type', 'amount', 'created_at'])
-            ->each(function (OwnerWalletLedger $ledger) use ($cashflow): void {
-                $period = Carbon::parse($ledger->created_at)->format('Y-m');
+            ->each(function (OwnerWalletLedger $ledger) use ($cashflow, $businessTimezone): void {
+                $period = Carbon::parse($ledger->created_at)->setTimezone($businessTimezone)->format('Y-m');
                 $index = $cashflow->search(fn (array $item) => $item['period'] === $period);
                 if ($index === false) {
                     return;

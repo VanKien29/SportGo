@@ -255,6 +255,7 @@ import { staffDashboardService } from '../../services/staffDashboard.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import { notificationService } from '../../services/notification.service.js';
 import { getAuth } from '../../stores/auth.js';
+import { BUSINESS_TIMEZONE, businessDateString, businessDateTime } from '../../utils/businessTime.js';
 
 export default {
   name: 'StaffDashboard',
@@ -394,7 +395,7 @@ export default {
     },
     canCheckIn(schedule) {
       if (!schedule) return false;
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = businessDateString();
       if (schedule.date !== todayStr) return false;
 
       // Giờ bắt đầu ca trực
@@ -402,9 +403,7 @@ export default {
       const startHour = parseInt(parts[0], 10);
       const startMin = parseInt(parts[1], 10);
 
-      const shiftStart = new Date();
-      shiftStart.setHours(startHour, startMin, 0, 0);
-
+      const shiftStart = businessDateTime(schedule.date, `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
       const now = new Date();
       // Cho phép check-in trước tối đa 30 phút
       const earlyLimit = new Date(shiftStart.getTime() - 30 * 60000);
@@ -432,6 +431,7 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
+        timeZone: BUSINESS_TIMEZONE,
       }).format(new Date(dateTimeStr));
     },
     formatTimeAgo(dateTimeStr) {

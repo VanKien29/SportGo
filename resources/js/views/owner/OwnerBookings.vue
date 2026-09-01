@@ -1002,7 +1002,7 @@ export default {
             : 'Đã tạo thông tin chuyển khoản.';
           this.startCollectPolling();
         } else {
-          this.notice = 'Đã ghi nhận thu tiền tại quầy.';
+          this.notice = 'Đã ghi nhận thanh toán.';
           await this.loadBookings();
           this.closeCollectPayment();
         }
@@ -1042,8 +1042,7 @@ export default {
       }
     },
     canCollectPayment(booking) {
-      return booking.source === 'counter'
-        && !['cancelled', 'expired', 'rejected'].includes(booking.status)
+      return !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status)
         && this.outstandingAmount(booking) > 0;
     },
     bookingHasPendingTransfer(booking) {
@@ -1069,8 +1068,9 @@ export default {
         ? `đã thu ${this.formatCurrency(paid)}, còn ${this.formatCurrency(outstanding)}`
         : `còn ${this.formatCurrency(outstanding)}`;
       const holdText = this.paymentHoldLabel(booking);
+      const overdueText = this.paymentState(booking) === 'overdue' ? 'quá hạn thanh toán' : '';
 
-      return holdText ? `${amountText} · ${holdText}` : amountText;
+      return [amountText, holdText, overdueText].filter(Boolean).join(' · ');
     },
     paymentHoldLabel(booking) {
       if (booking.status === 'pending_approval' && booking.approval_deadline_at) {
@@ -1095,17 +1095,29 @@ export default {
     },
     paymentState(booking) {
       if (this.outstandingAmount(booking) <= 0) return 'paid';
+      if (this.isSettlementOverdue(booking) || booking?.settlement_status === 'overdue') return 'overdue';
       if (this.bookingHasPendingTransfer(booking)) return 'pending';
+      if (booking?.settlement_status) return booking.settlement_status;
       if (this.paidAmount(booking) > 0) return 'partial';
       return 'unpaid';
     },
     paymentStateLabel(booking) {
       return {
-        paid: 'Đã thanh toán',
+        paid: 'Đã đủ',
         pending: 'Chờ chuyển khoản',
-        partial: 'Thanh toán một phần',
+        partial: 'Còn thiếu',
         unpaid: 'Chưa thanh toán',
+        overdue: 'Quá hạn thanh toán',
       }[this.paymentState(booking)];
+    },
+    isSettlementOverdue(booking) {
+      if (!booking?.booking_date || !booking?.end_time || !['checked_in', 'completed'].includes(booking.status)) {
+        return false;
+      }
+
+      const endAt = new Date(`${String(booking.booking_date).slice(0, 10)}T${String(booking.end_time).slice(0, 8)}`);
+      return !Number.isNaN(endAt.getTime())
+        && Date.now() > endAt.getTime() + 15 * 60 * 1000;
     },
     async copyText(text) {
       if (!text) return;

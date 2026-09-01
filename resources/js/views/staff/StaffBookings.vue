@@ -520,6 +520,12 @@
                     {{ formatCurrency(outstandingAmount(selectedTimelineBooking)) }}
                   </strong>
                 </div>
+                <div v-if="outstandingAmount(selectedTimelineBooking) > 0" class="pos-info-row is-due">
+                  <span class="pos-info-label">Tình trạng thanh toán</span>
+                  <strong class="pos-info-val is-outstanding">
+                    {{ paymentStateLabel(selectedTimelineBooking) }}
+                  </strong>
+                </div>
               </div>
 
               <!-- FAST POS ACTION BUTTONS -->
@@ -1023,6 +1029,7 @@
 
 <script>
 import { ownerBookingService } from '../../services/ownerBookings.js';
+import { ownerBookingConfigService } from '../../services/ownerBookingConfigs.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import AppIcon from '../../components/AppIcon.vue';
@@ -1030,12 +1037,10 @@ import MiniCalendar from '../../components/MiniCalendar.vue';
 import StaffQuickRetailModal from '../../components/staff/StaffQuickRetailModal.vue';
 import StaffQrScannerModal from '../../components/staff/StaffQrScannerModal.vue';
 import { playSuccessChime } from '../../utils/audioChime.js';
+import { addCalendarDays, businessDateLabel, businessDateString, businessMinutes, businessTimeString } from '../../utils/businessTime.js';
 
 function localIsoDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return businessDateString(date);
 }
 
 export default {
@@ -1061,6 +1066,7 @@ export default {
       scheduleBusyIntervals: [],
       scheduleSlotStatuses: [],
       scheduleOperatingHours: null,
+      bookingConfigs: {},
       selectedTimelineItem: null,
       activeTimePeriod: 'business',
       viewMode: 'matrix', // 'matrix' | 'arena' | 'list'
@@ -1142,17 +1148,25 @@ export default {
     activePeriod() {
       return this.timePeriods.find((period) => period.key === this.activeTimePeriod) || this.timePeriods[0];
     },
+    bookingDurationMinutes() {
+      const configured = Number(this.bookingConfigs[String(this.filters.venue_cluster_id)]?.min_duration_minutes);
+      return Number.isInteger(configured) && configured >= 30 && configured <= 120 && configured % 30 === 0
+        ? configured
+        : 30;
+    },
     verticalHourlySlots() {
       const slots = [];
-      const step = 60;
+      const step = this.bookingDurationMinutes;
       const period = this.activePeriod;
 
       for (let minutes = period.start; minutes < period.end; minutes += step) {
+        const end = Math.min(minutes + step, period.end);
+        if (end <= minutes) continue;
         slots.push({
           start: minutes,
-          end: minutes + step,
-          label: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
-          timeLabel: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
+          end,
+          label: `${this.minutesToTime(minutes)} - ${this.minutesToTime(end)}`,
+          timeLabel: `${this.minutesToTime(minutes)} - ${this.minutesToTime(end)}`,
         });
       }
       return slots;
@@ -1323,6 +1337,7 @@ export default {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
     document.addEventListener('click', this.handleOutsideClick);
     await this.loadClusters();
+    await this.loadBookingConfigs();
     await this.loadTodayShift();
     await this.loadBookings();
   },
@@ -1358,10 +1373,7 @@ export default {
       this.showPeriodDropdown = false;
     },
     updateClock() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      this.currentClockTime = `${hh}:${mm}`;
+      this.currentClockTime = businessTimeString();
     },
     async quickCheckIn(booking) {
       if (!booking) return;
@@ -1421,24 +1433,18 @@ export default {
       return iso === localIsoDate();
     },
     isTomorrow(iso) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return iso === localIsoDate(tomorrow);
+      return iso === addCalendarDays(localIsoDate(), 1);
     },
     setToday() {
       this.filters.booking_date = localIsoDate();
       this.loadBookings();
     },
     setTomorrow() {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      this.filters.booking_date = localIsoDate(tomorrow);
+      this.filters.booking_date = addCalendarDays(localIsoDate(), 1);
       this.loadBookings();
     },
     shiftDate(days) {
-      const current = new Date(`${this.filters.booking_date}T00:00:00`);
-      current.setDate(current.getDate() + days);
-      this.filters.booking_date = localIsoDate(current);
+      this.filters.booking_date = addCalendarDays(this.filters.booking_date, days);
       this.loadBookings();
     },
     onDateSelect(val) {
@@ -1457,6 +1463,18 @@ export default {
         }
       } catch {
         this.clusters = [];
+      }
+    },
+
+    async loadBookingConfigs() {
+      try {
+        const response = await ownerBookingConfigService.list();
+        this.bookingConfigs = (response.data || []).reduce((configs, cluster) => {
+          configs[String(cluster.id)] = cluster.booking_config || null;
+          return configs;
+        }, {});
+      } catch {
+        this.bookingConfigs = {};
       }
     },
 
@@ -1607,14 +1625,16 @@ export default {
       const customer = this.customerName(booking);
       const paymentState = this.paymentState(booking);
 
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = businessMinutes();
       const isTodayBooking = this.isToday(this.filters.booking_date);
 
       let statusPill = null;
       let turnoverClass = '';
       if (booking.status === 'checked_in') {
-        if (isTodayBooking && currentMinutes > end) {
+        if (paymentState === 'overdue') {
+          statusPill = { type: 'overtime', label: 'Quá hạn thanh toán' };
+          turnoverClass = 'is-overtime';
+        } else if (isTodayBooking && currentMinutes > end) {
           const overMins = currentMinutes - end;
           statusPill = { type: 'overtime', label: `Quá ${overMins}p` };
           turnoverClass = 'is-overtime';
@@ -1688,8 +1708,7 @@ export default {
       const today = localIsoDate();
       if (this.filters.booking_date < today) return true;
       if (this.filters.booking_date > today) return false;
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowMinutes = businessMinutes();
       return slot.start <= nowMinutes;
     },
 
@@ -1764,8 +1783,8 @@ export default {
         } else {
           this.notice = 'Đã tạo đơn đặt sân tại quầy thành công!';
           playSuccessChime();
-          await this.loadBookings();
           this.closeDrawer();
+          await this.loadBookings();
         }
       } catch (err) {
         this.counterError = err.message || 'Không thể tạo đặt sân tại quầy.';
@@ -1785,8 +1804,8 @@ export default {
           if (this.outstandingAmount(booking) <= 0 || booking.status === 'confirmed') {
             this.notice = 'Chuyển khoản SePay thành công!';
             playSuccessChime();
-            await this.loadBookings();
             this.closeDrawer();
+            await this.loadBookings();
           }
         } catch {
           this.clearCounterPolling();
@@ -1832,8 +1851,8 @@ export default {
       try {
         await ownerBookingService.updateStatus(booking.id, { action });
         this.notice = 'Đã cập nhật trạng thái đơn đặt sân!';
-        await this.loadBookings();
         this.closeDrawer();
+        await this.loadBookings();
       } catch (err) {
         this.error = err.message || 'Không thể cập nhật trạng thái.';
       } finally {
@@ -1843,7 +1862,7 @@ export default {
 
     canCollectPayment(booking) {
       return (
-        !['cancelled', 'expired', 'rejected'].includes(booking.status) &&
+        !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status) &&
         this.outstandingAmount(booking) > 0
       );
     },
@@ -1881,9 +1900,9 @@ export default {
       try {
         await ownerBookingService.changeCourt(this.changeCourtBooking.id, this.changeCourtForm);
         this.notice = 'Đã đổi sân thực tế thành công!';
-        await this.loadBookings();
         this.closeChangeCourt();
         this.closeDrawer();
+        await this.loadBookings();
       } catch (err) {
         this.error = err.message || 'Không thể đổi sân.';
       } finally {
@@ -1892,6 +1911,7 @@ export default {
     },
 
     openCollectPayment(booking) {
+      this.showQrScannerModal = false;
       const pendingTransfer = this.pendingTransfer(booking);
       this.collectBooking = booking;
       this.collectForm = {
@@ -1922,10 +1942,11 @@ export default {
           this.collectQr = response.payment_qr || null;
           this.startCollectPolling();
         } else {
-          this.notice = 'Đã ghi nhận thu tiền tại quầy thành công!';
+          this.notice = 'Đã ghi nhận thanh toán thành công!';
           await this.loadBookings();
           this.closeCollectPayment();
           this.closeDrawer();
+          await this.loadBookings();
         }
       } catch (err) {
         this.error = err.message || 'Không thể ghi nhận thu tiền.';
@@ -1944,9 +1965,9 @@ export default {
           this.collectBooking = booking;
           if (this.outstandingAmount(booking) <= 0) {
             this.notice = 'Chuyển khoản SePay đã được ghi nhận!';
-            await this.loadBookings();
             this.closeCollectPayment();
             this.closeDrawer();
+            await this.loadBookings();
           }
         } catch {
           this.clearCollectPolling();
@@ -1988,9 +2009,9 @@ export default {
           status_reason: this.statusActionReason,
         });
         this.notice = this.statusAction === 'reject' ? 'Đã từ chối booking!' : 'Đã hủy booking!';
-        await this.loadBookings();
         this.closeStatusAction();
         this.closeDrawer();
+        await this.loadBookings();
       } catch (err) {
         this.error = err.message || 'Không thể thao tác đơn.';
       } finally {
@@ -2047,9 +2068,31 @@ export default {
 
     paymentState(booking) {
       if (this.outstandingAmount(booking) <= 0) return 'paid';
+      if (booking?.settlement_status === 'overdue' || this.isSettlementOverdue(booking)) return 'overdue';
       if (this.bookingHasPendingTransfer(booking)) return 'pending';
+      if (booking?.settlement_status) return booking.settlement_status;
       if (this.paidAmount(booking) > 0) return 'partial';
       return 'unpaid';
+    },
+
+    isSettlementOverdue(booking) {
+      if (!booking?.booking_date || !booking?.end_time || !['checked_in', 'completed'].includes(booking.status)) {
+        return false;
+      }
+
+      const endAt = new Date(`${String(booking.booking_date).slice(0, 10)}T${String(booking.end_time).slice(0, 8)}`);
+      return !Number.isNaN(endAt.getTime())
+        && Date.now() > endAt.getTime() + 15 * 60 * 1000;
+    },
+
+    paymentStateLabel(booking) {
+      return {
+        paid: 'Đã đủ',
+        pending: 'Chờ chuyển khoản',
+        partial: 'Còn thiếu',
+        unpaid: 'Chưa thanh toán',
+        overdue: 'Quá hạn thanh toán',
+      }[this.paymentState(booking)] || 'Chưa xác định';
     },
 
     bookingHasPendingTransfer(booking) {
@@ -2075,8 +2118,7 @@ export default {
     },
 
     formatDate(value) {
-      if (!value) return '-';
-      return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`));
+      return businessDateLabel(value) || '-';
     },
 
     formatTime(time) {
@@ -2103,11 +2145,13 @@ export default {
     },
 
     onRetailOrderCompleted(orderData) {
+      this.showQuickRetailModal = false;
       this.notice = `Đã ghi nhận bán dịch vụ ${this.formatCurrency(orderData.totalAmount)} (${orderData.paymentMethod === 'cash' ? 'Tiền mặt' : 'VietQR'})!`;
       playSuccessChime();
     },
 
     async onQrCheckedIn(booking) {
+      this.showQrScannerModal = false;
       this.notice = `Đã Check-in vé #${booking.booking_code} vào sân thành công!`;
       playSuccessChime();
       await this.loadBookings();

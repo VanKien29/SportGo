@@ -14,6 +14,7 @@ use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use App\Services\Partner\PartnerTerminationFlowService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -493,7 +494,7 @@ class PartnerApplicationController extends Controller
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
             'detail_reason' => ['nullable', 'string', 'max:5000'],
-            'requested_effective_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'requested_effective_date' => ['nullable', 'date', 'after_or_equal:'.$this->businessToday()],
             'future_booking_policy' => ['nullable', Rule::in([
                 PartnerTerminationFlowService::POLICY_CANCEL_ALL,
                 PartnerTerminationFlowService::POLICY_SERVE_UNTIL_LAST,
@@ -904,6 +905,11 @@ class PartnerApplicationController extends Controller
             'settlement_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
             default => 'Theo cấu hình placeholder chữ ký của template',
         };
+    }
+
+    private function businessToday(): string
+    {
+        return Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->toDateString();
     }
 
     private function deviceLabel(?string $userAgent): string

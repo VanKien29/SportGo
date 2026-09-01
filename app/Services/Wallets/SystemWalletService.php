@@ -294,16 +294,17 @@ class SystemWalletService
     public function promotionExpenseByPeriod(string $periodType, ?Carbon $date = null): array
     {
         [$start, $end, $label] = $this->periodBounds($periodType, $date);
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
 
         $voucher = SystemWalletLedger::query()
             ->where('entry_kind', 'voucher_subsidy')
-            ->whereBetween('transacted_at', [$start, $end])
+            ->whereBetween('transacted_at', [$storageStart, $storageEnd])
             ->selectRaw('COALESCE(SUM(amount), 0) as total, COUNT(*) as count')
             ->first();
 
         $refund = SystemWalletLedger::query()
             ->where('entry_kind', 'refund_to_wallet')
-            ->whereBetween('transacted_at', [$start, $end])
+            ->whereBetween('transacted_at', [$storageStart, $storageEnd])
             ->selectRaw('COALESCE(SUM(amount), 0) as total, COUNT(*) as count')
             ->first();
 
@@ -326,10 +327,11 @@ class SystemWalletService
     public function revenueSummaryByPeriod(string $periodType, ?Carbon $date = null): array
     {
         [$start, $end, $label] = $this->periodBounds($periodType, $date);
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
 
         $platformPaid = DB::table('venue_platform_fee_ledgers')
             ->where('status', 'paid')
-            ->whereBetween('paid_at', [$start, $end])
+            ->whereBetween('paid_at', [$storageStart, $storageEnd])
             ->selectRaw('COALESCE(SUM(amount_paid), 0) as total_paid, COUNT(*) as paid_count')
             ->first();
 
@@ -341,13 +343,13 @@ class SystemWalletService
 
         $platformOverdue = DB::table('venue_platform_fee_ledgers')
             ->whereNotIn('status', ['paid', 'cancelled'])
-            ->whereDate('due_date', '<', now()->toDateString())
+            ->whereDate('due_date', '<', Carbon::now((string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh'))->toDateString())
             ->selectRaw('COALESCE(SUM(amount_due - amount_paid), 0) as overdue_amount, COUNT(*) as overdue_count')
             ->first();
 
         $bookingPayments = DB::table('payments')
             ->where('status', 'paid')
-            ->whereBetween('paid_at', [$start, $end])
+            ->whereBetween('paid_at', [$storageStart, $storageEnd])
             ->selectRaw('COALESCE(SUM(amount), 0) as total, COUNT(*) as count')
             ->first();
 
@@ -444,8 +446,8 @@ class SystemWalletService
     ): void {
         $response = Http::acceptJson()->withToken($token)->get($baseUrl.'/transactions', [
             'bank_account_id' => $remoteAccountId,
-            'transaction_date_from' => now()->subDays(30)->format('Y-m-d 00:00:00'),
-            'transaction_date_to' => now()->format('Y-m-d 23:59:59'),
+            'transaction_date_from' => Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->subDays(30)->format('Y-m-d 00:00:00'),
+            'transaction_date_to' => Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->format('Y-m-d 23:59:59'),
             'transaction_date_sort' => 'desc',
             'per_page' => 100,
             'timestamp_format' => 'iso8601',
@@ -601,7 +603,9 @@ class SystemWalletService
     private function periodBounds(string $periodType, ?Carbon $date = null): array
     {
         $periodType = in_array($periodType, ['week', 'month', 'year'], true) ? $periodType : 'month';
-        $date = ($date ?: now())->copy();
+        $date = ($date ?: Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh')))
+            ->copy()
+            ->setTimezone((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
 
         if ($periodType === 'week') {
             $start = $date->copy()->startOfWeek();
@@ -618,6 +622,16 @@ class SystemWalletService
         }
 
         return [$start->startOfDay(), $end->endOfDay(), $label];
+    }
+
+    private function storageRange(Carbon $start, Carbon $end): array
+    {
+        $storageTimezone = (string) config('app.timezone', 'UTC');
+
+        return [
+            $start->copy()->setTimezone($storageTimezone),
+            $end->copy()->setTimezone($storageTimezone),
+        ];
     }
 
     private function responseRows(array $payload): array

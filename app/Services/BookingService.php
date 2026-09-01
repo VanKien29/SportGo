@@ -662,7 +662,7 @@ class BookingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertCounterBookingCanCollect($booking);
+            $this->assertBookingCanCollect($booking);
 
             $outstandingAmount = $this->outstandingAmount($booking);
             $collectionAmount = round((float) ($amount ?: $outstandingAmount), 2);
@@ -847,6 +847,53 @@ class BookingService
             ->sum('amount');
 
         return round(max((float) $booking->total_price - $paidAmount, 0), 2);
+    }
+
+    /**
+     * Trạng thái quyết toán được tính riêng với vòng đời sử dụng sân.
+     * Không thêm status mới vào bảng bookings để tránh làm sai các luồng cũ.
+     */
+    public function settlementSummary(Booking $booking, ?Carbon $at = null): array
+    {
+        $paidAmount = $booking->relationLoaded('payments')
+            ? (float) $booking->payments->where('status', 'paid')->sum('amount')
+            : (float) Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'paid')
+                ->sum('amount');
+        $outstandingAmount = round(max((float) $booking->total_price - $paidAmount, 0), 2);
+        $now = ($at ?: Carbon::now($this->businessTimezone()))->copy()->setTimezone($this->businessTimezone());
+        $settlementDueAt = null;
+
+        if ($booking->booking_date && $booking->end_time) {
+            $date = $booking->booking_date instanceof Carbon
+                ? $booking->booking_date->toDateString()
+                : (string) $booking->booking_date;
+            $settlementDueAt = Carbon::parse($date . ' ' . (string) $booking->end_time, $this->businessTimezone())
+                ->addMinutes(15);
+        }
+
+        $isOverdue = $outstandingAmount > 0.009
+            && in_array($booking->status, ['checked_in', 'completed'], true)
+            && $settlementDueAt
+            && $now->greaterThan($settlementDueAt);
+        $status = $outstandingAmount <= 0.009
+            ? 'paid'
+            : ($isOverdue ? 'overdue' : ($paidAmount > 0.009 ? 'partial' : 'unpaid'));
+
+        return [
+            'status' => $status,
+            'label' => [
+                'paid' => 'Đã đủ',
+                'partial' => 'Còn thiếu',
+                'unpaid' => 'Chưa thanh toán',
+                'overdue' => 'Quá hạn thanh toán',
+            ][$status],
+            'paid_amount' => round($paidAmount, 2),
+            'outstanding_amount' => $outstandingAmount,
+            'due_at' => $settlementDueAt?->toIso8601String(),
+            'is_overdue' => $isOverdue,
+        ];
     }
 
     public function calculateRequiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
@@ -1421,15 +1468,9 @@ class BookingService
         return round($systemDiscount * $ratio, 2);
     }
 
-    private function assertCounterBookingCanCollect(Booking $booking): void
+    private function assertBookingCanCollect(Booking $booking): void
     {
-        if ($booking->source !== 'counter') {
-            throw ValidationException::withMessages([
-                'booking_id' => 'Chỉ hỗ trợ thu tiền tại quầy cho booking được tạo tại quầy.',
-            ]);
-        }
-
-        if (in_array($booking->status, ['cancelled', 'expired', 'rejected'], true)) {
+        if (in_array($booking->status, ['cancelled', 'expired', 'rejected', 'no_show'], true)) {
             throw ValidationException::withMessages([
                 'booking_id' => 'Booking này không còn ở trạng thái có thể thu tiền.',
             ]);
@@ -2472,6 +2513,7 @@ class BookingService
                         $paidAmount = (float) $booking->payments
                             ->where('status', 'paid')
                             ->sum('amount');
+                        $settlement = $this->settlementSummary($booking);
 
                         return [
                             ...$payload,
@@ -2481,7 +2523,11 @@ class BookingService
                             'total_price' => (float) $booking->total_price,
                             'required_payment_amount' => (float) $booking->required_payment_amount,
                             'paid_amount' => $paidAmount,
-                            'outstanding_amount' => max((float) $booking->total_price - $paidAmount, 0),
+                            'outstanding_amount' => $settlement['outstanding_amount'],
+                            'settlement_status' => $settlement['status'],
+                            'settlement_status_label' => $settlement['label'],
+                            'settlement_due_at' => $settlement['due_at'],
+                            'settlement_overdue' => $settlement['is_overdue'],
                             'booking_source' => $booking->source,
                             'customer' => $booking->customer ? [
                                 'id' => $booking->customer->id,

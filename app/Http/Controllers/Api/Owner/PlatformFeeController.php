@@ -361,8 +361,9 @@ class PlatformFeeController extends Controller
         $ledger->loadMissing('planVersion');
         $effectiveStatus = $this->effectiveStatus($ledger);
         $dueDate = $ledger->due_date ?? $ledger->period_end;
-        $daysUntilDue = $dueDate ? today()->diffInDays($dueDate, false) : null;
-        $periodDaysRemaining = $ledger->period_end ? (int) today()->diffInDays($ledger->period_end, false) : null;
+        $today = $this->platformFeeToday();
+        $daysUntilDue = $dueDate ? $today->diffInDays($this->platformFeeDate($dueDate), false) : null;
+        $periodDaysRemaining = $ledger->period_end ? (int) $today->diffInDays($this->platformFeeDate($ledger->period_end), false) : null;
         $amountRemaining = max(0, (float) $ledger->amount_due - (float) $ledger->amount_paid);
         $paymentAccount = $ledger->systemBankAccount ?: $defaultPaymentAccount;
         $periodState = $this->periodState($ledger);
@@ -445,7 +446,7 @@ class PlatformFeeController extends Controller
 
         $dueDate = $ledger->due_date ?? $ledger->period_end;
 
-        return $dueDate && Carbon::parse($dueDate)->isBefore(today()) ? 'overdue' : 'pending';
+        return $dueDate && $this->platformFeeDate($dueDate)->lt($this->platformFeeToday()) ? 'overdue' : 'pending';
     }
 
     private function periodState(VenuePlatformFeeLedger $ledger): string
@@ -454,11 +455,13 @@ class PlatformFeeController extends Controller
             return 'unknown';
         }
 
-        if (today()->lt($ledger->period_start)) {
+        $today = $this->platformFeeToday();
+
+        if ($today->lt($this->platformFeeDate($ledger->period_start))) {
             return 'upcoming';
         }
 
-        if (today()->gt($ledger->period_end)) {
+        if ($today->gt($this->platformFeeDate($ledger->period_end))) {
             return 'expired';
         }
 
@@ -470,6 +473,25 @@ class PlatformFeeController extends Controller
         $months = (int) ($ledger->period_months ?: 1);
 
         return $ledger->settlement_type === 'trial' ? 'Kỳ miễn phí dùng thử' : "Kỳ {$months} tháng";
+    }
+
+    private function platformFeeTimezone(): string
+    {
+        return (string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function platformFeeToday(): Carbon
+    {
+        return Carbon::now($this->platformFeeTimezone())->startOfDay();
+    }
+
+    private function platformFeeDate(mixed $value): Carbon
+    {
+        $date = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : Carbon::parse((string) $value, $this->platformFeeTimezone())->format('Y-m-d');
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->platformFeeTimezone());
     }
 
     private function paymentResponse(array $result, string $message = 'Đã tạo mã thanh toán phí nền tảng.'): JsonResponse

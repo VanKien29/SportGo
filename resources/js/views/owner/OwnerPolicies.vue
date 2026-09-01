@@ -156,60 +156,62 @@
             <p>{{ cancelRefundModal.title }} · {{ currentCluster?.name }}</p>
           </div>
         </header>
-        <div class="modal-guide">
-          <strong>Được tùy chỉnh mốc thời gian</strong>
-          <p>Chủ sân có thể thêm, xóa hoặc đổi khoảng giờ. Bảng mốc phải liên tục từ 0 giờ đến vô hạn và tại mọi thời điểm không được bất lợi hơn chính sách hệ thống.</p>
+        <div class="policy-modal-scroll">
+          <div class="modal-guide">
+            <strong>Được tùy chỉnh mốc thời gian</strong>
+            <p>Chủ sân có thể thêm, xóa hoặc đổi khoảng giờ. Bảng mốc phải liên tục từ 0 giờ đến vô hạn và tại mọi thời điểm không được bất lợi hơn chính sách hệ thống.</p>
+          </div>
+          <label class="status-field">
+            Trạng thái chính sách sân
+            <select v-model="cancelRefundForm.status">
+              <option value="active">Áp dụng ngay cho cụm sân</option>
+              <option value="draft">Lưu nháp, chưa áp dụng</option>
+            </select>
+          </label>
+          <div class="services-table-wrapper">
+            <table class="services-data-table tiers-table">
+              <thead>
+                <tr>
+                  <th>Mốc thời gian</th>
+                  <th>Khung hệ thống</th>
+                  <th>Chính sách sân</th>
+                  <th>Xác nhận hoàn</th>
+                  <th>Nội dung cho khách</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(tier, index) in cancelRefundForm.tiers" :key="tier.key || index">
+                  <td>
+                    <strong>{{ tier.label }}</strong>
+                    <small class="cell-sub">{{ rangeText(tier) }}</small>
+                  </td>
+                  <td>
+                    <span>Hoàn tối thiểu {{ tier.system_refund_percent }}%</span>
+                    <small class="cell-sub">{{ tier.system_allow_cancel ? 'Hệ thống cho hủy' : 'Hệ thống không cho hủy' }}</small>
+                  </td>
+                  <td>
+                    <label class="check">
+                      <input v-model="tier.allow_cancel" type="checkbox" disabled />
+                      <span>{{ tier.allow_cancel ? 'Có' : 'Không' }}</span>
+                    </label>
+                    <label>
+                      Tỷ lệ hoàn của sân
+                      <input v-model.number="tier.refund_percent" type="number" min="0" max="100" step="1" />
+                    </label>
+                  </td>
+                  <td class="confirm-cell">
+                    <label class="check"><input v-model="tier.require_owner_confirm" type="checkbox" :disabled="tier.system_require_owner_confirm" /> Chủ sân</label>
+                  </td>
+                  <td>
+                    <textarea v-model.trim="tier.customer_message" rows="2" maxlength="500" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="cancelRefundError || cancelRefundValidation" class="form-error">{{ cancelRefundError || cancelRefundValidation }}</p>
+          <p class="preview">{{ cancelRefundPreview }}</p>
         </div>
-        <label class="status-field">
-          Trạng thái chính sách sân
-          <select v-model="cancelRefundForm.status">
-            <option value="active">Áp dụng ngay cho cụm sân</option>
-            <option value="draft">Lưu nháp, chưa áp dụng</option>
-          </select>
-        </label>
-        <div class="services-table-wrapper">
-          <table class="services-data-table tiers-table">
-            <thead>
-              <tr>
-                <th>Mốc thời gian</th>
-                <th>Khung hệ thống</th>
-                <th>Chính sách sân</th>
-                <th>Xác nhận hoàn</th>
-                <th>Nội dung cho khách</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(tier, index) in cancelRefundForm.tiers" :key="tier.key || index">
-                <td>
-                  <strong>{{ tier.label }}</strong>
-                  <small class="cell-sub">{{ rangeText(tier) }}</small>
-                </td>
-                <td>
-                  <span>Hoàn tối thiểu {{ tier.system_refund_percent }}%</span>
-                  <small class="cell-sub">{{ tier.system_allow_cancel ? 'Hệ thống cho hủy' : 'Hệ thống không cho hủy' }}</small>
-                </td>
-                <td>
-                  <label class="check">
-                    <input v-model="tier.allow_cancel" type="checkbox" disabled />
-                    <span>{{ tier.allow_cancel ? 'Có' : 'Không' }}</span>
-                  </label>
-                  <label>
-                    Tỷ lệ hoàn của sân
-                    <input v-model.number="tier.refund_percent" type="number" min="0" max="100" step="1" />
-                  </label>
-                </td>
-                <td class="confirm-cell">
-                  <label class="check"><input v-model="tier.require_owner_confirm" type="checkbox" :disabled="tier.system_require_owner_confirm" /> Chủ sân</label>
-                </td>
-                <td>
-                  <textarea v-model.trim="tier.customer_message" rows="2" maxlength="500" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p v-if="cancelRefundError || cancelRefundValidation" class="form-error">{{ cancelRefundError || cancelRefundValidation }}</p>
-        <p class="preview">{{ cancelRefundPreview }}</p>
         <footer>
           <button class="btn secondary" type="button" @click="fillSystemDefault">Điền lại theo hệ thống</button>
           <button class="btn secondary" type="button" @click="closeCancelRefund">Hủy</button>
@@ -424,6 +426,32 @@ export default {
     policyVenueSummary(policy) {
       const config = this.cancelRefundConfig(policy);
       return config.effective_summary || config.venue_summary || 'Sân đang dùng mặc định hệ thống.';
+    },
+    venueTierLine(policy, systemTier) {
+      const config = this.cancelRefundConfig(policy);
+      const venueTiers = Array.isArray(config.venue_tiers) ? config.venue_tiers : [];
+
+      if (!config.venue_rule_id || !venueTiers.length) {
+        return 'Sân đang dùng khung hệ thống.';
+      }
+
+      const overlappingTiers = venueTiers.filter((venueTier) => this.timeRangesOverlap(systemTier, venueTier));
+      if (!overlappingTiers.length) {
+        return 'Chưa xác định được mốc áp dụng của chính sách sân.';
+      }
+
+      const detail = overlappingTiers
+        .map((venueTier) => {
+          const action = venueTier.allow_cancel
+            ? `hoàn ${Number(venueTier.refund_percent || 0)}%`
+            : 'không cho hủy';
+          return `${this.rangeText(venueTier)}: ${action}`;
+        })
+        .join(' · ');
+
+      return config.venue_rule_status === 'draft'
+        ? `Bản nháp của sân: ${detail}`
+        : `Chính sách sân: ${detail}`;
     },
     effectiveTiers(policy) {
       const config = this.cancelRefundConfig(policy);
@@ -1019,9 +1047,13 @@ export default {
 
 /* Modal Services Data Table */
 .services-table-wrapper {
-  overflow-x: auto;
+  height: min(520px, calc(100vh - 360px));
+  min-height: 0;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
   border: none;
   border-radius: 10px;
+  scrollbar-gutter: stable;
 }
 
 .services-data-table {
@@ -1110,8 +1142,10 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-sizing: border-box;
   max-height: calc(100vh - 40px);
-  overflow-y: auto;
+  overflow-y: auto !important;
+  overflow-x: hidden;
   padding: 20px;
   background: #ffffff;
   border: 1px solid var(--admin-border, #e2e8f0);
@@ -1121,6 +1155,20 @@ export default {
 
 .modal.wide {
   width: min(1180px, calc(100vw - 32px));
+  height: min(900px, calc(100vh - 40px));
+  overflow: hidden !important;
+}
+
+.policy-modal-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .modal-head h3 {

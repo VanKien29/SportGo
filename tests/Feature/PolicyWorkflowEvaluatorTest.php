@@ -62,9 +62,10 @@ class PolicyWorkflowEvaluatorTest extends TestCase
             '2026-01-10 09:00:00' => 50,
             '2026-01-10 11:30:00' => 0,
         ];
+        $businessTimezone = config('app.business_timezone', 'Asia/Ho_Chi_Minh');
 
         foreach ($cases as $cancelAt => $expectedRefundPercent) {
-            $result = $service->evaluateBookingCancellation($booking, null, Carbon::parse($cancelAt));
+            $result = $service->evaluateBookingCancellation($booking, null, Carbon::parse($cancelAt, $businessTimezone));
 
             $this->assertTrue($result['allow_cancel']);
             $this->assertSame((float) $expectedRefundPercent, $result['refund_percent']);

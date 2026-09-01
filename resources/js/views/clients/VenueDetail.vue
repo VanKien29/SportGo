@@ -399,8 +399,13 @@
                     :style="courtLayoutStyle(court)"
                     @click="selectLayoutCourt(court)"
                   >
-                    <span class="sg-court-node-name">{{ court.shortName }}</span>
-                    <span class="sg-court-node-type">{{ court.court_type?.name || "Sân thể thao" }}</span>
+                    <CourtVisual
+                      :name="court.name || `Sân ${court.layoutIndex + 1}`"
+                      :court-type-name="court.court_type?.name"
+                      :image-url="imageUrl(court.image_url || court.custom_image_url || court.image)"
+                      status="active"
+                      :show-type="false"
+                    />
                   </button>
                   <div
                     v-for="decoration in layoutDecorationItems"
@@ -408,8 +413,11 @@
                     class="sg-court-deco-item"
                     :style="courtLayoutStyle(decoration)"
                   >
-                    <AppIcon :name="decorationIcon(decoration.type)" :size="15" />
-                    <span>{{ decoration.name }}</span>
+                    <DecorationVisual
+                      :type="decoration.type"
+                      :name="decoration.name"
+                      :rotation="decoration.layout_rotation || 0"
+                    />
                   </div>
                 </div>
 
@@ -439,7 +447,7 @@
                 <div class="sg-price-heading-row">
                   <div>
                     <h2 class="sg-section-title">Bảng giá thuê sân</h2>
-                    <p class="sg-section-sub">Giá hiển thị theo đúng cấu hình của cụm sân. Khi đặt sân, hệ thống ưu tiên ngày đặc biệt, ngày thường rồi mới dùng giá chung.</p>
+                    <p class="sg-section-sub">Giá tham khảo theo từng ngày và khung giờ. Khi đặt sân, hệ thống sẽ áp dụng mức giá phù hợp nhất.</p>
                   </div>
                   <span class="sg-price-count">{{ pricingRows.length }} mức giá</span>
                 </div>
@@ -449,35 +457,28 @@
                     <thead>
                       <tr>
                         <th scope="col">Loại sân</th>
-                        <th scope="col">Cấu hình giá</th>
                         <th scope="col">Ngày áp dụng</th>
                         <th scope="col">Khung giờ</th>
-                        <th scope="col">Loại đặt</th>
-                        <th scope="col" class="sg-price-cell-right">Đơn giá / giờ</th>
+                        <th scope="col" class="sg-price-cell-right">Giá thuê / giờ</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="row in pricingRows" :key="row.key" :class="`is-${row.source}`">
                         <td>
                           <strong class="sg-price-court-name">{{ row.courtName }}</strong>
-                          <span v-if="row.note" class="sg-price-note">{{ row.note }}</span>
-                        </td>
-                        <td>
-                          <span class="sg-price-source">{{ row.sourceLabel }}</span>
+                          <span v-if="row.isSpecial" class="sg-price-promo">Ngày đặc biệt</span>
                         </td>
                         <td>{{ row.daysLabel }}</td>
                         <td>{{ row.timeLabel }}</td>
-                        <td>{{ row.bookingTypeLabel }}</td>
                         <td class="sg-price-cell-right">
                           <strong class="sg-price-value">{{ formatCurrency(row.price) }}</strong>
-                          <span v-if="row.isSpecial" class="sg-price-promo">Giá ưu đãi</span>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <p class="sg-price-footnote">Voucher, hạng thành viên và ưu đãi theo tài khoản (nếu đủ điều kiện) sẽ được trừ ở bước xác nhận đặt sân.</p>
+                <p class="sg-price-footnote">Giá cuối cùng có thể thay đổi theo ưu đãi hoặc hạng thành viên của bạn ở bước xác nhận đặt sân.</p>
               </div>
 
               <!-- Chính sách & Quy định -->
@@ -493,7 +494,6 @@
                 <div v-if="policyNotices.length" class="sg-policy-notices">
                   <div class="sg-policy-notices-head">
                     <strong>Thông tin áp dụng</strong>
-                    <span>{{ policyNoticeSourceLabel }}</span>
                   </div>
                   <article v-for="notice in policyNotices" :key="notice.id" class="sg-policy-notice">
                     <strong>{{ notice.title }}</strong>
@@ -731,6 +731,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import CourtVisual from "../../components/CourtVisual.vue";
+import DecorationVisual from "../../components/DecorationVisual.vue";
 import ComplaintModal from "../../components/ComplaintModal.vue";
 import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
@@ -738,11 +740,12 @@ import { venueService } from "../../services/venues.js";
 import { chatService } from "../../services/chat.service.js";
 import { affiliateProductService } from "../../services/affiliateProducts.js";
 import { getAuth, restoreAuth } from "../../stores/auth.js";
+import { BUSINESS_TIMEZONE, businessDateLabel, businessDateString, businessDateTime } from "../../utils/businessTime.js";
 import { useToast } from "vue-toastification";
 
 export default {
   name: "VenueDetail",
-  components: { PublicNavbar, AppIcon, ComplaintModal, ReportModal, VenuePostsTab },
+  components: { PublicNavbar, AppIcon, CourtVisual, DecorationVisual, ComplaintModal, ReportModal, VenuePostsTab },
   setup() {
     return { toast: useToast() };
   },
@@ -852,7 +855,7 @@ export default {
       return { minX: minX - 80, minY: minY - 80, width: Math.max(900, maxX - minX + 160), height: Math.max(560, maxY - minY + 160) };
     },
     layoutCanvasStyle() {
-      return { aspectRatio: `${this.layoutBounds.width} / ${this.layoutBounds.height}` };
+      return {};
     },
     groupedServices() {
       const services = this.venue?.services || [];
@@ -889,48 +892,36 @@ export default {
       const baseRows = this.basePrices.map((price) => ({
         key: `base-${price.id}`,
         source: 'base',
-        sourceLabel: 'Giá chung',
         courtName: price.court_type?.name || 'Tất cả loại sân',
         daysLabel: 'Mọi ngày',
-        timeLabel: 'Khung giờ chưa có quy tắc',
-        bookingTypeLabel: 'Mọi loại đặt',
+        timeLabel: 'Mọi khung giờ',
         price: Number(price.price || 0),
-        note: 'Mức mặc định khi không có cấu hình khung giờ.',
         isSpecial: false,
       }));
 
       const weeklyRows = this.priceSlots.map((slot) => ({
         key: `slot-${slot.id}`,
         source: 'weekly',
-        sourceLabel: 'Giá ngày thường',
         courtName: slot.court_type?.name || 'Tất cả loại sân',
         daysLabel: this.daysLabel(slot.apply_to_days),
         timeLabel: `${this.timeLabel(slot.start_time)} - ${this.timeLabel(slot.end_time)}`,
-        bookingTypeLabel: this.bookingTypeLabel(slot.booking_type),
         price: Number(slot.price || 0),
-        note: '',
         isSpecial: false,
       }));
 
       const specialRows = this.holidayPrices.map((holiday) => ({
         key: `holiday-${holiday.id}`,
         source: 'special',
-        sourceLabel: holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ',
         courtName: holiday.court_type?.name || 'Tất cả loại sân',
         daysLabel: `${holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ'} ${this.formatDate(holiday.holiday_date)}`,
         timeLabel: `${this.timeLabel(holiday.start_time)} - ${this.timeLabel(holiday.end_time)}`,
-        bookingTypeLabel: this.bookingTypeLabel(holiday.booking_type),
         price: Number(holiday.price || 0),
-        note: holiday.note || '',
         isSpecial: true,
       }));
 
       return [...baseRows, ...weeklyRows, ...specialRows];
     },
     policyNotices() { return this.venue?.policies?.display_notices || []; },
-    policyNoticeSourceLabel() {
-      return this.venue?.policies?.display_notice_source_label || 'Theo chính sách hệ thống';
-    },
     policies() {
       const policy = this.venue?.policies || {};
       const hours = this.venue?.operating_hours || {};
@@ -939,7 +930,6 @@ export default {
         { label: "Giờ mở cửa", value: hours.fixed_open_time && hours.fixed_close_time ? `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}` : "Theo lịch ngày" },
         { label: "Đặt trước", value: this.durationLabel(policy.min_advance_booking_minutes) },
         { label: "Hủy & hoàn tiền", value: cancellationRefund.effective_summary || (policy.cancel_before_hours != null ? `Trước ${policy.cancel_before_hours}h · ${Number(policy.refund_percent || 0)}%` : "Theo chính sách hệ thống") },
-        { label: "Nguồn chính sách hủy", value: cancellationRefund.source_label || "Theo chính sách hệ thống" }
       ];
     },
     reviews() { return this.venue?.reviews || []; },
@@ -1059,8 +1049,8 @@ export default {
       const today = this.todayStr();
       const candidate = String(value || today);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate) || candidate < today) return today;
-      const date = new Date(`${candidate}T00:00:00`);
-      if (Number.isNaN(date.getTime()) || date.toLocaleDateString('en-CA') !== candidate) return today;
+      const date = businessDateTime(candidate, '00:00');
+      if (Number.isNaN(date.getTime()) || businessDateString(date) !== candidate) return today;
       return candidate;
     },
     normalizeTab(tab) {
@@ -1174,12 +1164,16 @@ export default {
     },
 
     formatDate(value) {
+      if (!value) return '';
+      const raw = String(value);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return businessDateLabel(raw);
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return '';
       return new Intl.DateTimeFormat('vi-VN', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
+        timeZone: BUSINESS_TIMEZONE,
       }).format(date);
     },
 
@@ -1227,7 +1221,7 @@ export default {
       if (this.bookDate !== this.todayStr()) return false;
       const endTime = String(slot?.end_time || slot?.start_time || "");
       if (!endTime) return false;
-      const end = new Date(`${this.bookDate}T${endTime}`);
+      const end = businessDateTime(this.bookDate, endTime);
       return !Number.isNaN(end.getTime()) && end.getTime() <= Date.now();
     },
 
@@ -1259,6 +1253,9 @@ export default {
           ...(this.venue.gallery || []),
         ];
         this.gallery = [...new Set(g.map(path => this.imageUrl(path)).filter(Boolean))];
+        if (!this.gallery.length) {
+          this.gallery = [this.fallbackVenueImage(this.venue.id)];
+        }
         this.activeImage = this.gallery[0] || null;
         this.loadMiniSchedule();
       } catch (err) {
@@ -1307,13 +1304,29 @@ export default {
 
     imageUrl(path) {
       if (!path) return null;
-      if (path.startsWith('http')) return path;
-      if (path.startsWith('/')) return path;
-      return `/storage/${path}`;
+      const value = String(path).trim();
+      if (/^(https?:|data:|blob:)/i.test(value)) return value;
+      if (value.startsWith('/')) return value;
+      if (value.startsWith('storage/')) return `/${value}`;
+      if (value.startsWith('public/')) return `/storage/${value.slice(7)}`;
+      return `/storage/${value}`;
+    },
+
+    fallbackVenueImage(venueId = 0) {
+      const pool = [
+        "/images/home/badminton-cover.webp",
+        "/images/home/anhbia2.webp",
+        "/images/home/sportgo-home-hero-v2.webp",
+        "/images/about_hero.png",
+      ];
+      return pool[Math.abs(Number(venueId) || 0) % pool.length];
     },
 
     removeGalleryImage(image) {
       this.gallery = this.gallery.filter((item) => item !== image);
+      if (!this.gallery.length && !String(image || '').startsWith('/images/')) {
+        this.gallery = [this.fallbackVenueImage(this.venue?.id)];
+      }
       if (this.activeImage === image) this.activeImage = this.gallery[0] || '';
     },
 
@@ -1322,11 +1335,7 @@ export default {
     },
 
     todayStr() {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return businessDateString();
     },
 
     formatPrice(val) {
@@ -2144,49 +2153,41 @@ export default {
 .sg-court-canvas {
   position: relative;
   width: 100%;
+  height: clamp(300px, 36vw, 420px);
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
+  background-image: radial-gradient(#cbd5e1 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
 }
 
 .sg-court-node-btn {
   position: absolute;
-  background: #ffffff;
-  border: 1px solid #94a3b8;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  overflow: visible;
   cursor: pointer;
-  padding: 4px 6px;
   transition: all 0.15s ease;
 }
 
 .sg-court-node-btn:hover,
 .sg-court-node-btn.is-selected {
-  border-color: #15803d;
-  box-shadow: 0 0 0 1px #15803d;
+  z-index: 20;
 }
 
-.sg-court-node-name {
-  font-size: 12.5px;
-  color: #0f172a;
-}
-
-.sg-court-node-type {
-  font-size: 10px;
-  color: #64748b;
+.sg-court-node-btn:hover,
+.sg-court-node-btn.is-selected {
+  filter: drop-shadow(0 0 3px #15803d) drop-shadow(0 8px 8px rgba(15, 23, 42, 0.18));
 }
 
 .sg-court-deco-item {
   position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: #64748b;
+  padding: 0;
+  overflow: visible;
 }
 
 .sg-court-selected-note {
@@ -2271,7 +2272,7 @@ export default {
 
 .sg-price-table {
   width: 100%;
-  min-width: 840px;
+  min-width: 620px;
   border-collapse: collapse;
   table-layout: fixed;
   color: #334155;
@@ -2280,7 +2281,7 @@ export default {
 
 .sg-price-table th,
 .sg-price-table td {
-  padding: 8px 10px;
+  padding: 7px 9px;
   border: 1px solid #dbe3ea;
   text-align: left;
   vertical-align: middle;
@@ -2305,26 +2306,18 @@ export default {
 }
 
 .sg-price-table th:nth-child(1),
-.sg-price-table td:nth-child(1) { width: 22%; }
+.sg-price-table td:nth-child(1) { width: 30%; }
 
 .sg-price-table th:nth-child(2),
-.sg-price-table td:nth-child(2) { width: 16%; }
+.sg-price-table td:nth-child(2) { width: 27%; }
 
 .sg-price-table th:nth-child(3),
-.sg-price-table td:nth-child(3) { width: 16%; }
+.sg-price-table td:nth-child(3) { width: 25%; }
 
 .sg-price-table th:nth-child(4),
-.sg-price-table td:nth-child(4) { width: 16%; }
-
-.sg-price-table th:nth-child(5),
-.sg-price-table td:nth-child(5) { width: 13%; }
-
-.sg-price-table th:nth-child(6),
-.sg-price-table td:nth-child(6) { width: 17%; }
+.sg-price-table td:nth-child(4) { width: 18%; }
 
 .sg-price-court-name,
-.sg-price-source,
-.sg-price-note,
 .sg-price-promo {
   display: block;
 }
@@ -2332,21 +2325,6 @@ export default {
 .sg-price-court-name {
   color: #0f172a;
   font-weight: 650 !important;
-}
-
-.sg-price-source {
-  color: #475569;
-  font-weight: 600 !important;
-}
-
-.sg-price-table tr.is-special .sg-price-source {
-  color: #b45309;
-}
-
-.sg-price-note {
-  margin-top: 2px;
-  color: #64748b;
-  font-size: 11px;
 }
 
 .sg-price-cell-right {

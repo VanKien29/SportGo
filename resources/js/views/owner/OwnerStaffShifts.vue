@@ -744,6 +744,7 @@ import TableActionGroup from '../../components/TableActionGroup.vue';
 import { getAuth } from '../../stores/auth.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import { ownerStaffService } from '../../services/ownerStaffService.js';
+import { BUSINESS_TIMEZONE, addCalendarDays, businessDateString, businessDateTime } from '../../utils/businessTime.js';
 
 export default {
   name: 'OwnerStaffShifts',
@@ -762,9 +763,9 @@ export default {
       success: '',
 
       // Current week states for Tab 2
-      currentWeekStart: new Date(),
+      currentWeekStart: new Date(`${businessDateString()}T12:00:00`),
       scheduleViewMode: 'week',
-      selectedScheduleDate: this.formatDateIso(new Date()),
+      selectedScheduleDate: businessDateString(),
 
       // Shift template modal states
       showShiftModal: false,
@@ -798,8 +799,8 @@ export default {
 
       // Custom calendar state
       calendarOpen: false,
-      calViewYear: new Date().getFullYear(),
-      calViewMonth: new Date().getMonth(),
+      calViewYear: Number(businessDateString().slice(0, 4)),
+      calViewMonth: Number(businessDateString().slice(5, 7)) - 1,
 
       // Custom shift dropdown
       shiftDropOpen: false,
@@ -833,8 +834,7 @@ export default {
       return this.shifts.filter(s => s.is_active);
     },
     todayDateString() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return businessDateString();
     },
     startH() { return String(this.startHour).padStart(2, '0'); },
     startM() { return String(this.startMin).padStart(2, '0'); },
@@ -1447,16 +1447,16 @@ export default {
       d.setDate(d.getDate() + weeks * 7);
       this.currentWeekStart = d;
       if (this.scheduleViewMode === 'day') {
-        const selected = new Date((this.selectedScheduleDate || this.todayDateString) + 'T00:00:00');
+        const selected = new Date((this.selectedScheduleDate || this.todayDateString) + 'T12:00:00');
         selected.setDate(selected.getDate() + weeks * 7);
         this.selectedScheduleDate = this.formatDateIso(selected);
       }
       this.loadSchedulesForWeek();
     },
     goCurrentWeek() {
-      this.currentWeekStart = new Date();
+      this.currentWeekStart = new Date(`${this.todayDateString}T12:00:00`);
       if (this.scheduleViewMode === 'day') {
-        this.selectedScheduleDate = this.formatDateIso(new Date());
+        this.selectedScheduleDate = this.todayDateString;
       }
       this.loadSchedulesForWeek();
     },
@@ -1474,9 +1474,11 @@ export default {
 
     // Attendance helper report dates
     setReportThisMonth() {
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const today = this.todayDateString;
+      const year = Number(today.slice(0, 4));
+      const month = Number(today.slice(5, 7)) - 1;
+      const firstDay = new Date(year, month, 1, 12);
+      const lastDay = new Date(year, month + 1, 0, 12);
 
       this.reportStartDate = this.formatDateIso(firstDay);
       this.reportEndDate = this.formatDateIso(lastDay);
@@ -1520,19 +1522,17 @@ export default {
     },
     syncWeekToSelectedDate() {
       if (!this.selectedScheduleDate) {
-        this.selectedScheduleDate = this.formatDateIso(new Date());
+        this.selectedScheduleDate = this.todayDateString;
       }
-      this.currentWeekStart = new Date(`${this.selectedScheduleDate}T00:00:00`);
+      this.currentWeekStart = new Date(`${this.selectedScheduleDate}T12:00:00`);
       this.loadSchedulesForWeek();
     },
     shiftScheduleDay(days) {
-      const current = new Date(`${this.selectedScheduleDate || this.todayDateString}T00:00:00`);
-      current.setDate(current.getDate() + days);
-      this.selectedScheduleDate = this.formatDateIso(current);
+      this.selectedScheduleDate = addCalendarDays(this.selectedScheduleDate || this.todayDateString, days);
       this.syncWeekToSelectedDate();
     },
     goTodayScheduleDay() {
-      this.selectedScheduleDate = this.formatDateIso(new Date());
+      this.selectedScheduleDate = this.todayDateString;
       this.syncWeekToSelectedDate();
     },
     // Display helpers
@@ -1554,10 +1554,15 @@ export default {
       try {
         const d = new Date(dt);
         if (isNaN(d.getTime())) return dt;
-        const h = String(d.getHours()).padStart(2, '0');
-        const m = String(d.getMinutes()).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const mon = String(d.getMonth() + 1).padStart(2, '0');
+        const formatted = d.toLocaleString('en-GB', {
+          timeZone: BUSINESS_TIMEZONE,
+          hour: '2-digit',
+          minute: '2-digit',
+          day: '2-digit',
+          month: '2-digit',
+        });
+        const [datePart, timePart] = formatted.split(', ');
+        const [day, mon, h, m] = [datePart?.split('/')[0], datePart?.split('/')[1], timePart?.split(':')[0], timePart?.split(':')[1]];
         return `${h}:${m} ${day}/${mon}`;
       } catch (e) {
         return dt;
@@ -1569,7 +1574,7 @@ export default {
       if (sch.date !== today) return false;
 
       // Allow 30 min early check-in
-      const shiftStart = new Date(sch.date + 'T' + sch.start_time);
+      const shiftStart = businessDateTime(sch.date, sch.start_time);
       const earliest = new Date(shiftStart.getTime() - 30 * 60 * 1000);
       return this.nowTime >= earliest;
     },

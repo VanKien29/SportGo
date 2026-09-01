@@ -1266,6 +1266,134 @@
 
             <!-- Part 2: Separate Content Card below for Title & Table (matching OwnerVenueClusters.vue) -->
             <div class="recurring-list-panel profile-section-card">
+            <form
+                v-if="bookingListMode === 'single'"
+                class="booking-list-filters"
+                @submit.prevent="applyBookingListFilters"
+            >
+                <label class="booking-list-filter-search">
+                    <span>Tìm booking hoặc khách</span>
+                    <input
+                        v-model.trim="bookingListFilters.q"
+                        type="search"
+                        placeholder="Mã booking, tên, SĐT..."
+                    />
+                </label>
+                <label>
+                    <span>Ngày chơi</span>
+                    <input
+                        v-model="bookingListFilters.booking_date"
+                        type="date"
+                    />
+                </label>
+                <label>
+                    <span>Sân con</span>
+                    <select v-model="bookingListFilters.venue_court_id">
+                        <option value="">Tất cả sân</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Nguồn booking</span>
+                    <select v-model="bookingListFilters.source">
+                        <option value="">Tất cả nguồn</option>
+                        <option value="online">Đặt online</option>
+                        <option value="counter">Tại quầy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select v-model="bookingListFilters.status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="no_show">Không check-in</option>
+                        <option value="cancelled">Đã hủy</option>
+                        <option value="rejected">Từ chối</option>
+                        <option value="expired">Hết hạn</option>
+                    </select>
+                </label>
+                <div class="booking-list-filter-actions">
+                    <button class="primary-btn" type="submit" :disabled="bookingListLoading">
+                        <AppIcon name="search" size="15" />
+                        <span>Lọc danh sách</span>
+                    </button>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        :disabled="bookingListLoading"
+                        @click="resetBookingListFilters"
+                    >
+                        Xóa lọc
+                    </button>
+                </div>
+            </form>
+
+            <form
+                v-else
+                class="recurring-list-filters"
+                @submit.prevent="applyBookingListFilters"
+            >
+                <label class="booking-list-filter-search">
+                    <span>Tìm booking hoặc khách</span>
+                    <input
+                        v-model.trim="recurringGroupFilters.q"
+                        type="search"
+                        placeholder="Mã booking, tên, SĐT..."
+                    />
+                </label>
+                <label>
+                    <span>Sân con</span>
+                    <select v-model="recurringGroupFilters.venue_court_id">
+                        <option value="">Tất cả sân</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select v-model="recurringGroupFilters.status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="no_show">Không check-in</option>
+                        <option value="cancelled">Đã hủy</option>
+                        <option value="expired">Hết hạn</option>
+                        <option value="rejected">Từ chối</option>
+                    </select>
+                </label>
+                <div class="booking-list-filter-actions">
+                    <button class="primary-btn" type="submit" :disabled="recurringGroupsLoading">
+                        <AppIcon name="search" size="15" />
+                        <span>Lọc danh sách</span>
+                    </button>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        :disabled="recurringGroupsLoading"
+                        @click="resetBookingListFilters"
+                    >
+                        Xóa lọc
+                    </button>
+                </div>
+            </form>
             <template v-if="bookingListMode === 'single'">
                 <div v-if="bookingListLoading" class="table-skeleton">
                     <div v-for="row in 4" :key="row" class="table-skeleton-row">
@@ -2099,16 +2227,14 @@ import MiniCalendar from "../../components/MiniCalendar.vue";
 import AppTabs from "../../components/common/AppTabs.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
+import { businessDateString, businessDateTime, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
 
 function toIsoDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return businessDateString(date);
 }
 
 function toWeekDayIndex(date) {
-    return (date.getDay() + 6) % 7;
+    return (businessWeekDayIndex(date) + 6) % 7;
 }
 
 const BOOKING_DAY_START = 0;
@@ -3457,6 +3583,25 @@ export default {
 
             await this.loadBookingList();
         },
+        async applyBookingListFilters() {
+            await this.loadCurrentBookingList();
+        },
+        async resetBookingListFilters() {
+            this.bookingListFilters = {
+                venue_court_id: "",
+                booking_date: "",
+                source: "",
+                status: "",
+                q: "",
+            };
+            this.recurringGroupFilters = {
+                venue_court_id: "",
+                status: "",
+                q: "",
+            };
+
+            await this.loadCurrentBookingList();
+        },
         async refreshActiveTab() {
             if (this.activeTab === "bookingList") {
                 await this.loadCurrentBookingList();
@@ -4475,8 +4620,7 @@ export default {
             if (date < this.today) return true;
             if (date > this.today) return false;
 
-            const now = new Date();
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = businessMinutes();
 
             return this.timeToMinutes(slot.start_time) <= nowMinutes;
         },
@@ -5615,15 +5759,15 @@ export default {
             return now < endsAt.getTime() ? "in-progress" : "ended";
         },
         occurrenceDateTime(occurrence, field) {
-            const date = this.parseDate(occurrence?.booking_date);
+            const date = String(occurrence?.booking_date || "").slice(0, 10);
             const time = this.formatTime(occurrence?.[field]);
-            if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
 
             const minutes = this.timeToMinutes(time);
             if (!Number.isFinite(minutes)) return null;
 
-            date.setHours(0, minutes, 0, 0);
-            return date;
+            const result = businessDateTime(date, time);
+            return Number.isNaN(result.getTime()) ? null : result;
         },
         occurrenceStatusLabel(occurrence) {
             const state = this.occurrenceOperationalState(occurrence);
@@ -5923,7 +6067,11 @@ export default {
             const raw = String(value);
             const date = raw.includes("T")
                 ? new Date(raw)
-                : new Date(`${raw}T00:00:00`);
+                : (() => {
+                    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                    if (!match) return new Date(NaN);
+                    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+                })();
             return Number.isNaN(date.getTime()) ? null : date;
         },
         formatIsoDate(value) {
@@ -10302,6 +10450,33 @@ input.invalid {
     outline: none;
     border-color: var(--admin-accent, #10b981);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.booking-list-filter-search {
+    flex: 1 1 260px;
+    min-width: 230px;
+}
+
+.booking-list-filters > label:not(.booking-list-filter-search),
+.recurring-list-filters > label:not(.booking-list-filter-search) {
+    flex: 0 1 180px;
+    min-width: 160px;
+}
+
+.booking-list-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+}
+
+.booking-list-filter-actions button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
 }
 
 .recurring-table-card {

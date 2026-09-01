@@ -113,6 +113,90 @@
             </div>
         </div>
 
+        <!-- Modal: Chỉnh sửa sân con -->
+        <div
+            v-if="showEditCourtModal"
+            class="modal-backdrop"
+            @click.self="closeEditCourtModal"
+        >
+            <div class="modal card modal-edit-court">
+                <div class="modal-header">
+                    <h3>Chỉnh sửa sân con</h3>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        aria-label="Đóng cửa sổ chỉnh sửa sân con"
+                        @click="closeEditCourtModal"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </div>
+
+                <form @submit.prevent="handleEditCourtSubmit">
+                    <div class="modal-body">
+                        <div v-if="editCourtError" class="alert alert-danger">
+                            {{ editCourtError }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="court-edit-name">Tên sân con</label>
+                            <input
+                                id="court-edit-name"
+                                v-model.trim="editCourtForm.name"
+                                type="text"
+                                class="form-control"
+                                maxlength="100"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="court-edit-status">Trạng thái</label>
+                            <select
+                                id="court-edit-status"
+                                v-model="editCourtForm.status"
+                                class="form-control"
+                                required
+                            >
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Tạm ngưng</option>
+                                <option value="maintenance">Bảo trì</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="court-edit-sort-order">Thứ tự hiển thị</label>
+                            <input
+                                id="court-edit-sort-order"
+                                v-model.number="editCourtForm.sort_order"
+                                type="number"
+                                class="form-control"
+                                min="0"
+                                step="1"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeEditCourtModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="editCourtSubmitting"
+                        >
+                            {{ editCourtSubmitting ? "Đang lưu..." : "Lưu thay đổi" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Modal: Spatial Layout Editor -->
         <ClusterSpatialModal
             :show="showSpatialModal"

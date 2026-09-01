@@ -92,6 +92,7 @@ import {
 } from '../../services/platformFeeLedger.service.js';
 import { adminVenueClusterService } from '../../services/adminVenueClusterService.js';
 import AppIcon from '../../components/AppIcon.vue';
+import { businessDateString } from '../../utils/businessTime.js';
 
 export default {
   name: 'AdminVenuePlatformFees',
@@ -138,7 +139,7 @@ export default {
             const preview = await calculateLedgerPreview({
               venue_cluster_id: this.$route.params.id,
               period_months: month,
-              period_start: new Date().toISOString().slice(0, 10),
+              period_start: businessDateString(),
             });
             return [month, preview];
           } catch (error) {
@@ -160,7 +161,7 @@ export default {
         await createLedger({
           venue_cluster_id: this.$route.params.id,
           period_months: month,
-          period_start: new Date().toISOString().slice(0, 10),
+          period_start: businessDateString(),
         });
         this.showMessage('ÄÃ£ táº¡o ká»³ phÃ­ má»›i.');
         await this.loadData();

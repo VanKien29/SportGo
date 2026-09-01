@@ -268,8 +268,8 @@ export default {
         };
         const res = await ownerStaffShiftService.checkOut(this.scheduleId, payload);
         if (res && (res.success || res.data)) {
-          this.$emit('checked-out', res.data || res);
           this.onClose();
+          this.$emit('checked-out', res.data || res);
         } else {
           this.error = res?.message || 'Kết thúc ca thất bại.';
         }

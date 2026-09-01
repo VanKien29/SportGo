@@ -302,7 +302,7 @@ class BookingController extends Controller
             'booking_date' => [
                 'required',
                 'date_format:Y-m-d',
-                'after_or_equal:'.Carbon::now('Asia/Ho_Chi_Minh')->toDateString(),
+                'after_or_equal:'.$this->businessToday(),
             ],
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
@@ -442,7 +442,7 @@ class BookingController extends Controller
         $this->assertBookingCanBeEdited($booking);
 
         $validated = $request->validate([
-            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
@@ -636,6 +636,7 @@ class BookingController extends Controller
         $bookingArray['payment_deadline_at'] = $booking->payment_deadline_at?->toIso8601String();
         $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
+        $bookingArray = array_merge($bookingArray, $this->settlementPayload($booking));
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [
             'completed', 'completed_cash',
         ])->sum('amount');
@@ -702,7 +703,7 @@ class BookingController extends Controller
         $validated = $request->validate([
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
             'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
-            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
             'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
             'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'recurrence_interval' => ['required', 'integer', 'min:1', 'max:12'],
@@ -821,11 +822,31 @@ class BookingController extends Controller
         return $hour * 60 + $minute;
     }
 
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessToday(): string
+    {
+        return Carbon::now($this->businessTimezone())->toDateString();
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        return Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $date.' '.substr($time, 0, 8),
+            $this->businessTimezone(),
+        );
+    }
+
     private function applyStatusGroup($query, string $statusGroup): void
     {
         if ($statusGroup === 'upcoming') {
-            $today = now()->toDateString();
-            $currentTime = now()->format('H:i:s');
+            $now = Carbon::now($this->businessTimezone());
+            $today = $now->toDateString();
+            $currentTime = $now->format('H:i:s');
 
             $query->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'])
                 ->where(function ($query) use ($today, $currentTime) {
@@ -887,6 +908,7 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,
             'cancelled_at' => $booking->cancelled_at,
@@ -995,6 +1017,7 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,
             'cancelled_at' => $booking->cancelled_at,
@@ -1002,6 +1025,20 @@ class BookingController extends Controller
             'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
             'venue_court' => $booking->venueCourt,
             'items' => $booking->items->values(),
+        ];
+    }
+
+    private function settlementPayload(Booking $booking): array
+    {
+        $summary = $this->bookingService->settlementSummary($booking);
+
+        return [
+            'settlement_status' => $summary['status'],
+            'settlement_status_label' => $summary['label'],
+            'paid_amount' => $summary['paid_amount'],
+            'outstanding_amount' => $summary['outstanding_amount'],
+            'settlement_due_at' => $summary['due_at'],
+            'settlement_overdue' => $summary['is_overdue'],
         ];
     }
 
@@ -1016,9 +1053,9 @@ class BookingController extends Controller
         }
 
         $bookingDate = $booking->booking_date instanceof Carbon
-            ? $booking->booking_date->toDateString()
-            : (string) $booking->booking_date;
-        $startAt = Carbon::parse($bookingDate.' '.substr($booking->start_time, 0, 8));
+            ? $booking->booking_date->format('Y-m-d')
+            : Carbon::parse((string) $booking->booking_date, $this->businessTimezone())->format('Y-m-d');
+        $startAt = $this->businessDateTime($bookingDate, (string) $booking->start_time);
 
         return $startAt->isFuture();
     }

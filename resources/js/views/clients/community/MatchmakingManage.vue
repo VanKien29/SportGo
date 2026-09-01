@@ -441,6 +441,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import { api } from '@/services/api.js';
 import echo from '../../../echo.js';
+import { BUSINESS_TIMEZONE, businessDateTime } from '@/utils/businessTime.js';
 
 const route = useRoute();
 const toast = useToast();
@@ -466,16 +467,16 @@ function parseBookingAt(dateValue, timeValue) {
   if (!dateMatch || !timeMatch) return null;
   const [, year, month, day] = dateMatch;
   const [, hour, minute] = timeMatch;
-  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
-  return Number.isNaN(date.getTime()) ? null : date;
+  const date = businessDateTime(`${year}-${month}-${day}`, `${hour}:${minute}`);
+  return Number.isNaN(date?.getTime()) ? null : date;
 }
 
 const fallbackBookingAt = computed(() => {
   const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(?:(\d{1,2}):(\d{2})\s*,\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
   if (!match) return null;
   const [, hour, minute, , , day, month, year] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
-  return Number.isNaN(date.getTime()) ? null : date;
+  const date = businessDateTime(`${year}-${month}-${day}`, `${hour}:${minute}`);
+  return Number.isNaN(date?.getTime()) ? null : date;
 });
 
 const bookingStartAt = computed(() => parseBookingAt(post.value?.booking_date, post.value?.start_time) || fallbackBookingAt.value);
@@ -715,6 +716,7 @@ function formatTime(value) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: BUSINESS_TIMEZONE,
   });
 }
 

@@ -49,6 +49,7 @@ import MeetupPostModal from '@/components/MeetupPostModal.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import { api } from '@/services/api.js';
 import { getAuth } from '@/stores/auth.js';
+import { businessDateLabel } from '@/utils/businessTime.js';
 
 const toast = useToast();
 const user = getAuth();
@@ -125,7 +126,7 @@ function isOwn(post) { return String(post.author?.id || '') === String(user?.id 
 function progress(post) { const total = Number(post.total_players || 0); return total ? Math.min(100, (Number(post.approved_players || 0) / total) * 100) : 0; }
 function statusLabel(status) { return { open: 'Đang tuyển', full: 'Đã đủ người', closed: 'Đã đóng', cancelled: 'Đã hủy' }[status] || status; }
 function requestLabel(status) { return { pending: 'Đang chờ chủ bài duyệt', approved: 'Đã được chấp nhận', rejected: 'Đã bị từ chối', cancelled: 'Đã rút yêu cầu', expired: 'Hết hạn', left: 'Đã rời' }[status] || status; }
-function formatDate(value) { if (!value) return 'chưa rõ'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toLocaleDateString('vi-VN'); }
+function formatDate(value) { return businessDateLabel(value) || 'chưa rõ'; }
 function assetUrl(path) { return !path || path.startsWith('/') || /^https?:\/\//.test(path) ? path : `/storage/${path}`; }
 function initial(name) { return String(name || 'N').trim().charAt(0).toUpperCase(); }
 onMounted(() => {

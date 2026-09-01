@@ -18,6 +18,7 @@
 import AppIcon from '../../../components/AppIcon.vue';
 import PublicNavbar from '../../../components/PublicNavbar.vue';
 import { bookingService } from '../../../services/bookingService.js';
+import { businessDateLabel } from '../../../utils/businessTime.js';
 
 export default {
   name: 'RecurringGroupDetail',
@@ -28,7 +29,7 @@ export default {
   methods: {
     async load() { this.loading = true; this.error = ''; try { this.group = await bookingService.getRecurringGroup(this.groupCode); } catch (error) { this.error = error.message || 'Vui lòng thử lại.'; } finally { this.loading = false; } },
     money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0)); },
-    formatDate(value) { return value ? new Date(value).toLocaleDateString('vi-VN') : '-'; },
+    formatDate(value) { return businessDateLabel(value) || '-'; },
     formatTime(value) { return value ? String(value).slice(0, 5) : '-'; },
     statusLabel(status) { return { pending_approval: 'Chờ duyệt', pending_payment: 'Chờ thanh toán', confirmed: 'Đã xác nhận', checked_in: 'Đang chơi', completed: 'Hoàn thành', cancelled: 'Đã hủy', expired: 'Đã hết hạn', rejected: 'Từ chối' }[status] || status || 'Chưa cập nhật'; },
   },

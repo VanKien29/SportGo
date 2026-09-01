@@ -167,18 +167,26 @@ class RefundPolicyEvaluator
     private function buildInput(Refund $refund): array
     {
         $booking = $refund->booking;
-        $bookingDate = $booking?->booking_date ? Carbon::parse($booking->booking_date)->format('Y-m-d') : null;
+        $businessTimezone = (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $bookingDate = $booking?->booking_date
+            ? ($booking->booking_date instanceof Carbon
+                ? $booking->booking_date->format('Y-m-d')
+                : Carbon::parse((string) $booking->booking_date, $businessTimezone)->format('Y-m-d'))
+            : null;
         $startTime = $booking?->start_time ? substr((string) $booking->start_time, 0, 8) : null;
         $cancelledAt = $booking?->cancelled_at ?: $refund->created_at ?: now();
-        $startAt = $bookingDate && $startTime ? Carbon::parse($bookingDate.' '.$startTime) : null;
-        $hoursBeforeStart = $startAt ? round(($startAt->getTimestamp() - Carbon::parse($cancelledAt)->getTimestamp()) / 3600, 2) : null;
+        $cancelledAt = Carbon::parse($cancelledAt)->setTimezone($businessTimezone);
+        $startAt = $bookingDate && $startTime
+            ? Carbon::createFromFormat('Y-m-d H:i:s', $bookingDate.' '.$startTime, $businessTimezone)
+            : null;
+        $hoursBeforeStart = $startAt ? round(($startAt->getTimestamp() - $cancelledAt->getTimestamp()) / 3600, 2) : null;
 
         return [
             'booking_id' => $booking?->id,
             'booking_code' => $booking?->booking_code,
             'venue_cluster_id' => $booking?->venue_cluster_id,
             'booking_start_at' => $startAt?->toIso8601String(),
-            'cancelled_at' => Carbon::parse($cancelledAt)->toIso8601String(),
+            'cancelled_at' => $cancelledAt->toIso8601String(),
             'hours_before_start' => $hoursBeforeStart,
             'has_booking_time' => $startAt !== null,
             'payment_amount' => $this->paidAmount($refund),

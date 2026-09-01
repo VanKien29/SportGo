@@ -181,7 +181,7 @@ class ScheduleLockController extends Controller
                         'booking_id' => null,
                         'lock_type' => $lockType,
                         'reason' => $data['reason'],
-                        'expires_at' => Carbon::parse($date)->endOfDay(),
+                        'expires_at' => Carbon::parse($date, $this->businessTimezone())->endOfDay(),
                     ])->load('venueCourt.courtType');
 
                     $this->audit($request, 'schedule_lock.created', $lock, null, $this->payload($lock));
@@ -355,10 +355,10 @@ class ScheduleLockController extends Controller
     private function payload(SlotLock $lock): array
     {
         $startsAt = $lock->booking_date
-            ? Carbon::parse($lock->booking_date->toDateString().' '.$lock->start_time)
+            ? $this->businessDateTime($lock->booking_date->toDateString(), (string) $lock->start_time)
             : null;
         $endsAt = $lock->booking_date
-            ? Carbon::parse($lock->booking_date->toDateString().' '.$lock->end_time)
+            ? $this->businessDateTime($lock->booking_date->toDateString(), (string) $lock->end_time)
             : null;
         $status = $endsAt?->isPast()
             ? 'ended'
@@ -456,8 +456,8 @@ class ScheduleLockController extends Controller
             'slots.*.venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
             'slots.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'slots.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
-            'booking_date' => ['nullable', 'required_without:start_date', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'start_date' => ['nullable', 'required_without:booking_date', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['nullable', 'required_without:start_date', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
+            'start_date' => ['nullable', 'required_without:booking_date', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
             'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
@@ -1364,7 +1364,13 @@ class ScheduleLockController extends Controller
 
     private function businessDateTime(string $date, string $time): Carbon
     {
-        return Carbon::parse("{$date} {$time}", $this->businessTimezone());
+        $normalizedTime = substr($time, 0, 8);
+
+        if ($normalizedTime === '24:00:00') {
+            return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->businessTimezone())->addDay();
+        }
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', "{$date} {$normalizedTime}", $this->businessTimezone());
     }
 
     private function minutesToTime(int $minutes): string
@@ -1516,8 +1522,8 @@ class ScheduleLockController extends Controller
     private function dateRange(string $startDate, string $endDate): Collection
     {
         $dates = collect();
-        $current = Carbon::parse($startDate)->startOfDay();
-        $end = Carbon::parse($endDate)->startOfDay();
+        $current = Carbon::parse($startDate, $this->businessTimezone())->startOfDay();
+        $end = Carbon::parse($endDate, $this->businessTimezone())->startOfDay();
 
         while ($current->lte($end)) {
             $dates->push($current->toDateString());

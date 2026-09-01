@@ -129,6 +129,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { complaintService } from '../../services/complaintService.js';
+import { businessDateLabel } from '../../utils/businessTime.js';
 
 export default {
   name: 'ComplaintCreate',
@@ -193,7 +194,7 @@ export default {
     },
     bookingOptionLabel(booking) {
       const date = booking.booking_date
-        ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('vi-VN')
+        ? businessDateLabel(booking.booking_date)
         : 'Chưa rõ ngày';
       const cluster = booking.venue_cluster?.name || booking.venueCluster?.name || 'Cụm sân';
       return `${date} · ${booking.start_time || '--'} - ${booking.end_time || '--'} · ${cluster} · ${booking.booking_code || booking.id}`;
