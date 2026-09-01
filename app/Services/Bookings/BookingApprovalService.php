@@ -227,7 +227,7 @@ class BookingApprovalService
     {
         $alreadyRefunded = (float) Refund::query()
             ->where('payment_id', $payment->id)
-            ->whereIn('status', ['completed', 'completed_cash', 'processing', 'admin_processing'])
+            ->whereIn('status', ['completed', 'completed_cash'])
             ->sum('amount');
         $amount = round(max((float) $payment->amount - $alreadyRefunded, 0), 2);
 
@@ -243,7 +243,7 @@ class BookingApprovalService
             'reason' => 'Chủ sân hủy booking do quá hạn duyệt. '.$reason,
             'status_reason' => 'Tự động hoàn tiền cọc vào ví SportGo.',
             'refund_destination' => 'user_wallet',
-            'status' => 'processing',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $completed = $this->refunds->updateStatus($refund, 'completed', [

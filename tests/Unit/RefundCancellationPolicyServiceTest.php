@@ -115,7 +115,7 @@ class RefundCancellationPolicyServiceTest extends TestCase
             'allow_cancel' => true,
             'refund_percent' => $refundPercent,
             'require_owner_confirm' => true,
-            'require_admin_confirm' => true,
+            'require_admin_confirm' => false,
             'customer_message' => 'Áp dụng theo chính sách sân.',
         ];
     }

@@ -10,9 +10,21 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 Schedule::command('bookings:reconcile-statuses')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('matchmaking:reconcile-lifecycle')->everyMinute()->withoutOverlapping()->onOneServer();
-Schedule::command('app:apply-policy-access-restrictions')->everyMinute();
+Schedule::command('app:apply-policy-access-restrictions')->everyMinute()->withoutOverlapping()->onOneServer();
+Schedule::command('platform-fees:process-due')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('platform-fees:expire-arrangements')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('platform-fees:generate')
     ->dailyAt('00:15')
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('platform-fees:activate-plans')
+    ->dailyAt('00:05')
     ->withoutOverlapping()
     ->onOneServer();
 Schedule::command('sportgo:process-partner-terminations')->everyMinute();

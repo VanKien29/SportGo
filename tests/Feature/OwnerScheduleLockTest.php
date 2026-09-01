@@ -411,7 +411,7 @@ class OwnerScheduleLockTest extends TestCase
             'booking_id' => $booking->id,
             'amount' => 90000,
             'refund_destination' => 'user_wallet',
-            'status' => 'owner_confirmed',
+            'status' => 'completed',
         ]);
 
         Carbon::setTestNow();

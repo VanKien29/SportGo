@@ -5,7 +5,6 @@ namespace App\Services\Finance;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
 use App\Models\User;
-use App\Models\UserPayoutAccount;
 use App\Models\UserWithdrawalRequest;
 use App\Services\Wallets\SystemWalletService;
 use Illuminate\Support\Facades\Http;
@@ -17,57 +16,18 @@ class SepayPayoutService
     private const PAYOUT_QR_TTL_HOURS = 24;
 
     public function __construct(
-        private readonly AdminRefundService $refunds,
         private readonly AdminWithdrawalService $withdrawals,
         private readonly UserWithdrawalPaymentService $userWithdrawals,
         private readonly SystemWalletService $systemWallets,
     ) {}
-
-    public function refundQr(Refund $refund): array
-    {
-        $this->expireRefundPayoutIfStale($refund);
-        $refund->loadMissing(['payment:id,payment_code', 'payoutAccount']);
-
-        if (! in_array($refund->status, ['pending_confirmation', 'owner_confirmed', 'admin_processing', 'processing'], true)) {
-            throw new RuntimeException('Chỉ tạo QR cho yêu cầu hoàn tiền đã được chủ sân xác nhận và đang chờ chuyển khoản.');
-        }
-
-        $payoutAccount = $this->resolveRefundPayoutAccount($refund, true);
-
-        if (! $payoutAccount) {
-            throw new RuntimeException('Yêu cầu hoàn tiền chưa có tài khoản nhận tiền hợp lệ.');
-        }
-
-        $code = $this->ensureRefundTransferCode($refund);
-
-        return [
-            'type' => 'refund',
-            'id' => $refund->id,
-            'transfer_code' => $code,
-            'amount' => (int) round((float) $refund->amount),
-            'qr_url' => $this->qrUrl(
-                (string) $payoutAccount->bank_account_number,
-                $this->bankCodeForQr((string) $payoutAccount->bank_name),
-                (int) round((float) $refund->amount),
-                $code,
-            ),
-            'recipient' => [
-                'bank_name' => $payoutAccount->bank_name,
-                'bank_code' => $this->bankCodeForQr((string) $payoutAccount->bank_name),
-                'account_number' => $payoutAccount->bank_account_number,
-                'account_holder' => $payoutAccount->bank_account_holder,
-            ],
-            'sepay_check_available' => $this->apiTokenConfigured(),
-        ];
-    }
 
     public function withdrawalQr(OwnerWithdrawalRequest $withdrawal): array
     {
         $this->expireOwnerWithdrawalPayoutIfStale($withdrawal);
         $withdrawal->loadMissing('bankAccount');
 
-        if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
-            throw new RuntimeException('Chỉ tạo QR cho yêu cầu rút tiền đang chờ chuyển khoản.');
+        if ($withdrawal->status !== 'approved') {
+            throw new RuntimeException('Chỉ tạo QR cho yêu cầu rút tiền đã được duyệt.');
         }
 
         if (! $withdrawal->bankAccount || $withdrawal->bankAccount->status !== 'active') {
@@ -102,8 +62,8 @@ class SepayPayoutService
         $this->expireUserWithdrawalPayoutIfStale($withdrawal);
         $withdrawal->loadMissing('payoutAccount');
 
-        if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
-            throw new RuntimeException('Chỉ tạo QR cho yêu cầu rút tiền người dùng đang chờ chi trả.');
+        if ($withdrawal->status !== 'approved') {
+            throw new RuntimeException('Chỉ tạo QR cho yêu cầu rút tiền người dùng đã được duyệt.');
         }
 
         $account = $withdrawal->payoutAccount;
@@ -133,52 +93,6 @@ class SepayPayoutService
             ],
             'sepay_check_available' => $this->apiTokenConfigured(),
         ];
-    }
-
-    public function checkRefund(Refund $refund, ?string $actorId): array
-    {
-        if ($refund->status === 'completed') {
-            return [
-                'completed' => true,
-                'message' => 'Yêu cầu hoàn tiền đã hoàn tất trước đó.',
-                'data' => $refund->fresh(),
-            ];
-        }
-
-        $terminalStatuses = ['rejected', 'cancelled', 'failed'];
-        if (in_array($refund->status, $terminalStatuses, true)) {
-            throw new RuntimeException('Yêu cầu hoàn tiền đã kết thúc, không thể kiểm tra SePay.');
-        }
-
-        if ($this->expireRefundPayoutIfStale($refund)) {
-            return [
-                'completed' => false,
-                'expired' => true,
-                'message' => 'QR chi trả đã quá 24 giờ và được đưa về trạng thái chờ tạo lại.',
-                'data' => $refund->fresh(),
-            ];
-        }
-
-        if (! $refund->payout_transfer_code) {
-            return [
-                'completed' => false,
-                'message' => 'Yêu cầu chưa có QR chi trả đang hoạt động.',
-                'data' => $refund->fresh(),
-            ];
-        }
-
-        $qr = $this->refundQr($refund);
-        $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
-
-        if (! $transaction) {
-            return [
-                'completed' => false,
-                'message' => 'Chưa tìm thấy giao dịch tiền ra khớp yêu cầu hoàn tiền.',
-                'payout' => $qr,
-            ];
-        }
-
-        return $this->completeRefundFromTransaction($refund, $transaction, $actorId);
     }
 
     public function checkWithdrawal(OwnerWithdrawalRequest $withdrawal, ?string $actorId): array
@@ -294,17 +208,7 @@ class SepayPayoutService
         }
 
         if (Str::startsWith($code, 'RF')) {
-            $refund = Refund::query()->where('payout_transfer_code', $code)->first();
-
-            if (! $refund) {
-                return $this->notFoundResult('refund_not_found', 'Không tìm thấy yêu cầu hoàn tiền tương ứng.');
-            }
-
-            try {
-                return $this->completeRefundFromTransaction($refund, $transaction, null) + ['success' => true];
-            } catch (RuntimeException $e) {
-                return $this->notFoundResult('refund_payout_mismatch', $e->getMessage());
-            }
+            return $this->notFoundResult('refund_payout_disabled', 'Hoàn tiền không sử dụng QR/SePay; chủ sân chọn hoàn vào ví hoặc hoàn tiền mặt.');
         }
 
         if (Str::startsWith($code, 'WD')) {
@@ -336,42 +240,6 @@ class SepayPayoutService
         }
 
         return $this->notFoundResult('payout_not_found', 'Không tìm thấy nghiệp vụ hoàn/rút tương ứng.');
-    }
-
-    public function ensureRefundTransferCode(Refund $refund): string
-    {
-        if ($refund->payout_transfer_code) {
-            return $refund->payout_transfer_code;
-        }
-
-        do {
-            $code = 'RF'.Str::upper(Str::random(10));
-        } while (Refund::query()->where('payout_transfer_code', $code)->exists());
-
-        $refund->forceFill([
-            'payout_transfer_code' => $code,
-            'payout_qr_created_at' => now(),
-        ])->save();
-
-        return $code;
-    }
-
-    private function expireRefundPayoutIfStale(Refund $refund): bool
-    {
-        if (! $this->payoutQrIsStale($refund->payout_transfer_code, $refund->payout_qr_created_at)) {
-            return false;
-        }
-
-        if (in_array($refund->status, ['completed', 'completed_cash', 'rejected', 'cancelled'], true)) {
-            return false;
-        }
-
-        $refund->forceFill([
-            'payout_transfer_code' => null,
-            'payout_qr_created_at' => null,
-        ])->save();
-
-        return true;
     }
 
     public function ensureWithdrawalTransferCode(OwnerWithdrawalRequest $withdrawal): string
@@ -460,70 +328,6 @@ class SepayPayoutService
         return filled($transferCode)
             && $createdAt
             && $createdAt->lte(now()->subHours(self::PAYOUT_QR_TTL_HOURS));
-    }
-
-    private function resolveRefundPayoutAccount(Refund $refund, bool $persist = false): ?UserPayoutAccount
-    {
-        if (! in_array($refund->refund_destination, ['bank_account', 'original_payment'], true)) {
-            return null;
-        }
-
-        $account = $refund->payoutAccount;
-
-        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
-            $customerId = $refund->customer_id ?: $refund->booking?->customer_id;
-
-            if (! $customerId && ! $refund->relationLoaded('booking')) {
-                $customerId = $refund->booking()->value('customer_id');
-            }
-
-            $account = $customerId ? UserPayoutAccount::query()
-                ->where('user_id', $customerId)
-                ->where('status', 'active')
-                ->whereNotNull('bank_account_number')
-                ->orderByDesc('is_default')
-                ->latest()
-                ->first() : null;
-        }
-
-        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
-            return null;
-        }
-
-        if ($persist && ($refund->refund_destination !== 'bank_account' || $refund->user_payout_account_id !== $account->id)) {
-            $refund->forceFill([
-                'refund_destination' => 'bank_account',
-                'user_payout_account_id' => $account->id,
-            ])->save();
-            $refund->setRelation('payoutAccount', $account);
-        }
-
-        return $account;
-    }
-
-    private function completeRefundFromTransaction(Refund $refund, array $transaction, ?string $actorId): array
-    {
-        $refund = Refund::query()->whereKey($refund->id)->firstOrFail();
-
-        if ($refund->status === 'completed') {
-            return ['completed' => true, 'transaction' => $transaction, 'data' => $refund->fresh()];
-        }
-
-        $this->assertOutboundTransactionMatches($refund->payout_transfer_code, (float) $refund->amount, $transaction);
-        $this->assertTransactionReferenceUnused($transaction['transaction_id'], 'refund', $refund->id);
-
-        $updated = $this->refunds->updateStatus($refund, 'completed', [
-            'actor_id' => $actorId,
-            'reason' => 'SePay xác nhận giao dịch tiền ra khớp yêu cầu hoàn tiền.',
-            'source' => 'sepay_outbound',
-            'gateway_refund_txn_id' => $transaction['transaction_id'],
-        ]);
-
-        return [
-            'completed' => true,
-            'transaction' => $transaction,
-            'data' => $updated,
-        ];
     }
 
     private function completeWithdrawalFromTransaction(OwnerWithdrawalRequest $withdrawal, array $transaction, ?string $actorId): array

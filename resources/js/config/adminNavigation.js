@@ -31,8 +31,11 @@ export const adminNavigationSections = [
         to: '/admin/platform-fee-tiers',
         activeNames: [
           'admin-platform-fee-tiers',
+          'admin-platform-fee-plan-detail',
           'admin-platform-fee-ledgers',
           'admin-platform-fee-ledger-detail',
+          'admin-platform-fee-arrangements',
+          'admin-platform-fee-promotions',
           'admin-platform-fee-policies',
         ],
         permissionCodes: ['platform_fee.view'],

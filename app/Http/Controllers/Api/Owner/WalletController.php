@@ -8,6 +8,7 @@ use App\Models\OwnerWallet;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerTerminationFlowService;
+use App\Services\Payments\PlatformFeeWalletService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class WalletController extends Controller
         $legacyPendingAmount = (float) OwnerWithdrawalRequest::query()
             ->where('owner_id', $request->user()->id)
             ->where('owner_wallet_id', $wallet->id)
-            ->whereIn('status', ['pending', 'reviewing', 'approved'])
+            ->whereIn('status', ['pending', 'approved'])
             ->whereNotExists(function ($query): void {
                 $query
                     ->selectRaw('1')
@@ -65,7 +66,11 @@ class WalletController extends Controller
         ]);
     }
 
-    public function withdraw(Request $request, OwnerWalletService $walletService): JsonResponse
+    public function withdraw(
+        Request $request,
+        OwnerWalletService $walletService,
+        PlatformFeeWalletService $platformFeeWallets,
+    ): JsonResponse
     {
         $request->validate([
             'amount' => ['required', 'numeric', 'min:50000'],
@@ -93,15 +98,15 @@ class WalletController extends Controller
             return response()->json(['message' => 'Tài khoản ngân hàng không hợp lệ hoặc chưa được kích hoạt.'], 422);
         }
 
-        return DB::transaction(function () use ($userId, $amount, $bankAccountId, $request, $walletService) {
+        return DB::transaction(function () use ($userId, $amount, $bankAccountId, $request, $walletService, $platformFeeWallets) {
             $wallet = OwnerWallet::where('owner_id', $userId)->lockForUpdate()->first();
 
             if (! $wallet) {
                 return response()->json(['message' => 'Không tìm thấy thông tin ví của bạn.'], 422);
             }
 
-            if ($amount > (float) $wallet->available_balance) {
-                return response()->json(['message' => 'Số dư khả dụng không đủ (sau khi trừ các yêu cầu rút tiền đang chờ chuyển khoản khác).'], 422);
+            if ($amount > $platformFeeWallets->withdrawableAmount($wallet)) {
+                return response()->json(['message' => 'Số dư khả dụng không đủ sau khi trừ yêu cầu rút đang chờ và phí nền tảng tạm giữ.'], 422);
             }
 
             // Generate unique request code

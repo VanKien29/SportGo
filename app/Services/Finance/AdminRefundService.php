@@ -29,26 +29,24 @@ class AdminRefundService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($refund->status === $status && in_array($status, ['completed', 'completed_cash', 'rejected'], true)) {
+            if ($refund->status === $status && in_array($status, ['completed', 'completed_cash', 'owner_rejected'], true)) {
                 return $refund;
             }
 
             $this->assertTransitionAllowed($refund->status, $status);
 
-            if (in_array($status, ['processing', 'completed', 'completed_cash'], true)) {
+            if (in_array($status, ['completed', 'completed_cash'], true)) {
                 $this->refundPolicies->assertCompliant(
                     $refund,
                     $context['actor_id'] ?? null,
-                    ($context['actor_id'] ?? null) ? 'admin' : 'system',
+                    $context['actor_type'] ?? (($context['actor_id'] ?? null) ? 'admin' : 'system'),
                 );
             }
 
             $statusBefore = $refund->status;
             $refund->status = $status;
-            $refund->processed_by = $context['actor_id'] ?? null;
-            $refund->processed_at = now();
 
-            if ($status === 'rejected') {
+            if ($status === 'owner_rejected') {
                 $refund->status_reason = $context['reason'];
             } else {
                 $refund->status_reason = null;
@@ -88,8 +86,6 @@ class AdminRefundService
                     $refund->cash_refund_note = $context['reason'] ?? 'Đã hoàn tiền mặt tại sân.';
                 }
 
-                $refund->admin_confirmed_by = $context['actor_id'] ?? null;
-                $refund->admin_confirmed_at = now();
                 $refund->completed_at = now();
                 $refund->gateway_refund_txn_id = $context['gateway_refund_txn_id']
                     ?? ($status === 'completed_cash' ? 'CASH-'.$refund->id : 'USER-WALLET-'.$refund->id);
@@ -125,17 +121,10 @@ class AdminRefundService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending_confirmation' => ['completed', 'completed_cash', 'processing', 'rejected'],
-            'pending_owner_confirmation' => [],
-            'owner_confirmed' => ['completed', 'completed_cash', 'admin_processing', 'processing', 'rejected'],
+            'pending_owner_confirmation' => ['completed', 'completed_cash', 'owner_rejected'],
             'owner_rejected' => [],
-            'admin_processing' => ['completed', 'completed_cash', 'failed', 'rejected'],
-            'processing' => ['completed', 'completed_cash', 'rejected'],
-            'failed' => ['processing', 'rejected'],
             'completed' => [],
             'completed_cash' => [],
-            'rejected' => [],
-            'cancelled' => [],
         ];
 
         if (! in_array($to, $allowed[$from] ?? [], true)) {

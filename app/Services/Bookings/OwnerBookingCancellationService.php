@@ -178,7 +178,7 @@ class OwnerBookingCancellationService
                 $targetAmount = round((float) $payment->amount * $ratio, 2);
                 $existingAmount = (float) Refund::query()
                     ->where('payment_id', $payment->id)
-                    ->whereNotIn('status', ['failed', 'rejected', 'cancelled'])
+                    ->whereNotIn('status', ['owner_rejected'])
                     ->sum('amount');
                 $amount = round(max($targetAmount - $existingAmount, 0), 2);
 
@@ -194,7 +194,7 @@ class OwnerBookingCancellationService
                     'reason' => $reason,
                     'refund_destination' => $completeAsCashRefund ? 'cash' : 'user_wallet',
                     'user_wallet_id' => $payment->user_wallet_id,
-                    'status' => 'owner_confirmed',
+                    'status' => 'pending_owner_confirmation',
                     'status_reason' => $completeAsCashRefund
                         ? 'Chủ sân đã hoàn tiền mặt trực tiếp tại sân.'
                         : 'Chủ sân hủy hoặc khóa lịch, hoàn phần bị ảnh hưởng vào ví SportGo của khách.',
@@ -203,17 +203,15 @@ class OwnerBookingCancellationService
                     'owner_confirm_note' => $reason,
                 ]);
 
-                $this->writeRefundHistory($refund, $actor, $reason, $source, $ratio);
-
-                if ($completeAsCashRefund) {
-                    $refund = $this->refunds->updateStatus($refund, 'completed_cash', [
-                        'actor_id' => $actor->id,
-                        'reason' => $reason,
-                        'source' => $source,
-                        'gateway_refund_txn_id' => 'CASH-'.$refund->id,
-                    ]);
-                    $this->writeRefundHistory($refund, $actor, $reason, 'cash_refund_completed_at_venue', $ratio);
-                }
+                $targetStatus = $completeAsCashRefund ? 'completed_cash' : 'completed';
+                $refund = $this->refunds->updateStatus($refund, $targetStatus, [
+                    'actor_id' => $actor->id,
+                    'actor_type' => 'owner',
+                    'reason' => $reason,
+                    'source' => $source,
+                    'gateway_refund_txn_id' => $completeAsCashRefund ? 'CASH-'.$refund->id : null,
+                ]);
+                $this->writeRefundHistory($refund, $actor, $reason, $source, $ratio, 'pending_owner_confirmation');
 
                 $created[] = $refund->fresh()->toArray();
             });
@@ -221,7 +219,7 @@ class OwnerBookingCancellationService
         return $created;
     }
 
-    private function writeRefundHistory(Refund $refund, User $actor, string $reason, string $source, float $ratio): void
+    private function writeRefundHistory(Refund $refund, User $actor, string $reason, string $source, float $ratio, string $oldStatus): void
     {
         if (! Schema::hasTable('refund_status_histories')) {
             return;
@@ -229,7 +227,7 @@ class OwnerBookingCancellationService
 
         RefundStatusHistory::query()->create([
             'refund_id' => $refund->id,
-            'old_status' => null,
+            'old_status' => $oldStatus,
             'new_status' => $refund->status,
             'changed_by' => $actor->id,
             'actor_type' => 'owner',

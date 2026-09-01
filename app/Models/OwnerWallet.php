@@ -47,4 +47,9 @@ class OwnerWallet extends Model
     {
         return $this->hasMany(OwnerWithdrawalRequest::class, 'owner_wallet_id');
     }
+
+    public function platformFeeHolds()
+    {
+        return $this->hasMany(PlatformFeeWalletHold::class, 'owner_wallet_id');
+    }
 }

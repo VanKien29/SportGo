@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\OwnerWallet;
+use App\Models\PlatformFeePaymentArrangement;
 use App\Models\PlatformFeeTier;
 use App\Models\SystemBankAccount;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
+use App\Services\Payments\PlatformFeeArrangementService;
 use App\Services\Payments\PlatformFeePaymentService;
+use App\Services\Payments\PlatformFeeProfileService;
+use App\Services\Payments\PlatformFeeWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,7 +21,11 @@ use RuntimeException;
 
 class PlatformFeeController extends Controller
 {
-    public function __construct(private readonly PlatformFeePaymentService $platformFeePayments) {}
+    public function __construct(
+        private readonly PlatformFeePaymentService $platformFeePayments,
+        private readonly PlatformFeeWalletService $platformFeeWallets,
+        private readonly PlatformFeeArrangementService $platformFeeArrangements,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -25,6 +34,12 @@ class PlatformFeeController extends Controller
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
+        $profile = app(PlatformFeeProfileService::class)->ensureProfile($cluster);
+        $wallet = OwnerWallet::query()
+            ->where('owner_id', $request->user()->id)
+            ->where('venue_cluster_id', $cluster->id)
+            ->first();
+        $balanceBreakdown = $wallet ? $this->platformFeeWallets->balanceBreakdown($wallet) : null;
         $defaultPaymentAccount = $this->defaultPaymentAccount();
         $ledgers = VenuePlatformFeeLedger::query()
             ->with(['tier', 'systemBankAccount'])
@@ -47,13 +62,55 @@ class PlatformFeeController extends Controller
                 'overdue' => $ledgers->where('effective_status', 'overdue')->count(),
                 'outstanding_amount' => round($outstanding, 2),
                 'active_period' => $activePeriod,
+                'trial_status' => $profile->trial_status,
+                'trial_started_at' => $profile->trial_started_at?->toIso8601String(),
+                'trial_ends_at' => $profile->trial_ends_at?->toIso8601String(),
+                'fee_started_at' => $profile->fee_started_at?->toIso8601String(),
+                'auto_pay_from_balance' => (bool) $profile->auto_pay_from_balance,
             ],
             'venue_cluster' => [
                 'id' => $cluster->id,
                 'name' => $cluster->name,
             ],
             'payment_account' => $this->paymentAccountPayload($defaultPaymentAccount),
+            'owner_balance' => $wallet ? [
+                'wallet_id' => $wallet->id,
+                'balance' => (float) $wallet->available_balance,
+                'platform_fee_held' => $this->platformFeeWallets->activeHoldAmount($wallet),
+                'withdrawable' => $this->platformFeeWallets->withdrawableAmount($wallet),
+                'breakdown' => $balanceBreakdown,
+            ] : null,
         ]);
+    }
+
+    public function previewBalancePayment(Request $request, string $id): JsonResponse
+    {
+        $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
+        $this->ownedCluster($request, $ledger->venue_cluster_id);
+        $remaining = round(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 2);
+        $wallet = OwnerWallet::query()
+            ->where('owner_id', $request->user()->id)
+            ->where('venue_cluster_id', $ledger->venue_cluster_id)
+            ->first();
+        $breakdown = $wallet
+            ? $this->platformFeeWallets->balanceBreakdown($wallet, $ledger->id)
+            : [
+                'recorded_balance' => 0.0,
+                'future_booking_liability' => 0.0,
+                'pending_refund_liability' => 0.0,
+                'platform_fee_held' => 0.0,
+                'safe_balance' => 0.0,
+            ];
+        $payable = in_array($this->effectiveStatus($ledger), ['pending', 'overdue'], true) && $remaining > 0;
+
+        return response()->json(['data' => array_merge($breakdown, [
+            'ledger_id' => $ledger->id,
+            'amount_remaining' => $remaining,
+            'amount_to_debit' => $remaining,
+            'shortfall' => round(max($remaining - (float) $breakdown['safe_balance'], 0), 2),
+            'can_pay_full' => $payable && (float) $breakdown['safe_balance'] + 0.01 >= $remaining,
+            'payment_mode' => 'full_only',
+        ])]);
     }
 
     public function show(Request $request, string $id): JsonResponse
@@ -154,6 +211,89 @@ class PlatformFeeController extends Controller
         return $this->paymentResponse($result);
     }
 
+    public function payFromBalance(Request $request, string $id): JsonResponse
+    {
+        $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
+        $this->ownedCluster($request, $ledger->venue_cluster_id);
+
+        try {
+            $ledger = $this->platformFeeWallets->payFromBalance($ledger, (int) $request->user()->id);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Đã thanh toán kỳ phí bằng số dư chủ sân.',
+            'data' => $this->ledgerPayload($ledger),
+        ]);
+    }
+
+    public function updateBillingSettings(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'venue_cluster_id' => ['required', 'integer'],
+            'auto_pay_from_balance' => ['required', 'boolean'],
+        ]);
+        $cluster = $this->ownedCluster($request, (string) $data['venue_cluster_id']);
+        $profile = app(PlatformFeeProfileService::class)->ensureProfile($cluster);
+        $profile->forceFill(['auto_pay_from_balance' => (bool) $data['auto_pay_from_balance']])->save();
+
+        return response()->json([
+            'message' => $profile->auto_pay_from_balance
+                ? 'Đã bật tự động thanh toán phí bằng số dư chủ sân.'
+                : 'Đã tắt tự động thanh toán phí bằng số dư chủ sân.',
+            'data' => ['auto_pay_from_balance' => (bool) $profile->auto_pay_from_balance],
+        ]);
+    }
+
+    public function arrangements(Request $request): JsonResponse
+    {
+        $items = PlatformFeePaymentArrangement::query()
+            ->with(['venueCluster:id,name', 'ledgers.planVersion', 'holds'])
+            ->where('owner_id', $request->user()->id)
+            ->latest()
+            ->get();
+
+        return response()->json(['data' => $items]);
+    }
+
+    public function acceptArrangement(Request $request, int $id): JsonResponse
+    {
+        $arrangement = $this->platformFeeArrangements->accept(
+            PlatformFeePaymentArrangement::query()->findOrFail($id),
+            (int) $request->user()->id,
+            $request->ip(),
+            mb_substr((string) $request->userAgent(), 0, 1000),
+        );
+
+        return response()->json([
+            'message' => 'Đã xác nhận thỏa thuận trả chậm và tạm giữ số dư bảo đảm.',
+            'data' => $arrangement,
+        ]);
+    }
+
+    public function rejectArrangement(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        $arrangement = PlatformFeePaymentArrangement::query()->findOrFail($id);
+        if ((int) $arrangement->owner_id !== (int) $request->user()->id) {
+            abort(403, 'Bạn không có quyền từ chối thỏa thuận này.');
+        }
+        if ($arrangement->status !== 'pending_owner_acceptance') {
+            abort(409, 'Chỉ được từ chối khi thỏa thuận còn chờ xác nhận.');
+        }
+        $arrangement = $this->platformFeeArrangements->cancel(
+            $arrangement,
+            (int) $request->user()->id,
+            $data['reason'],
+            true,
+        );
+
+        return response()->json(['message' => 'Đã từ chối thỏa thuận trả chậm.', 'data' => $arrangement]);
+    }
+
     public function createAdvancePayment(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -218,6 +358,7 @@ class PlatformFeeController extends Controller
 
     private function ledgerPayload(VenuePlatformFeeLedger $ledger, ?SystemBankAccount $defaultPaymentAccount = null): array
     {
+        $ledger->loadMissing('planVersion');
         $effectiveStatus = $this->effectiveStatus($ledger);
         $dueDate = $ledger->due_date ?? $ledger->period_end;
         $daysUntilDue = $dueDate ? today()->diffInDays($dueDate, false) : null;
@@ -263,11 +404,23 @@ class PlatformFeeController extends Controller
             'period_label' => $this->periodLabel($ledger),
             'snapshot_note' => 'Số tiền và điều kiện của kỳ này được giữ nguyên theo snapshot khi tạo kỳ phí.',
             'pricing_snapshotted_at' => $ledger->pricing_snapshotted_at?->toISOString(),
+            'plan_version' => $ledger->planVersion ? [
+                'id' => $ledger->planVersion->id,
+                'code' => $ledger->planVersion->code,
+                'name' => $ledger->planVersion->name,
+            ] : null,
+            'base_amount' => (float) $ledger->base_amount,
+            'prepay_discount_amount' => (float) $ledger->prepay_discount_amount,
+            'promotion_discount_amount' => (float) $ledger->promotion_discount_amount,
+            'waiver_amount' => (float) $ledger->waiver_amount,
+            'settlement_type' => $ledger->settlement_type,
+            'settlement_reason' => $ledger->settlement_reason,
             'payment' => [
                 'method' => 'sepay',
                 'code' => $ledger->payment_code,
                 'auto_confirm' => true,
                 'bank_account' => $this->paymentAccountPayload($paymentAccount),
+                'balance_supported' => in_array($effectiveStatus, ['pending', 'overdue'], true) && $amountRemaining > 0,
             ],
             'days_until_due' => $daysUntilDue,
             'warning_level' => match (true) {
@@ -286,7 +439,7 @@ class PlatformFeeController extends Controller
 
     private function effectiveStatus(VenuePlatformFeeLedger $ledger): string
     {
-        if (in_array($ledger->status, ['paid', 'cancelled'], true)) {
+        if (in_array($ledger->status, ['paid', 'settled_zero', 'cancelled', 'voided', 'written_off', 'awaiting_acceptance'], true)) {
             return $ledger->status;
         }
 
@@ -316,7 +469,7 @@ class PlatformFeeController extends Controller
     {
         $months = (int) ($ledger->period_months ?: 1);
 
-        return "Kỳ {$months} tháng";
+        return $ledger->settlement_type === 'trial' ? 'Kỳ miễn phí dùng thử' : "Kỳ {$months} tháng";
     }
 
     private function paymentResponse(array $result, string $message = 'Đã tạo mã thanh toán phí nền tảng.'): JsonResponse

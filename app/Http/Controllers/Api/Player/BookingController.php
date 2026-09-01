@@ -637,7 +637,7 @@ class BookingController extends Controller
         $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [
-            'completed', 'paid', 'refunded', 'admin_completed',
+            'completed', 'completed_cash',
         ])->sum('amount');
 
         return response()->json($bookingArray);

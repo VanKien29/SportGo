@@ -4,11 +4,12 @@ namespace App\Services\Payments;
 
 use App\Models\AuditLog;
 use App\Models\Payment;
-use App\Models\PlatformFeeTier;
+use App\Models\PlatformFeeServicePeriod;
 use App\Models\SystemBankAccount;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -17,14 +18,14 @@ class PlatformFeePaymentService
 {
     public function createAdvancePayment(VenueCluster $cluster, int $months, string $actorId): array
     {
-        if (! in_array($months, [1, 3, 6, 9, 12], true)) {
+        if (! in_array($months, config('platform_fee.allowed_prepay_months'), true)) {
             throw new RuntimeException('Số tháng thanh toán trước không hợp lệ.');
         }
 
         $ledger = DB::transaction(function () use ($cluster, $months): VenuePlatformFeeLedger {
             $hasOutstandingFee = VenuePlatformFeeLedger::query()
                 ->where('venue_cluster_id', $cluster->id)
-                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->whereIn('status', ['pending', 'overdue'])
                 ->whereRaw('amount_paid < amount_due')
                 ->lockForUpdate()
                 ->exists();
@@ -33,9 +34,15 @@ class PlatformFeePaymentService
                 throw new RuntimeException('Cụm sân còn kỳ phí chưa thanh toán. Vui lòng hoàn tất các kỳ này trước khi thanh toán trước.');
             }
 
-            $latestLedger = VenuePlatformFeeLedger::query()
+            $latestPeriod = PlatformFeeServicePeriod::query()
                 ->where('venue_cluster_id', $cluster->id)
-                ->where('status', '!=', 'cancelled')
+                ->where('status', '!=', 'voided')
+                ->orderByDesc('period_end')
+                ->lockForUpdate()
+                ->first();
+            $latestLegacyLedger = $latestPeriod ? null : VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->whereNotIn('status', ['cancelled', 'voided'])
                 ->orderByDesc('period_end')
                 ->lockForUpdate()
                 ->first();
@@ -45,59 +52,111 @@ class PlatformFeePaymentService
                 throw new RuntimeException('Cụm sân chưa có sân con để tính phí nền tảng.');
             }
 
-            $tier = PlatformFeeTier::query()
-                ->where('is_active', true)
-                ->where('min_courts', '<=', $courtCount)
-                ->where(function ($query) use ($courtCount): void {
-                    $query->whereNull('max_courts')
-                        ->orWhere('max_courts', '>=', $courtCount);
-                })
-                ->where(function ($query): void {
-                    $query->whereNull('effective_from')
-                        ->orWhere('effective_from', '<=', now());
-                })
-                ->orderByDesc('min_courts')
-                ->first();
-
-            if (! $tier) {
-                throw new RuntimeException('Chưa có bậc phí phù hợp với số sân hiện tại.');
+            $profile = app(PlatformFeeProfileService::class)->ensureProfile($cluster);
+            $periodStart = $latestPeriod
+                ? CarbonImmutable::instance($latestPeriod->period_end)->addDay()->startOfDay()
+                : ($latestLegacyLedger
+                    ? CarbonImmutable::instance($latestLegacyLedger->period_end)->addDay()->startOfDay()
+                    : CarbonImmutable::instance($profile->fee_started_at ?: today()->startOfMonth())->startOfDay());
+            $periodEnd = $periodStart->addMonthsNoOverflow($months)->subDay();
+            $quotes = [];
+            $promotionUsage = [];
+            $cursor = $periodStart;
+            while ($cursor->lte($periodEnd)) {
+                $allocationEnd = $cursor->endOfMonth()->startOfDay()->min($periodEnd);
+                $quote = app(PlatformFeePricingService::class)->quote(
+                    $cluster,
+                    $cursor,
+                    $allocationEnd,
+                    true,
+                    $months,
+                    reservedPromotionUsage: $promotionUsage,
+                );
+                if (! ($quote['valid'] ?? false)) {
+                    throw new RuntimeException((string) ($quote['error'] ?? 'Không tính được phí thanh toán trước.'));
+                }
+                $quotes[] = $quote;
+                $promotionId = $quote['promotion']?->id;
+                if ($promotionId && (float) $quote['promotion_discount_amount'] > 0) {
+                    $promotionUsage[$promotionId] ??= ['cycles' => 0, 'amount' => 0.0];
+                    $promotionUsage[$promotionId]['cycles']++;
+                    $promotionUsage[$promotionId]['amount'] += (float) $quote['promotion_discount_amount'];
+                }
+                $cursor = $allocationEnd->addDay();
             }
 
-            $currentPeriodStart = today()->startOfMonth();
-            $periodStart = $latestLedger?->period_end
-                ? $latestLedger->period_end->copy()->addDay()
-                : $currentPeriodStart->copy();
+            $firstQuote = $quotes[0];
+            $baseAmount = round((float) collect($quotes)->sum('base_amount'), 2);
+            $prepayDiscount = round((float) collect($quotes)->sum('prepay_discount_amount'), 2);
+            $promotionDiscount = round((float) collect($quotes)->sum('promotion_discount_amount'), 2);
+            $amountDue = round((float) collect($quotes)->sum('net_amount'), 2);
+            $discountPercent = $baseAmount > 0 ? round($prepayDiscount * 100 / $baseAmount, 2) : 0.0;
+            $automationKey = sprintf('prepay:%s:%s:%s', $cluster->id, $periodStart->toDateString(), $periodEnd->toDateString());
 
-            if ($periodStart->lt($currentPeriodStart)) {
-                $periodStart = $currentPeriodStart->copy();
-            }
-
-            $periodEnd = $periodStart->copy()->addMonthsNoOverflow($months)->subDay();
-            $baseAmount = round($courtCount * (float) $tier->price_per_court_month * $months, 2);
-            $discountPercent = $months === 12 ? (float) $tier->annual_discount_percent : 0.0;
-            $amountDue = round($baseAmount - ($baseAmount * $discountPercent / 100), 2);
-
-            return VenuePlatformFeeLedger::query()->create([
+            $ledger = VenuePlatformFeeLedger::query()->create([
                 'venue_cluster_id' => $cluster->id,
                 'creation_source' => 'owner_prepay',
-                'tier_id' => $tier->id,
-                'tier_name_snapshot' => $tier->name,
-                'tier_min_courts_snapshot' => $tier->min_courts,
-                'tier_max_courts_snapshot' => $tier->max_courts,
+                'automation_key' => $automationKey,
+                'tier_id' => $firstQuote['tier']->id,
+                'plan_version_id' => $firstQuote['plan']->id,
+                'tier_name_snapshot' => $firstQuote['tier']->name,
+                'tier_min_courts_snapshot' => $firstQuote['tier']->min_courts,
+                'tier_max_courts_snapshot' => $firstQuote['tier']->max_courts,
                 'court_count' => $courtCount,
                 'billing_cycle' => $months === 12 ? 'yearly' : 'monthly',
                 'period_months' => $months,
-                'period_start' => $periodStart,
-                'period_end' => $periodEnd,
-                'due_date' => today()->addDays(7),
-                'price_per_court_month' => $tier->price_per_court_month,
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+                'due_date' => today()->addDays((int) $firstQuote['plan']->invoice_lead_days),
+                'original_due_date' => today()->addDays((int) $firstQuote['plan']->invoice_lead_days),
+                'price_per_court_month' => $firstQuote['tier']->price_per_court_month,
                 'discount_percent' => $discountPercent,
                 'pricing_snapshotted_at' => now(),
+                'base_amount' => $baseAmount,
+                'prepay_discount_amount' => $prepayDiscount,
+                'promotion_discount_amount' => $promotionDiscount,
+                'waiver_amount' => 0,
+                'settlement_type' => 'prepay',
+                'settlement_reason' => "Thanh toán trước {$months} tháng; mọi tháng được chốt thành phân bổ riêng.",
                 'amount_due' => $amountDue,
                 'amount_paid' => 0,
                 'payment_proof_status' => 'none',
                 'status' => 'pending',
             ]);
+
+            foreach ($quotes as $index => $quote) {
+                PlatformFeeServicePeriod::query()->create([
+                    'venue_cluster_id' => $cluster->id,
+                    'ledger_id' => $ledger->id,
+                    'plan_version_id' => $quote['plan']->id,
+                    'tier_id' => $quote['tier']->id,
+                    'promotion_id' => $quote['promotion']?->id,
+                    'promotion_assignment_id' => $quote['promotion_assignment']?->id,
+                    'purpose' => 'prepay',
+                    'status' => 'issued',
+                    'period_start' => $quote['period_start']->toDateString(),
+                    'period_end' => $quote['period_end']->toDateString(),
+                    'court_count' => $quote['court_count'],
+                    'price_per_court_month' => $quote['tier']->price_per_court_month,
+                    'base_amount' => $quote['base_amount'],
+                    'prepay_discount_percent' => $quote['prepay_discount_percent'],
+                    'prepay_discount_amount' => $quote['prepay_discount_amount'],
+                    'promotion_discount_amount' => $quote['promotion_discount_amount'],
+                    'waiver_amount' => 0,
+                    'net_amount' => $quote['net_amount'],
+                    'idempotency_key' => $automationKey.':'.($index + 1),
+                    'calculation_snapshot' => [
+                        'plan_code' => $quote['plan']->code,
+                        'tier_name' => $quote['tier']->name,
+                        'prepay_months' => $months,
+                        'service_days' => $quote['service_days'],
+                        'days_in_month' => $quote['days_in_month'],
+                    ],
+                ]);
+                app(PlatformFeePricingService::class)->consumePromotion($quote);
+            }
+
+            return $ledger;
         });
 
         return $this->createPayment($ledger, $actorId);
@@ -111,7 +170,7 @@ class PlatformFeePaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($ledger->status === 'paid' || (float) $ledger->amount_paid > 0) {
+            if (in_array($ledger->status, ['paid', 'settled_zero'], true) || (float) $ledger->amount_paid > 0) {
                 throw new RuntimeException('Kỳ phí đã ghi nhận thanh toán nên không được hủy.');
             }
 
@@ -131,6 +190,10 @@ class PlatformFeePaymentService
                 'payment_rejected_at' => now(),
                 'payment_reject_reason' => $reason,
             ])->save();
+            $ledger->servicePeriods()->update(['status' => 'voided']);
+
+            app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger, $actorId ? (int) $actorId : null);
+            app(PlatformFeePricingService::class)->releasePromotionForLedger($ledger);
 
             AuditLog::query()->create([
                 'actor_id' => $actorId,
@@ -159,7 +222,7 @@ class PlatformFeePaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (in_array($ledger->status, ['paid', 'cancelled'], true)) {
+            if (in_array($ledger->status, ['paid', 'settled_zero', 'cancelled', 'voided', 'written_off'], true)) {
                 throw new RuntimeException('Kỳ phí này đã hoàn tất hoặc đã hủy.');
             }
 
@@ -228,7 +291,7 @@ class PlatformFeePaymentService
                 ->firstOrFail();
 
             $gatewayTxnId = $normalized['transaction_id'];
-            if ($ledger->status === 'paid') {
+            if (in_array($ledger->status, ['paid', 'settled_zero'], true)) {
                 return [
                     'success' => $ledger->gateway_txn_id === null || $ledger->gateway_txn_id === $gatewayTxnId,
                     'error_code' => $ledger->gateway_txn_id === null || $ledger->gateway_txn_id === $gatewayTxnId
@@ -269,6 +332,11 @@ class PlatformFeePaymentService
                 'gateway_txn_id' => $gatewayTxnId,
                 'gateway_response' => $payload,
             ])->save();
+
+            $ledger->servicePeriods()->update(['status' => 'paid']);
+
+            app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger);
+            app(PlatformFeeArrangementService::class)->syncSettlement($ledger);
 
             $this->unlockVenueIfFeeWasOnlyLock($ledger);
             $this->auditIpn($ledger, $payload, $gatewayTxnId, null, $oldValues);
@@ -405,7 +473,7 @@ class PlatformFeePaymentService
         $hasOtherDebt = VenuePlatformFeeLedger::query()
             ->where('venue_cluster_id', $ledger->venue_cluster_id)
             ->whereKeyNot($ledger->id)
-            ->whereNotIn('status', ['paid', 'cancelled'])
+            ->whereIn('status', ['pending', 'overdue'])
             ->whereRaw('amount_paid < amount_due')
             ->exists();
 

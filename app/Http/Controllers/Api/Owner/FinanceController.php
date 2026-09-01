@@ -11,6 +11,7 @@ use App\Models\OwnerWithdrawalRequest;
 use App\Models\PartnerTerminationRequest;
 use App\Models\User;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Payments\PlatformFeeWalletService;
 use App\Services\Partner\PartnerTerminationFlowService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Http\JsonResponse;
@@ -37,6 +38,7 @@ class FinanceController extends Controller
         private readonly OwnerWalletService $wallets,
         private readonly AdminAuditService $audit,
         private readonly PartnerTerminationFlowService $terminations,
+        private readonly PlatformFeeWalletService $platformFeeWallets,
     ) {}
 
     public function wallets(Request $request): JsonResponse
@@ -47,6 +49,10 @@ class FinanceController extends Controller
             ->where('owner_id', $ownerId)
             ->orderByDesc('available_balance')
             ->get();
+        $wallets->each(function (OwnerWallet $wallet): void {
+            $wallet->setAttribute('platform_fee_held', $this->platformFeeWallets->activeHoldAmount($wallet));
+            $wallet->setAttribute('withdrawable_balance', $this->platformFeeWallets->withdrawableAmount($wallet));
+        });
 
         $bankAccounts = OwnerBankAccount::query()
             ->where('owner_id', $ownerId)
@@ -56,7 +62,9 @@ class FinanceController extends Controller
             ->get();
 
         $summary = [
-            'available_balance' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->available_balance),
+            'available_balance' => (float) $wallets->sum(fn ($wallet) => $this->platformFeeWallets->withdrawableAmount($wallet)),
+            'recorded_available_balance' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->available_balance),
+            'platform_fee_held' => (float) $wallets->sum(fn ($wallet) => $this->platformFeeWallets->activeHoldAmount($wallet)),
             'pending_withdrawal_balance' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->pending_withdrawal_balance),
             'total_earned' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->total_earned),
             'total_withdrawn' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->total_withdrawn),
@@ -149,7 +157,7 @@ class FinanceController extends Controller
     {
         $data = $request->validate([
             'wallet_id' => ['nullable', 'integer'],
-            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'completed', 'cancelled'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -211,9 +219,10 @@ class FinanceController extends Controller
             }
 
             $amount = round((float) $data['amount'], 2);
-            if ($amount > (float) $wallet->available_balance) {
+            $withdrawableBalance = $this->platformFeeWallets->withdrawableAmount($wallet);
+            if ($amount > $withdrawableBalance) {
                 throw ValidationException::withMessages([
-                    'amount' => 'Số tiền rút vượt quá doanh thu online khả dụng.',
+                    'amount' => 'Số tiền rút vượt quá số dư khả dụng sau khi trừ khoản phí nền tảng đang tạm giữ.',
                 ]);
             }
 
@@ -226,7 +235,7 @@ class FinanceController extends Controller
 
             if ($activeTermination) {
                 $activeTermination = $this->terminations->refreshAmounts($activeTermination);
-                $allowed = min((float) $wallet->available_balance, (float) $activeTermination->withdrawable_amount);
+                $allowed = min($withdrawableBalance, (float) $activeTermination->withdrawable_amount);
                 if ($amount > $allowed + 0.01) {
                     throw ValidationException::withMessages([
                         'amount' => 'So tien rut vuot qua phan duoc phep rut trong ho so cham dut hop dong.',
@@ -302,7 +311,7 @@ class FinanceController extends Controller
 
             $this->expireStalePayoutQr($withdrawal);
 
-            if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
+            if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
                 throw ValidationException::withMessages([
                     'status' => 'Chỉ có thể hủy yêu cầu rút tiền đang chờ chuyển khoản.',
                 ]);
@@ -368,7 +377,7 @@ class FinanceController extends Controller
             ! $withdrawal->payout_transfer_code
             || ! $withdrawal->payout_qr_created_at
             || $withdrawal->payout_qr_created_at->gt(now()->subHours(24))
-            || ! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)
+            || ! in_array($withdrawal->status, ['pending', 'approved'], true)
         ) {
             return;
         }

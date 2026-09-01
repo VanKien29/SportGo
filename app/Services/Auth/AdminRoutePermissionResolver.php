@@ -69,6 +69,26 @@ class AdminRoutePermissionResolver
             return $this->all($method === 'GET' ? 'wallet.view' : 'reconciliation.manage');
         }
 
+        if (Str::startsWith($relative, 'platform-fee-plans')) {
+            if ($method === 'GET') {
+                return $this->all('platform_fee.view');
+            }
+
+            return $this->all($method === 'POST' && $relative === 'platform-fee-plans'
+                ? 'platform_fee.create'
+                : 'platform_fee.update');
+        }
+
+        if (Str::startsWith($relative, 'platform-fee-arrangements')) {
+            if ($method === 'GET') {
+                return $this->all('platform_fee.view');
+            }
+
+            return $this->all($method === 'POST' && $relative === 'platform-fee-arrangements'
+                ? 'platform_fee.create'
+                : 'platform_fee.process');
+        }
+
         if (Str::startsWith($relative, ['platform-fee-ledgers', 'platform-fee-tiers', 'platform-fee-settings'])) {
             if ($method === 'GET') {
                 return $this->all('platform_fee.view');

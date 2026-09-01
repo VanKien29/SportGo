@@ -26,6 +26,10 @@ use App\Models\UserRole;
 use App\Models\UserWallet;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Models\VenuePlatformFeeLedger;
+use App\Models\PlatformFeeServicePeriod;
+use App\Models\PlatformFeeWalletHold;
+use App\Models\VenuePlatformFeeProfile;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Database\Eloquent\Builder;
@@ -82,11 +86,7 @@ class PartnerTerminationFlowService
     ];
 
     private const PENDING_REFUND_STATUSES = [
-        'pending_confirmation',
-        'processing',
         'pending_owner_confirmation',
-        'owner_confirmed',
-        'admin_processing',
     ];
 
     private const PENDING_WITHDRAWAL_STATUSES = [
@@ -185,6 +185,10 @@ class PartnerTerminationFlowService
                 'pending_refund_liability' => $summary['pending_refund_liability'],
                 'pending_withdrawal_amount' => $summary['pending_withdrawal_amount'],
                 'withdrawable_amount' => $summary['withdrawable_amount'],
+                'platform_fee_outstanding_amount' => $summary['platform_fee_outstanding_amount'],
+                'platform_fee_prepaid_refund_amount' => $summary['platform_fee_prepaid_refund_amount'],
+                'platform_fee_hold_amount' => $summary['platform_fee_hold_amount'],
+                'platform_fee_settlement_status' => $summary['platform_fee_settlement_status'],
                 'future_booking_summary' => $summary['future_bookings'],
                 'owner_attachments' => $data['attachments'] ?? [],
                 'grace_period_days' => $this->gracePeriodDays(),
@@ -281,18 +285,29 @@ class PartnerTerminationFlowService
             $oldStatus = $termination->status;
             $this->fillTermination($termination, [
                 'status' => self::STATUS_IN_PROGRESS,
+                'platform_fee_cutoff_at' => $this->platformFeeCutoffAt($termination, $summary['future_bookings']),
                 'future_booking_count' => $summary['future_booking_count'],
                 'owner_balance_total' => $summary['owner_balance_total'],
                 'future_online_booking_liability' => $summary['future_online_booking_liability'],
                 'pending_refund_liability' => $summary['pending_refund_liability'],
                 'pending_withdrawal_amount' => $summary['pending_withdrawal_amount'],
                 'withdrawable_amount' => $summary['withdrawable_amount'],
+                'platform_fee_outstanding_amount' => $summary['platform_fee_outstanding_amount'],
+                'platform_fee_accrued_amount' => $summary['platform_fee_accrued_amount'],
+                'platform_fee_prepaid_refund_amount' => $summary['platform_fee_prepaid_refund_amount'],
+                'platform_fee_hold_amount' => $summary['platform_fee_hold_amount'],
+                'platform_fee_settlement_status' => $summary['platform_fee_settlement_status'],
                 'future_booking_summary' => $summary['future_bookings'],
                 'metadata' => array_merge($termination->metadata ?: [], [
                     'owner_signed_request_at' => now()->toIso8601String(),
                     'owner_signed_request_document_id' => $document->id,
                 ]),
             ])->save();
+
+            VenuePlatformFeeProfile::query()
+                ->where('venue_cluster_id', $termination->venue_cluster_id)
+                ->update(['last_fee_cutoff_at' => $termination->platform_fee_cutoff_at]);
+            $termination = $this->refreshAmounts($termination);
 
             $this->syncFutureBookingActions($termination, $summary['future_bookings']);
             $this->lockClusterForTermination($termination, $owner);
@@ -553,7 +568,12 @@ class PartnerTerminationFlowService
                 'owner_cancel_reason' => $reason,
                 'owner_cancelled_at' => now(),
                 'owner_cancelled_by' => $owner->id,
+                'reactivation_billing_started_at' => now(),
             ])->save();
+
+            VenuePlatformFeeProfile::query()
+                ->where('venue_cluster_id', $termination->venue_cluster_id)
+                ->update(['fee_started_at' => now()]);
 
             $this->unlockClusterAfterOwnerCancel($termination);
             $this->history($termination, $oldStatus, self::STATUS_OWNER_CANCELLED, $owner, 'owner', $reason);
@@ -635,6 +655,10 @@ class PartnerTerminationFlowService
                 'pending_refund_liability' => $summary['pending_refund_liability'],
                 'pending_withdrawal_amount' => $summary['pending_withdrawal_amount'],
                 'withdrawable_amount' => $summary['withdrawable_amount'],
+                'platform_fee_outstanding_amount' => $summary['platform_fee_outstanding_amount'],
+                'platform_fee_prepaid_refund_amount' => $summary['platform_fee_prepaid_refund_amount'],
+                'platform_fee_hold_amount' => $summary['platform_fee_hold_amount'],
+                'platform_fee_settlement_status' => $summary['platform_fee_settlement_status'],
                 'future_booking_summary' => $summary['future_bookings'],
                 'status' => self::STATUS_DRAFT_PREVIEW,
                 'metadata' => [
@@ -1323,6 +1347,11 @@ class PartnerTerminationFlowService
             'pending_refund_liability' => $summary['pending_refund_liability'],
             'pending_withdrawal_amount' => $summary['pending_withdrawal_amount'],
             'withdrawable_amount' => $summary['withdrawable_amount'],
+            'platform_fee_outstanding_amount' => $summary['platform_fee_outstanding_amount'],
+            'platform_fee_accrued_amount' => $summary['platform_fee_accrued_amount'],
+            'platform_fee_prepaid_refund_amount' => $summary['platform_fee_prepaid_refund_amount'],
+            'platform_fee_hold_amount' => $summary['platform_fee_hold_amount'],
+            'platform_fee_settlement_status' => $summary['platform_fee_settlement_status'],
             'future_booking_summary' => $summary['future_bookings'],
         ])->save();
 
@@ -1347,13 +1376,41 @@ class PartnerTerminationFlowService
             ->whereIn('status', self::PENDING_WITHDRAWAL_STATUSES)
             ->sum('amount');
 
-        $withdrawable = max($ownerBalanceTotal - $futureLiability - $pendingRefundLiability - $pendingWithdrawalAmount, 0);
+        $outstandingPlatformFee = (float) VenuePlatformFeeLedger::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', ['pending', 'overdue'])
+            ->whereRaw('amount_paid < amount_due')
+            ->selectRaw('COALESCE(SUM(amount_due - amount_paid), 0) AS remaining')
+            ->value('remaining');
+        $platformFeeHold = (float) PlatformFeeWalletHold::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'active')
+            ->sum('amount');
+        $activeTermination = PartnerTerminationRequest::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', self::ACTIVE_REQUEST_STATUSES)
+            ->latest()
+            ->first();
+        $cutoff = $activeTermination?->platform_fee_cutoff_at ?: now();
+        $prepaidRefund = $this->platformFeePrepaidRefund($cluster->id, Carbon::parse($cutoff));
+        $netPlatformFeeDebt = max($outstandingPlatformFee - $prepaidRefund, 0);
+        $netPlatformFeeRefund = max($prepaidRefund - $outstandingPlatformFee, 0);
+
+        $withdrawable = max(
+            $ownerBalanceTotal - $futureLiability - $pendingRefundLiability - $pendingWithdrawalAmount - $netPlatformFeeDebt,
+            0,
+        ) + $netPlatformFeeRefund;
 
         return [
             'owner_balance_total' => round($ownerBalanceTotal, 2),
             'future_online_booking_liability' => round($futureLiability, 2),
             'pending_refund_liability' => round($pendingRefundLiability, 2),
             'pending_withdrawal_amount' => round($pendingWithdrawalAmount, 2),
+            'platform_fee_outstanding_amount' => round($outstandingPlatformFee, 2),
+            'platform_fee_accrued_amount' => 0.0,
+            'platform_fee_prepaid_refund_amount' => round($prepaidRefund, 2),
+            'platform_fee_hold_amount' => round($platformFeeHold, 2),
+            'platform_fee_settlement_status' => $netPlatformFeeDebt <= 0.01 ? 'settled' : 'pending',
             'withdrawable_amount' => round($withdrawable, 2),
             'future_booking_count' => count($futureBookings),
             'future_bookings' => $futureBookings,
@@ -1380,6 +1437,49 @@ class PartnerTerminationFlowService
         }
 
         return $relations;
+    }
+
+    private function platformFeeCutoffAt(PartnerTerminationRequest $termination, array $futureBookings): Carbon
+    {
+        if ($termination->future_booking_policy === self::POLICY_CANCEL_ALL) {
+            return now();
+        }
+
+        $lastBooking = collect($futureBookings)
+            ->filter(fn (array $booking): bool => ! empty($booking['booking_date']))
+            ->sortByDesc(fn (array $booking): string => $booking['booking_date'].' '.($booking['end_time'] ?: '23:59:59'))
+            ->first();
+
+        if ($lastBooking) {
+            return Carbon::parse($lastBooking['booking_date'].' '.($lastBooking['end_time'] ?: '23:59:59'));
+        }
+
+        return $termination->requested_effective_date
+            ? Carbon::parse($termination->requested_effective_date)->endOfDay()
+            : now();
+    }
+
+    private function platformFeePrepaidRefund(string|int $clusterId, Carbon $cutoff): float
+    {
+        return round((float) PlatformFeeServicePeriod::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->where('status', '!=', 'voided')
+            ->whereDate('period_end', '>', $cutoff->toDateString())
+            ->whereHas('ledger', fn ($query) => $query->where('status', 'paid'))
+            ->get()
+            ->sum(function (PlatformFeeServicePeriod $period) use ($cutoff): float {
+                $start = Carbon::parse($period->period_start)->startOfDay();
+                $end = Carbon::parse($period->period_end)->startOfDay();
+                $refundStart = $cutoff->copy()->addDay()->startOfDay()->max($start);
+                if ($refundStart->gt($end)) {
+                    return 0.0;
+                }
+
+                $totalDays = max($start->diffInDays($end) + 1, 1);
+                $refundDays = $refundStart->diffInDays($end) + 1;
+
+                return (float) $period->net_amount * $refundDays / $totalDays;
+            }), 2);
     }
 
     private function fillTermination(PartnerTerminationRequest $termination, array $attributes): PartnerTerminationRequest
@@ -1842,6 +1942,11 @@ class PartnerTerminationFlowService
         }
 
         if ((float) $summary['pending_refund_liability'] > 0 || (float) $summary['pending_withdrawal_amount'] > 0) {
+            return false;
+        }
+
+        if ((float) $summary['platform_fee_outstanding_amount']
+            > (float) $summary['platform_fee_prepaid_refund_amount'] + 0.01) {
             return false;
         }
 

@@ -525,7 +525,6 @@ class AdminPolicyController extends Controller
             'tiers.*.allow_cancel' => ['required', 'boolean'],
             'tiers.*.refund_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'tiers.*.require_owner_confirm' => ['nullable', 'boolean'],
-            'tiers.*.require_admin_confirm' => ['nullable', 'boolean'],
             'tiers.*.customer_message' => ['nullable', 'string', 'max:500'],
             'owner_fault_full_refund_enabled' => ['nullable', 'boolean'],
         ]);
@@ -966,7 +965,7 @@ class AdminPolicyController extends Controller
                 'refund_basis' => 'paid_amount',
                 'refund_destination' => 'user_wallet',
                 'requires_owner_confirm' => false,
-                'requires_admin_confirm' => true,
+                'requires_admin_confirm' => false,
                 'summary_vi' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
             ],
             'constraint_json' => ['refund_percent' => ['exact' => 100], 'refund_destination' => 'user_wallet'],
@@ -1080,7 +1079,7 @@ class AdminPolicyController extends Controller
                 'tiers' => $tiers,
                 'refund_percent' => $tiers[0]['refund_percent'] ?? null,
                 'requires_owner_confirm' => $data['result_json']['requires_owner_confirm'] ?? true,
-                'requires_admin_confirm' => $data['result_json']['requires_admin_confirm'] ?? true,
+                'requires_admin_confirm' => false,
                 'summary_vi' => $this->refundPolicies->summary($tiers),
             ];
         }
@@ -1324,7 +1323,7 @@ class AdminPolicyController extends Controller
                 'tiers' => $this->refundPolicies->normalizeTiers($this->refundPolicies->defaultTiers()),
                 'can_edit' => $policy->status !== 'active',
                 'requires_owner_confirm' => true,
-                'requires_admin_confirm' => true,
+                'requires_admin_confirm' => false,
             ];
         }
 
@@ -1341,7 +1340,7 @@ class AdminPolicyController extends Controller
             'tiers' => $tiers,
             'can_edit' => $policy->status !== 'active',
             'requires_owner_confirm' => (bool) ($rule->result_json['requires_owner_confirm'] ?? true),
-            'requires_admin_confirm' => (bool) ($rule->result_json['requires_admin_confirm'] ?? true),
+            'requires_admin_confirm' => false,
         ];
     }
 
@@ -1564,15 +1563,6 @@ class AdminPolicyController extends Controller
                 }
                 if (! $percent($result['refund_percent'] ?? null)) {
                     $errors['result_json.refund_percent'] = 'Phần trăm hoàn tiền phải nằm trong khoảng 0 đến 100.';
-                }
-                break;
-
-            case 'owner_confirm_required_before_admin_transfer':
-                if (($result['owner_confirm_required'] ?? null) !== true) {
-                    $errors['result_json.owner_confirm_required'] = 'Rule hoàn tiền phải bắt buộc chủ sân xác nhận.';
-                }
-                if (($result['admin_can_complete_without_owner'] ?? null) !== false) {
-                    $errors['result_json.admin_can_complete_without_owner'] = 'Admin không được hoàn tất nếu chủ sân chưa xác nhận.';
                 }
                 break;
 

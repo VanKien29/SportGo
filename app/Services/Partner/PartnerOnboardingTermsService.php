@@ -4,6 +4,7 @@ namespace App\Services\Partner;
 
 use App\Models\PlatformFeeTier;
 use App\Models\SystemPolicy;
+use App\Services\Policies\PolicyConfigurationService;
 
 class PartnerOnboardingTermsService
 {
@@ -19,7 +20,7 @@ class PartnerOnboardingTermsService
             ->get();
 
         $policies = SystemPolicy::query()
-            ->whereIn('key', ['terms', 'platform_fee', 'platform_fee_settings', 'partner_contract'])
+            ->whereIn('key', ['terms', 'platform_fee', 'partner_contract'])
             ->where('status', 'active')
             ->where('is_active', true)
             ->where(function ($query): void {
@@ -35,7 +36,7 @@ class PartnerOnboardingTermsService
             ->unique('key')
             ->keyBy('key');
 
-        $feeSettings = $this->feeSettings($policies->get('platform_fee_settings'));
+        $feeSettings = $this->feeSettings($policies->get('platform_fee'));
 
         return [
             'platform_fee' => [
@@ -73,16 +74,21 @@ class PartnerOnboardingTermsService
     private function feeSettings(?SystemPolicy $policy): array
     {
         $defaults = [
-            'default_due_days' => 7,
-            'lock_reason' => 'Quá hạn phí nền tảng theo chính sách hệ thống.',
+            'default_due_days' => 3,
+            'lock_reason' => 'Cụm sân của bạn đã đến hoặc quá hạn phí nền tảng.',
         ];
 
-        if (! $policy || ! is_string($policy->content)) {
+        if (! $policy) {
             return $defaults;
         }
 
-        $settings = json_decode($policy->content, true);
+        $settings = app(PolicyConfigurationService::class)->extractConfigurationData(
+            $policy->loadMissing('rules'),
+        );
 
-        return is_array($settings) ? array_replace($defaults, $settings) : $defaults;
+        return [
+            'default_due_days' => (int) ($settings['remind_before_days'] ?? $defaults['default_due_days']),
+            'lock_reason' => (string) ($settings['message_template'] ?? $defaults['lock_reason']),
+        ];
     }
 }

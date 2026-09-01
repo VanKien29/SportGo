@@ -110,8 +110,7 @@ class AdminWithdrawalService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending' => ['completed', 'approved', 'rejected'],
-            'reviewing' => ['completed', 'approved', 'rejected'],
+            'pending' => ['approved', 'rejected'],
             'approved' => ['completed', 'rejected'],
             'rejected' => [],
             'completed' => [],

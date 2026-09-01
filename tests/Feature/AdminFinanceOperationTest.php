@@ -133,7 +133,94 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_refund_only_marks_payment_refunded_when_refund_is_completed(): void
+    public function test_admin_refund_status_filter_returns_only_the_requested_status(): void
+    {
+        foreach (['completed', 'owner_rejected'] as $index => $status) {
+            Refund::query()->create([
+                'payment_id' => $this->payment->id,
+                'booking_id' => $this->booking->id,
+                'customer_id' => $this->customer->id,
+                'amount' => 10000 + ($index * 1000),
+                'reason' => 'Kiểm tra bộ lọc trạng thái.',
+                'refund_destination' => 'user_wallet',
+                'status' => $status,
+            ]);
+        }
+
+        $response = $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/refunds?status=completed&per_page=100')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+
+        $this->assertSame(['completed'], collect($response->json('data'))->pluck('status')->all());
+    }
+
+    public function test_admin_owner_withdrawal_status_filter_returns_only_the_requested_status(): void
+    {
+        $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
+        $account = $this->createOwnerBankAccount();
+
+        foreach (['approved', 'pending'] as $index => $status) {
+            OwnerWithdrawalRequest::query()->create([
+                'request_code' => 'WRFILTER0'.($index + 1),
+                'owner_id' => $this->owner->id,
+                'owner_wallet_id' => $wallet->id,
+                'owner_bank_account_id' => $account->id,
+                'amount' => 10000 + ($index * 1000),
+                'status' => $status,
+                'requested_at' => now()->subMinutes($index),
+            ]);
+        }
+
+        $response = $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/withdrawals?status=approved&per_page=100')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('summary.approved', 1)
+            ->assertJsonPath('summary.pending', 0);
+
+        $this->assertSame(['approved'], collect($response->json('data'))->pluck('status')->all());
+    }
+
+    public function test_admin_user_withdrawal_status_filter_returns_only_the_requested_status(): void
+    {
+        $wallet = UserWallet::query()->create([
+            'user_id' => $this->customer->id,
+            'balance' => 100000,
+            'locked_balance' => 0,
+            'status' => 'active',
+        ]);
+        $account = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+
+        foreach (['approved', 'pending'] as $index => $status) {
+            UserWithdrawalRequest::query()->create([
+                'user_wallet_id' => $wallet->id,
+                'user_id' => $this->customer->id,
+                'payout_account_id' => $account->id,
+                'amount' => 10000 + ($index * 1000),
+                'status' => $status,
+                'requested_at' => now()->subMinutes($index),
+            ]);
+        }
+
+        $response = $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/user-withdrawals?status=approved&per_page=100')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('summary.approved', 1)
+            ->assertJsonPath('summary.pending', 0);
+
+        $this->assertSame(['approved'], collect($response->json('data'))->pluck('status')->all());
+    }
+
+    public function test_admin_only_monitors_refund_and_cannot_complete_it(): void
     {
         UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
@@ -151,9 +238,7 @@ class AdminFinanceOperationTest extends TestCase
             'amount' => 40000,
             'reason' => 'Khách hủy đúng chính sách.',
             'refund_destination' => 'bank_account',
-            'owner_confirmed_by' => $this->owner->id,
-            'owner_confirmed_at' => now(),
-            'status' => 'pending_confirmation',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
@@ -163,8 +248,8 @@ class AdminFinanceOperationTest extends TestCase
             ->assertJsonPath('data.0.refund_destination.type', 'user_wallet')
             ->assertJsonPath('data.0.refund_destination.label', 'Ví SportGo')
             ->assertJsonPath('data.0.can_pay_by_qr', false)
-            ->assertJsonPath('data.0.can_complete_wallet_refund', true)
-            ->assertJsonPath('data.0.owner_confirmation.confirmed', true);
+            ->assertJsonPath('data.0.can_complete_wallet_refund', false)
+            ->assertJsonPath('data.0.owner_confirmation.confirmed', false);
 
         $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'paid']);
 
@@ -174,39 +259,13 @@ class AdminFinanceOperationTest extends TestCase
                 'reason' => 'Đã hoàn tiền vào ví SportGo của khách.',
                 'source' => 'mock',
             ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.receipt.amount', '40000.00');
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Hoàn tiền do chủ sân xác nhận sẽ tự cộng vào ví khách. Admin chỉ xem lịch sử hoàn tiền.');
 
         $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'paid']);
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
-            'refund_destination' => 'user_wallet',
-            'gateway_refund_txn_id' => 'USER-WALLET-'.$refund->id,
-        ]);
-        $this->assertDatabaseHas('user_wallets', [
-            'user_id' => $this->customer->id,
-            'balance' => 40000,
-        ]);
-        $this->assertDatabaseHas('user_wallet_ledgers', [
-            'type' => 'refund',
-            'direction' => 'credit',
-            'amount' => 40000,
-            'reference_type' => 'refund',
-            'reference_id' => $refund->id,
-        ]);
-        $this->assertDatabaseHas('owner_wallets', ['owner_id' => $this->owner->id, 'available_balance' => 60000]);
-        $this->assertDatabaseHas('owner_wallet_ledgers', [
-            'payment_id' => $this->payment->id,
-            'type' => 'debit',
-            'amount' => 40000,
-            'reference_type' => 'refund',
-            'reference_id' => $refund->id,
-        ]);
-        $this->assertDatabaseHas('internal_receipts', [
-            'receipt_type' => 'refund',
-            'receiptable_id' => $refund->id,
-            'amount' => 40000,
+            'status' => 'pending_owner_confirmation',
         ]);
     }
 
@@ -218,21 +277,20 @@ class AdminFinanceOperationTest extends TestCase
             'customer_id' => $this->customer->id,
             'amount' => 100000,
             'reason' => 'Yêu cầu hoàn tiền.',
-            'status' => 'pending_confirmation',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'rejected'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('status');
+            ->assertStatus(422);
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
-            'status' => 'pending_confirmation',
+            'status' => 'pending_owner_confirmation',
         ]);
     }
 
-    public function test_admin_can_complete_walk_in_refund_by_creating_wallet_customer_from_phone(): void
+    public function test_admin_only_monitors_walk_in_refund_without_creating_wallet_customer(): void
     {
         $walkInBooking = Booking::query()->create([
             'booking_code' => 'BKWALKINREF01',
@@ -268,9 +326,7 @@ class AdminFinanceOperationTest extends TestCase
             'amount' => 30000,
             'reason' => 'Chủ sân khóa lịch, hoàn cho khách tại quầy.',
             'refund_destination' => 'user_wallet',
-            'owner_confirmed_by' => $this->owner->id,
-            'owner_confirmed_at' => now(),
-            'status' => 'owner_confirmed',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
@@ -281,7 +337,7 @@ class AdminFinanceOperationTest extends TestCase
                 'full_name' => 'Nguyễn Văn Khách',
                 'phone' => '0912345678',
                 'is_walk_in' => true,
-                'can_complete_wallet_refund' => true,
+                'can_complete_wallet_refund' => false,
             ]);
 
         $this->actingAs($this->finance, 'sanctum')
@@ -290,24 +346,17 @@ class AdminFinanceOperationTest extends TestCase
                 'reason' => 'Admin hoàn tiền vào ví SportGo của khách tại quầy.',
                 'source' => 'admin',
             ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'completed');
-
-        $createdCustomer = User::query()->where('phone', '0912345678')->firstOrFail();
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Hoàn tiền do chủ sân xác nhận sẽ tự cộng vào ví khách. Admin chỉ xem lịch sử hoàn tiền.');
 
         $this->assertDatabaseHas('bookings', [
             'id' => $walkInBooking->id,
-            'customer_id' => $createdCustomer->id,
+            'customer_id' => null,
         ]);
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
-            'customer_id' => $createdCustomer->id,
             'refund_destination' => 'user_wallet',
-            'status' => 'completed',
-        ]);
-        $this->assertDatabaseHas('user_wallets', [
-            'user_id' => $createdCustomer->id,
-            'balance' => 30000,
+            'status' => 'pending_owner_confirmation',
         ]);
     }
 
@@ -329,7 +378,7 @@ class AdminFinanceOperationTest extends TestCase
                 'reason' => 'Admin thử xử lý trước.',
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertStatus(422);
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
@@ -357,7 +406,7 @@ class AdminFinanceOperationTest extends TestCase
             'amount' => 60000,
             'reason' => 'Khách hủy trước giờ chơi 10 tiếng.',
             'refund_destination' => 'bank_account',
-            'status' => 'pending_confirmation',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
@@ -373,7 +422,7 @@ class AdminFinanceOperationTest extends TestCase
                 'source' => 'mock',
             ])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Số tiền hoàn vượt quá chính sách hiện tại. Tối đa có thể hoàn là 50.000đ.');
+            ->assertJsonPath('message', 'Hoàn tiền do chủ sân xác nhận sẽ tự cộng vào ví khách. Admin chỉ xem lịch sử hoàn tiền.');
 
         $refund->update(['amount' => 50000]);
 
@@ -383,10 +432,8 @@ class AdminFinanceOperationTest extends TestCase
                 'reason' => 'Đã hoàn tiền vào ví SportGo của khách.',
                 'source' => 'mock',
             ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.policy_evaluation.refund_percent', 50)
-            ->assertJsonPath('data.policy_evaluation.compliant', true);
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Hoàn tiền do chủ sân xác nhận sẽ tự cộng vào ví khách. Admin chỉ xem lịch sử hoàn tiền.');
     }
 
     public function test_refund_evaluation_uses_owner_policy_before_system_default(): void
@@ -444,9 +491,7 @@ class AdminFinanceOperationTest extends TestCase
             'reason' => 'Hoàn tiền test chuyển khoản theo lô.',
             'refund_destination' => 'bank_account',
             'user_payout_account_id' => $payout->id,
-            'owner_confirmed_by' => $this->owner->id,
-            'owner_confirmed_at' => now(),
-            'status' => 'owner_confirmed',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $export = $this->actingAs($this->finance, 'sanctum')
@@ -478,9 +523,7 @@ class AdminFinanceOperationTest extends TestCase
             'reason' => 'Hoàn tiền bằng QR.',
             'refund_destination' => 'bank_account',
             'user_payout_account_id' => $payout->id,
-            'owner_confirmed_by' => $this->owner->id,
-            'owner_confirmed_at' => now(),
-            'status' => 'owner_confirmed',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $qr = $this->actingAs($this->finance, 'sanctum')
@@ -491,7 +534,7 @@ class AdminFinanceOperationTest extends TestCase
             'Hoàn tiền hiện được cộng trực tiếp vào ví SportGo của khách, không tạo QR chuyển khoản.',
             $qr->json('message')
         );
-        $this->assertDatabaseHas('refunds', ['id' => $refund->id, 'status' => 'owner_confirmed']);
+        $this->assertDatabaseHas('refunds', ['id' => $refund->id, 'status' => 'pending_owner_confirmation']);
     }
 
     public function test_original_payment_refund_is_presented_as_user_wallet_refund(): void
@@ -512,16 +555,14 @@ class AdminFinanceOperationTest extends TestCase
             'amount' => 2000,
             'reason' => 'Hoàn tiền dữ liệu cũ.',
             'refund_destination' => 'original_payment',
-            'owner_confirmed_by' => $this->owner->id,
-            'owner_confirmed_at' => now(),
-            'status' => 'owner_confirmed',
+            'status' => 'pending_owner_confirmation',
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
             ->getJson('/api/admin/finance/refunds')
             ->assertOk()
             ->assertJsonPath('data.0.can_pay_by_qr', false)
-            ->assertJsonPath('data.0.can_complete_wallet_refund', true)
+            ->assertJsonPath('data.0.can_complete_wallet_refund', false)
             ->assertJsonPath('data.0.refund_destination.type', 'user_wallet')
             ->assertJsonPath('data.0.refund_destination.label', 'Ví SportGo');
 
@@ -536,11 +577,16 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_pending_withdrawal_can_be_exported_and_completed_directly(): void
+    public function test_approved_withdrawal_can_be_exported_and_completed_after_approval(): void
     {
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $account = $this->createOwnerBankAccount();
         $withdrawal = $this->createWithdrawal($wallet, $account, 70000, 'WRFINANCE01');
+        $withdrawal->update([
+            'status' => 'approved',
+            'reviewed_by' => $this->finance->id,
+            'reviewed_at' => now(),
+        ]);
 
         $export = $this->actingAs($this->finance, 'sanctum')
             ->postJson('/api/admin/finance/withdrawals/export', ['ids' => [$withdrawal->id]])
@@ -598,6 +644,11 @@ class AdminFinanceOperationTest extends TestCase
 
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $withdrawal = $this->createWithdrawal($wallet, $this->createOwnerBankAccount(), 50000, 'WRFINANCE04');
+        $withdrawal->update([
+            'status' => 'approved',
+            'reviewed_by' => $this->finance->id,
+            'reviewed_at' => now(),
+        ]);
 
         $qr = $this->actingAs($this->finance, 'sanctum')
             ->postJson("/api/admin/finance/withdrawals/{$withdrawal->id}/payout-qr")
@@ -647,15 +698,18 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_admin_cannot_reject_withdrawal_requests(): void
+    public function test_admin_can_reject_withdrawal_requests(): void
     {
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $withdrawal = $this->createWithdrawal($wallet, $this->createOwnerBankAccount(), 60000, 'WRFINANCE02');
 
         $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", ['status' => 'rejected'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('status');
+            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
+                'status' => 'rejected',
+                'reason' => 'Thông tin tài khoản nhận tiền chưa hợp lệ.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
 
         $this->assertDatabaseHas('owner_wallets', [
             'id' => $wallet->id,
@@ -664,7 +718,7 @@ class AdminFinanceOperationTest extends TestCase
         ]);
         $this->assertDatabaseHas('owner_withdrawal_requests', [
             'id' => $withdrawal->id,
-            'status' => 'pending',
+            'status' => 'rejected',
         ]);
     }
 
@@ -672,6 +726,11 @@ class AdminFinanceOperationTest extends TestCase
     {
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $withdrawal = $this->createWithdrawal($wallet, $this->createOwnerBankAccount(), 120000, 'WRFINANCE03');
+        $withdrawal->update([
+            'status' => 'approved',
+            'reviewed_by' => $this->finance->id,
+            'reviewed_at' => now(),
+        ]);
 
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
@@ -707,7 +766,7 @@ class AdminFinanceOperationTest extends TestCase
             'user_id' => $this->customer->id,
             'payout_account_id' => $account->id,
             'amount' => 30000,
-            'status' => 'pending',
+            'status' => 'approved',
             'requested_at' => now(),
         ]);
 
@@ -818,7 +877,7 @@ class AdminFinanceOperationTest extends TestCase
             'user_id' => $this->customer->id,
             'payout_account_id' => $account->id,
             'amount' => 20000,
-            'status' => 'pending',
+            'status' => 'approved',
             'requested_at' => now(),
         ]);
 
@@ -886,7 +945,7 @@ class AdminFinanceOperationTest extends TestCase
             'user_id' => $this->customer->id,
             'payout_account_id' => $account->id,
             'amount' => 20000,
-            'status' => 'pending',
+            'status' => 'approved',
             'requested_at' => now(),
         ]);
 

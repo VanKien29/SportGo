@@ -191,12 +191,12 @@
         </section>
 
         <section v-if="detailRefund.owner_confirm_note" class="reason-block">
-          <strong>{{ detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : detailRefund.status === 'cancelled' ? 'Lý do hủy' : 'Phản hồi của chủ sân' }}</strong>
+          <strong>{{ detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : 'Phản hồi của chủ sân' }}</strong>
           <p>{{ detailRefund.owner_confirm_note }}</p>
         </section>
 
         <section v-else-if="detailRefund.status_reason" class="reason-block warning-block">
-          <strong>{{ detailRefund.status === 'cancelled' ? 'Lý do hủy' : detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : 'Ghi chú xử lý' }}</strong>
+          <strong>{{ detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : 'Ghi chú xử lý' }}</strong>
           <p>{{ detailRefund.status_reason }}</p>
         </section>
 
@@ -262,7 +262,6 @@ export default {
         { value: 'owner_rejected', label: 'Đã từ chối' },
         { value: 'completed', label: 'Hoàn ví' },
         { value: 'completed_cash', label: 'Hoàn tiền mặt' },
-        { value: 'cancelled', label: 'Không hoàn' },
       ],
       meta: { current_page: 1, last_page: 1, total: 0 },
       loading: false,
@@ -304,7 +303,7 @@ export default {
         } else if (item.status === 'completed_cash') {
           stats.completedCashCount += 1;
           stats.completedCashAmount += amt;
-        } else if (['owner_rejected', 'rejected', 'cancelled', 'failed'].includes(item.status)) {
+        } else if (item.status === 'owner_rejected') {
           stats.rejected += 1;
         }
       });
@@ -421,15 +420,9 @@ export default {
     statusLabel(status) {
       return {
         pending_owner_confirmation: 'Chờ chủ sân',
-        owner_confirmed: 'Đã xác nhận',
         owner_rejected: 'Chủ sân từ chối',
-        admin_processing: 'Đang xử lý',
-        processing: 'Đang xử lý',
         completed: 'Đã hoàn ví',
         completed_cash: 'Đã hoàn tiền mặt',
-        failed: 'Xử lý thất bại',
-        rejected: 'Đã từ chối',
-        cancelled: 'Đã hủy',
       }[status] || status;
     },
     paymentMethod(method) {
@@ -745,25 +738,15 @@ export default {
   color: var(--admin-warning, #d97706);
 }
 
-.status-pill.owner_confirmed,
-.status-pill.processing,
-.status-pill.admin_processing {
-  background: var(--admin-primary-soft, #f0fdf4);
-  color: var(--admin-primary, #22a653);
+.status-pill.owner_rejected {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1));
+  color: var(--admin-danger, #ef4444);
 }
 
 .status-pill.completed,
 .status-pill.completed_cash {
   background: var(--admin-success-soft, rgba(16, 185, 129, 0.1));
   color: var(--admin-primary, #22a653);
-}
-
-.status-pill.owner_rejected,
-.status-pill.rejected,
-.status-pill.failed,
-.status-pill.cancelled {
-  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1));
-  color: var(--admin-danger, #ef4444);
 }
 
 /* Actions Column & Action Buttons matching ServicesTable.vue */

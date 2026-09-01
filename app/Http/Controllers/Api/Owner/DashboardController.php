@@ -57,7 +57,7 @@ class DashboardController extends Controller
 
         $legacyPendingQuery = DB::table('owner_withdrawal_requests')
             ->where('owner_withdrawal_requests.owner_id', $request->user()->id)
-            ->whereIn('owner_withdrawal_requests.status', ['pending', 'reviewing', 'approved'])
+            ->whereIn('owner_withdrawal_requests.status', ['pending', 'approved'])
             ->whereNotExists(function ($query): void {
                 $query
                     ->selectRaw('1')
@@ -280,7 +280,7 @@ class DashboardController extends Controller
                 $selectedClusterId,
                 fn ($query, $clusterId) => $query->where('owner_wallets.venue_cluster_id', $clusterId)
             );
-        $pendingWithdrawalStatuses = ['pending', 'reviewing', 'approved'];
+        $pendingWithdrawalStatuses = ['pending', 'approved'];
         $latestWithdrawals = (clone $withdrawalBase)
             ->select([
                 'owner_withdrawal_requests.id',
@@ -622,17 +622,10 @@ class DashboardController extends Controller
     private function refundStatusLabel(?string $status): string
     {
         return [
-            'pending_confirmation' => 'Chờ xác nhận',
             'pending_owner_confirmation' => 'Chờ chủ sân',
-            'owner_confirmed' => 'Đã xác nhận',
             'owner_rejected' => 'Đã từ chối',
-            'admin_processing' => 'Admin xử lý',
-            'processing' => 'Đang hoàn tiền',
             'completed' => 'Hoàn tất',
             'completed_cash' => 'Đã hoàn tiền mặt',
-            'failed' => 'Thất bại',
-            'rejected' => 'Từ chối',
-            'cancelled' => 'Đã hủy',
         ][$status] ?? ($status ?: 'Không rõ');
     }
 
@@ -640,7 +633,6 @@ class DashboardController extends Controller
     {
         return [
             'pending' => 'Chờ duyệt',
-            'reviewing' => 'Đang kiểm tra',
             'approved' => 'Đã duyệt',
             'rejected' => 'Từ chối',
             'completed' => 'Đã chuyển tiền',

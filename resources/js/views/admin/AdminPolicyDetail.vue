@@ -743,25 +743,6 @@
                                         admin hoàn tiền</span
                                     >
                                 </label>
-                                <label
-                                    v-if="
-                                        needsField(
-                                            'admin_can_complete_without_owner',
-                                        )
-                                    "
-                                    class="param-field-check"
-                                >
-                                    <input
-                                        v-model="
-                                            formBooleans.admin_can_complete_without_owner
-                                        "
-                                        type="checkbox"
-                                    />
-                                    <span
-                                        >Cho phép admin hoàn tất khi chủ sân
-                                        chưa xác nhận</span
-                                    >
-                                </label>
                             </div>
                         </div>
 
@@ -941,13 +922,6 @@
                                     type="checkbox"
                                 />
                                 Chủ sân xác nhận
-                            </label>
-                            <label class="check-row">
-                                <input
-                                    v-model="tier.require_admin_confirm"
-                                    type="checkbox"
-                                />
-                                Admin hoàn tất
                             </label>
                             <label class="wide-field">
                                 Nội dung cho khách
@@ -1195,7 +1169,6 @@ export default {
             },
             formBooleans: {
                 owner_confirm_required: true,
-                admin_can_complete_without_owner: false,
             },
             cancelRefundModal: false,
             reportModal: false,
@@ -1243,7 +1216,6 @@ export default {
                 "window_days",
                 "transition_days",
                 "owner_confirm_required",
-                "admin_can_complete_without_owner",
             ];
             return all.some((f) => this.needsField(f));
         },
@@ -1254,10 +1226,6 @@ export default {
             const m = {
                 cancel_before_hours: `Khách chỉ được hủy booking trước giờ chơi tối thiểu ${n.hours_before_start} giờ.`,
                 refund_percent_by_cancel_time: `Hủy trước ${n.hours_before_start} giờ → hoàn tối thiểu ${n.refund_percent}% số tiền đã thanh toán.`,
-                owner_confirm_required_before_admin_transfer:
-                    b.owner_confirm_required
-                        ? "Admin chỉ được hoàn tiền sau khi chủ sân đã xác nhận yêu cầu."
-                        : "Quy tắc không bắt buộc chủ sân xác nhận.",
                 platform_fee_overdue_warning: `Nhắc chủ sân khi phí nền tảng sắp/quá hạn trong ${n.days_before_due} ngày.`,
                 platform_fee_overdue_lock: `Quá hạn phí ${n.overdue_days} ngày → hệ thống giới hạn quyền cụm sân.`,
                 report_threshold_requires_review: `${n.report_count} báo cáo bởi ${n.unique_reporters} người trong ${n.window_days} ngày → đưa vào chờ kiểm duyệt.`,
@@ -1449,6 +1417,11 @@ export default {
                     [
                         "restrict_overdue_days",
                         "Hạn chế quyền sau quá hạn (ngày)",
+                        "number",
+                    ],
+                    [
+                        "lock_overdue_days",
+                        "Khóa cụm sân sau quá hạn (ngày)",
                         "number",
                     ],
                     [
@@ -1872,7 +1845,6 @@ export default {
                     allow_cancel: tier.allow_cancel !== false,
                     refund_percent: Number(tier.refund_percent ?? 0),
                     require_owner_confirm: tier.require_owner_confirm !== false,
-                    require_admin_confirm: tier.require_admin_confirm !== false,
                     customer_message: tier.customer_message || "",
                 }),
             );
@@ -1940,7 +1912,6 @@ export default {
                         allow_cancel: !!tier.allow_cancel,
                         refund_percent: Number(tier.refund_percent),
                         require_owner_confirm: !!tier.require_owner_confirm,
-                        require_admin_confirm: !!tier.require_admin_confirm,
                         customer_message: tier.customer_message || "",
                     })),
                 });
@@ -2062,8 +2033,6 @@ export default {
                 });
 
                 if (this.configurationType === "platform_fee") {
-                    configurationData.lock_overdue_days =
-                        configurationData.restrict_overdue_days || 0;
                     configurationData.notify_owner = true;
                     configurationData.notify_admin = true;
                     configurationData.message_template =
@@ -2112,7 +2081,6 @@ export default {
                 allow_cancel: allowCancel,
                 refund_percent: refundPercent,
                 require_owner_confirm: true,
-                require_admin_confirm: true,
                 customer_message: "",
             };
         },
@@ -2248,7 +2216,6 @@ export default {
         confirmationLabel(tier) {
             const labels = [];
             if (tier.require_owner_confirm) labels.push("Chủ sân");
-            if (tier.require_admin_confirm) labels.push("Admin");
             return labels.length ? labels.join(" + ") : "Tự động";
         },
 
@@ -2297,10 +2264,6 @@ export default {
                     "hours_before_start",
                     "refund_percent",
                 ],
-                owner_confirm_required_before_admin_transfer: [
-                    "owner_confirm_required",
-                    "admin_can_complete_without_owner",
-                ],
                 platform_fee_overdue_warning: ["days_before_due"],
                 platform_fee_overdue_lock: ["overdue_days"],
                 report_threshold_requires_review: [
@@ -2331,12 +2294,6 @@ export default {
                 result.refund_percent = +n.refund_percent;
                 result.owner_confirm_required = true;
                 decisionKey = decisionKey || "refund_percent";
-            }
-            if (t === "owner_confirm_required_before_admin_transfer") {
-                result.owner_confirm_required = !!b.owner_confirm_required;
-                result.admin_can_complete_without_owner =
-                    !!b.admin_can_complete_without_owner;
-                decisionKey = decisionKey || "owner_confirm_required";
             }
             if (t === "platform_fee_overdue_warning") {
                 condition.days_before_due = +n.days_before_due;

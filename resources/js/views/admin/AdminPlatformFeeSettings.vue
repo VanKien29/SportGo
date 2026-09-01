@@ -256,4 +256,17 @@ input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px sol
   flex-direction: column;
   gap: 16px;
 }
+.profile-section-card.settings-main-content {
+  padding: 16px;
+}
+input,
+textarea {
+  min-height: 40px;
+}
+textarea {
+  resize: vertical;
+}
+.btn {
+  min-height: 40px;
+}
 </style>

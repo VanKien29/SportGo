@@ -6,10 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
 use App\Models\UserWithdrawalRequest;
-use App\Models\UserPayoutAccount;
 use App\Models\VenueCluster;
 use App\Services\Admin\AdminAuditService;
-use App\Services\Finance\AdminRefundService;
 use App\Services\Finance\AdminWithdrawalService;
 use App\Services\Finance\MBBankBulkTransferExportService;
 use App\Services\Finance\SepayPayoutService;
@@ -22,12 +20,12 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class FinanceOperationController extends Controller
 {
     public function __construct(
-        private readonly AdminRefundService $refunds,
         private readonly AdminWithdrawalService $withdrawals,
         private readonly AdminAuditService $audit,
         private readonly MBBankBulkTransferExportService $mbBulkExport,
@@ -43,17 +41,10 @@ class FinanceOperationController extends Controller
         $data = $request->validate([
             'keyword' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in([
-                'pending_confirmation',
                 'pending_owner_confirmation',
-                'owner_confirmed',
                 'owner_rejected',
-                'admin_processing',
-                'processing',
                 'completed',
                 'completed_cash',
-                'failed',
-                'rejected',
-                'cancelled',
             ])],
             'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment', 'cash'])],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -86,8 +77,8 @@ class FinanceOperationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending_confirmation' => (clone $query)->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])->count(),
-            'processing' => (clone $query)->whereIn('status', $this->refundPayableStatuses())->count(),
+            'pending_owner_confirmation' => (clone $query)->where('status', 'pending_owner_confirmation')->count(),
+            'processing' => 0,
             'completed' => (clone $query)->whereIn('status', ['completed', 'completed_cash'])->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -134,7 +125,7 @@ class FinanceOperationController extends Controller
 
         $data = $request->validate([
             'keyword' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'completed', 'cancelled'])],
             'owner_id' => ['nullable', 'integer'],
             'bank_code' => ['nullable', 'string', 'max:30'],
             'venue_cluster_id' => ['nullable', 'integer'],
@@ -160,8 +151,8 @@ class FinanceOperationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending' => (clone $query)->whereIn('status', $this->withdrawalPayableStatuses())->count(),
-            'approved' => 0,
+            'pending' => (clone $query)->where('status', 'pending')->count(),
+            'approved' => (clone $query)->where('status', 'approved')->count(),
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -210,7 +201,7 @@ class FinanceOperationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending' => (clone $query)->whereIn('status', ['pending', 'approved'])->count(),
+            'pending' => (clone $query)->where('status', 'pending')->count(),
             'approved' => (clone $query)->where('status', 'approved')->count(),
             'completed' => (clone $query)->where('status', 'paid')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
@@ -312,11 +303,17 @@ class FinanceOperationController extends Controller
         $this->authorizePermission($request, 'withdrawal.manage');
         $withdrawal = OwnerWithdrawalRequest::query()->findOrFail($id);
         $data = $request->validate([
-            'status' => ['required', Rule::in(['completed'])],
+            'status' => ['required', Rule::in(['approved', 'rejected', 'completed'])],
             'reason' => ['nullable', 'string', 'max:2000'],
             'source' => ['nullable', Rule::in(['admin', 'sepay_outbound', 'mock'])],
             'transfer_reference' => ['nullable', 'string', 'max:100', 'required_if:status,completed'],
         ]);
+
+        if ($data['status'] === 'rejected' && blank($data['reason'] ?? null)) {
+            throw ValidationException::withMessages([
+                'reason' => 'Vui lòng nhập lý do từ chối yêu cầu rút tiền.',
+            ]);
+        }
         $oldValues = $withdrawal->toArray();
 
         $source = $data['source'] ?? 'admin';
@@ -608,7 +605,7 @@ class FinanceOperationController extends Controller
                 'confirmed' => (bool) $refund->owner_confirmed_at,
                 'decision' => match ($refund->status) {
                     'owner_rejected' => 'rejected',
-                    'owner_confirmed', 'admin_processing', 'processing', 'completed', 'completed_cash', 'failed' => 'approved',
+                    'completed', 'completed_cash' => 'approved',
                     default => 'pending',
                 },
                 'confirmed_at' => $refund->owner_confirmed_at,
@@ -694,45 +691,6 @@ class FinanceOperationController extends Controller
         return null;
     }
 
-    private function resolveRefundPayoutAccount(Refund $refund, bool $persist = false): ?UserPayoutAccount
-    {
-        if (! in_array($refund->refund_destination, ['bank_account', 'original_payment'], true)) {
-            return null;
-        }
-
-        $account = $refund->payoutAccount;
-
-        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
-            $customerId = $refund->customer_id ?: $refund->booking?->customer_id;
-
-            if (! $customerId && ! $refund->relationLoaded('booking')) {
-                $customerId = $refund->booking()->value('customer_id');
-            }
-
-            $account = $customerId ? UserPayoutAccount::query()
-                ->where('user_id', $customerId)
-                ->where('status', 'active')
-                ->whereNotNull('bank_account_number')
-                ->orderByDesc('is_default')
-                ->latest()
-                ->first() : null;
-        }
-
-        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
-            return null;
-        }
-
-        if ($persist && ($refund->refund_destination !== 'bank_account' || $refund->user_payout_account_id !== $account->id)) {
-            $refund->forceFill([
-                'refund_destination' => 'bank_account',
-                'user_payout_account_id' => $account->id,
-            ])->save();
-            $refund->setRelation('payoutAccount', $account);
-        }
-
-        return $account;
-    }
-
     private function withdrawalPayload(OwnerWithdrawalRequest $withdrawal, array $clusterNames): array
     {
         return [
@@ -762,13 +720,17 @@ class FinanceOperationController extends Controller
             'can_pay_by_qr' => in_array($withdrawal->status, $this->withdrawalPayableStatuses(), true)
                 && $withdrawal->bankAccount?->status === 'active'
                 && filled($withdrawal->bankAccount?->account_number),
-            'allowed_statuses' => [],
+            'allowed_statuses' => match ($withdrawal->status) {
+                'pending' => ['approved', 'rejected'],
+                'approved' => ['rejected'],
+                default => [],
+            },
         ];
     }
 
     private function userWithdrawalPayload(UserWithdrawalRequest $withdrawal): array
     {
-        $canPay = in_array($withdrawal->status, ['pending', 'approved'], true);
+        $canPay = $withdrawal->status === 'approved';
         $canPayBankTransfer = $canPay
             && $withdrawal->payoutAccount?->status === 'active'
             && filled($withdrawal->payoutAccount?->bank_account_number);
@@ -812,14 +774,9 @@ class FinanceOperationController extends Controller
         ];
     }
 
-    private function refundPayableStatuses(): array
-    {
-        return [];
-    }
-
     private function withdrawalPayableStatuses(): array
     {
-        return ['pending', 'reviewing', 'approved'];
+        return ['approved'];
     }
 
     private function receiptPayload($receipt): ?array
@@ -864,7 +821,7 @@ class FinanceOperationController extends Controller
                 'requested_amount' => $raw['requested_amount'] ?? null,
                 'paid_amount' => $raw['paid_amount'] ?? null,
                 'hours_before_start' => $raw['hours_before_start'] ?? null,
-                'requires_admin_review' => (bool) ($raw['requires_admin_review'] ?? false),
+                'requires_admin_review' => false,
                 'rule_name' => $raw['rule']['name'] ?? null,
                 'rule_type' => $raw['rule']['type'] ?? null,
                 'policy_title' => $raw['policy']['title'] ?? null,
@@ -890,7 +847,7 @@ class FinanceOperationController extends Controller
         if (($raw['requires_admin_review'] ?? false) && ($raw['refund_percent'] ?? 100) === 0) {
             $result['violations'][] = [
                 'code' => 'zero_refund_policy',
-                'message' => 'Chính sách hiện tại cho hoàn 0%. Admin cần xem xét đặc biệt.',
+                'message' => 'Chính sách hiện tại không cho hoàn tiền ở mốc này.',
             ];
         }
 

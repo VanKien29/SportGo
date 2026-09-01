@@ -288,4 +288,11 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
   flex-direction: column;
   gap: 16px;
 }
+.profile-section-card.venue-fees-main-content {
+  padding: 16px;
+}
+.preview-card .btn,
+.venue-ledger-actions .btn {
+  min-height: 40px;
+}
 </style>
