@@ -1,38 +1,49 @@
-﻿<template>
+<template>
   <div class="policy-backdrop">
     <section class="policy-modal" role="dialog" aria-modal="true" aria-labelledby="policy-title">
       <header class="policy-header">
-        <p class="eyebrow">Chính sách hệ thống</p>
+        <p class="eyebrow">CHÍNH SÁCH HỆ THỐNG</p>
         <h2 id="policy-title">Cần xác nhận chính sách mới</h2>
-        <p>Vui lòng đọc và đồng ý với các chính sách đang có hiệu lực trước khi tiếp tục sử dụng SportGo.</p>
+        <p class="header-desc">
+          Vui lòng đọc và đồng ý với các chính sách đang có hiệu lực trước khi tiếp tục sử dụng SportGo.
+        </p>
       </header>
 
       <div ref="policyList" class="policy-list" @scroll="onScroll">
-        <article v-for="policy in policies" :key="policy.id" class="policy-item">
-          <div class="policy-item-head">
-            <h3>{{ policy.title }}</h3>
-            <span>v{{ policy.version }}</span>
+        <div v-for="policy in policies" :key="policy.id" class="policy-section">
+          <div class="policy-title-line">
+            <h3 class="policy-heading">{{ policy.title }}</h3>
+            <span class="version-tag">v{{ policy.version }}</span>
           </div>
-          <p class="policy-meta">{{ typeLabel(policy) }} - Hiệu lực {{ formatDate(policy.effective_from) }}</p>
-          <p v-if="policy.change_summary" class="policy-summary">{{ policy.change_summary }}</p>
-          <div class="policy-content">{{ policy.content }}</div>
-        </article>
+
+          <p class="policy-sub-info">
+            {{ typeLabel(policy) }} • Hiệu lực từ {{ formatDate(policy.effective_from) }}
+          </p>
+
+          <p v-if="policy.change_summary" class="policy-summary-text">
+            Tóm tắt thay đổi: {{ policy.change_summary }}
+          </p>
+
+          <div class="policy-text-body">{{ policy.content }}</div>
+        </div>
       </div>
 
-      <p v-if="!scrolledToBottom" class="scroll-hint">
-        Cuộn xuống để đọc hết các chính sách trước khi xác nhận.
+      <p v-if="!scrolledToBottom" class="scroll-warning">
+        Vui lòng cuộn xuống hết danh sách chính sách để có thể bấm chọn đồng ý.
       </p>
 
-      <label class="agree-row" :class="{ disabled: !scrolledToBottom }">
-        <input v-model="agreed" type="checkbox" :disabled="!scrolledToBottom || submitting" />
-        <span>Tôi đã đọc và đồng ý với các chính sách trên.</span>
-      </label>
+      <div class="modal-footer">
+        <label class="agree-option" :class="{ disabled: !scrolledToBottom, checked: agreed }">
+          <input v-model="agreed" type="checkbox" :disabled="!scrolledToBottom || submitting" />
+          <span class="agree-text">Tôi đã đọc và đồng ý với các chính sách trên.</span>
+        </label>
 
-      <p v-if="error" class="policy-error">{{ error }}</p>
+        <p v-if="error" class="policy-error-msg">{{ error }}</p>
 
-      <button class="accept-btn" type="button" :disabled="!agreed || submitting" @click="acceptAll">
-        {{ submitting ? 'Đang lưu...' : 'Xác nhận và tiếp tục' }}
-      </button>
+        <button class="confirm-btn" type="button" :disabled="!agreed || submitting" @click="acceptAll">
+          <span>{{ submitting ? 'Đang xử lý...' : 'Xác nhận và tiếp tục' }}</span>
+        </button>
+      </div>
     </section>
   </div>
 </template>
@@ -120,174 +131,241 @@ export default {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.62);
+  background: rgba(46, 66, 56, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .policy-modal {
-  width: min(720px, 100%);
+  width: min(680px, 100%);
   max-height: min(760px, calc(100vh - 48px));
-  display: grid;
-  gap: 18px;
-  overflow: hidden;
-  padding: 24px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 2px solid #9ebcb0;
+  box-shadow: 0 20px 50px rgba(46, 66, 56, 0.25);
+  font-weight: 400;
 }
 
+/* Header */
 .policy-header {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
 }
 
 .eyebrow {
-  color: #15803d;
-  font-size: 12px;
+  margin: 0;
+  color: #5c7e6e;
+  font-size: 13px;
   font-weight: 400;
-  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .policy-header h2 {
   margin: 0;
-  color: #0f172a;
-  font-size: 24px;
+  color: #2e4238;
+  font-size: 22px;
   font-weight: 400;
 }
 
-.policy-header p,
-.policy-meta,
-.policy-summary {
+.header-desc {
   margin: 0;
-  color: #64748b;
+  color: #4d6e5f;
   font-size: 14px;
+  font-weight: 400;
   line-height: 1.5;
 }
 
-.policy-summary {
-  color: #334155;
-  font-weight: 400;
-}
-
+/* Policy List - Flat Layout */
 .policy-list {
-  display: grid;
-  gap: 12px;
-  overflow: auto;
-  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  padding-right: 8px;
+  max-height: 360px;
 }
 
-.policy-item {
-  display: grid;
+.policy-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.policy-list::-webkit-scrollbar-track {
+  background: #f2f7f4;
+  border-radius: 999px;
+}
+
+.policy-list::-webkit-scrollbar-thumb {
+  background: #7a9c8c;
+  border-radius: 999px;
+}
+
+/* Flat Section - No border-bottom or border-top */
+.policy-section {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
+  padding-bottom: 12px;
 }
 
-.policy-item-head {
+.policy-title-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.policy-item-head h3 {
+.policy-heading {
   margin: 0;
-  color: #111827;
-  font-size: 16px;
+  color: #2e4238;
+  font-size: 17px;
   font-weight: 400;
 }
 
-.policy-item-head span {
-  flex: 0 0 auto;
-  padding: 4px 8px;
+.version-tag {
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #dcfce7;
-  color: #166534;
+  background: #eef4f1;
+  border: 1px solid #9ebcb0;
+  color: #4d6e5f;
   font-size: 12px;
   font-weight: 400;
 }
 
-.policy-content {
-  max-height: 180px;
-  overflow: auto;
-  white-space: pre-wrap;
-  color: #334155;
-  font-size: 14px;
-  line-height: 1.65;
+.policy-sub-info {
+  margin: 0;
+  color: #5c7e6e;
+  font-size: 13px;
+  font-weight: 400;
 }
 
-.scroll-hint {
+.policy-summary-text {
   margin: 0;
-  padding: 8px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eef4f1;
+  border-left: 3px solid #5c7e6e;
+  color: #2e4238;
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.policy-text-body {
+  margin-top: 4px;
+  color: #2e4238;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+/* Scroll Warning */
+.scroll-warning {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
   border: 1px solid #fde68a;
-  border-radius: 8px;
-  background: #fefce8;
   color: #92400e;
   font-size: 13px;
   font-weight: 400;
   text-align: center;
 }
 
-.agree-row {
+/* Modal Footer & Actions */
+.modal-footer {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  color: #0f172a;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.45;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.agree-row.disabled {
-  color: #64748b;
+.agree-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.agree-option.disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-.agree-row input {
+.agree-option input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  margin-top: 1px;
-  accent-color: #16a34a;
-  flex: 0 0 18px;
+  accent-color: #5c7e6e;
+  cursor: pointer;
 }
 
-.agree-row.disabled input {
-  opacity: 0.75;
+.agree-option.disabled input[type="checkbox"] {
+  cursor: not-allowed;
 }
 
-.policy-error {
+.agree-text {
+  color: #2e4238;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.policy-error-msg {
   margin: 0;
-  padding: 10px 12px;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
   background: #fef2f2;
-  color: #b91c1c;
+  border: 1px solid #fecaca;
+  color: #991b1b;
   font-size: 13px;
   font-weight: 400;
 }
 
-.accept-btn {
-  height: 46px;
-  border-radius: 8px;
-  background: #16a34a;
-  color: #fff;
+/* Button */
+.confirm-btn {
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: #5c7e6e;
+  color: #ffffff;
+  font-size: 15px;
   font-weight: 400;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.accept-btn:disabled {
-  opacity: .58;
+.confirm-btn:hover:not(:disabled) {
+  background: #4d6e5f;
+}
+
+.confirm-btn:disabled {
+  background: #dce8e2;
+  color: #7a9c8c;
   cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
   .policy-backdrop {
-    padding: 12px;
+    padding: 16px;
   }
 
   .policy-modal {
-    max-height: calc(100vh - 24px);
-    padding: 18px;
+    max-height: calc(100vh - 32px);
+    padding: 20px;
+  }
+
+  .policy-list {
+    max-height: 300px;
   }
 }
 </style>
+
+

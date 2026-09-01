@@ -295,9 +295,18 @@
                 </div>
 
                 <div class="alb-venue-card__footer">
-                  <div class="alb-venue-card__price">
-                    {{ venue.min_price ? formatCurrency(venue.min_price) : "Liên hệ" }}
-                    <small style="font-weight: 400; font-size: 12px; color: #374151;">/giờ</small>
+                  <div class="alb-venue-card__price-box">
+                    <div class="alb-venue-card__price">
+                      {{ venue.min_price ? formatCurrency(venue.min_price) : "Liên hệ" }}
+                      <small style="font-weight: 400; font-size: 12px; color: #374151;">/giờ</small>
+                    </div>
+                    <div
+                      v-if="venue.min_price && venue.min_price_court_type_name"
+                      class="alb-venue-card__price-subtitle"
+                      :title="venue.min_price_court_type_name"
+                    >
+                      {{ venue.min_price_court_type_name }}
+                    </div>
                   </div>
                   <router-link
                     :to="{ name: 'venue-detail', params: { id: venue.slug || venue.id } }"

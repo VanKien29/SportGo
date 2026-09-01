@@ -257,10 +257,11 @@ class VenueController extends Controller
         $referenceLatitude = isset($validated['latitude']) ? (float) $validated['latitude'] : null;
         $referenceLongitude = isset($validated['longitude']) ? (float) $validated['longitude'] : null;
         $hasReferencePoint = $referenceLatitude !== null && $referenceLongitude !== null;
+        $selectedCourtTypeId = isset($validated['court_type_id']) ? (int) $validated['court_type_id'] : null;
 
         $clusters = $clusters
-            ->map(function (VenueCluster $cluster) use ($referenceLatitude, $referenceLongitude, $hasReferencePoint): array {
-                $payload = $this->summaryPayload($cluster);
+            ->map(function (VenueCluster $cluster) use ($referenceLatitude, $referenceLongitude, $hasReferencePoint, $selectedCourtTypeId): array {
+                $payload = $this->summaryPayload($cluster, $selectedCourtTypeId);
 
                 if ($hasReferencePoint && $cluster->latitude !== null && $cluster->longitude !== null) {
                     $payload['distance_km'] = round($this->distanceKm(
@@ -445,28 +446,63 @@ class VenueController extends Controller
         ));
     }
 
-    private function summaryPayload(VenueCluster $cluster): array
+    private function summaryPayload(VenueCluster $cluster, ?int $selectedCourtTypeId = null): array
     {
-        $courtTypeIds = $cluster->venueCourts->pluck('court_type_id')->unique()->values();
-        $priceCourtTypeIds = $this->courtTypeIdsWithAncestors($courtTypeIds);
+        $clusterCourtTypeIds = $cluster->venueCourts
+            ->pluck('court_type_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
-        $weeklyMinPrice = $courtTypeIds->isEmpty()
-            ? null
-            : PriceSlot::query()
+        if ($selectedCourtTypeId !== null) {
+            $targetIds = $this->courtTypeIdsWithDescendants($selectedCourtTypeId);
+            $filteredIds = $clusterCourtTypeIds->filter(fn ($id) => in_array($id, $targetIds, true))->values();
+            $effectiveCourtTypeIds = $filteredIds->isNotEmpty() ? $filteredIds : $clusterCourtTypeIds;
+        } else {
+            $effectiveCourtTypeIds = $clusterCourtTypeIds;
+        }
+
+        $priceCourtTypeIds = $this->courtTypeIdsWithAncestors($effectiveCourtTypeIds);
+
+        $minPrice = null;
+        $minCourtTypeId = null;
+
+        if ($effectiveCourtTypeIds->isNotEmpty()) {
+            $slotPrices = PriceSlot::query()
                 ->where('venue_cluster_id', $cluster->id)
                 ->whereIn('court_type_id', $priceCourtTypeIds)
                 ->where('is_active', true)
-                ->min('price');
-        $baseMinPrice = $courtTypeIds->isEmpty()
-            ? null
-            : VenueBasePrice::query()
+                ->select('court_type_id', 'price')
+                ->get();
+
+            foreach ($slotPrices as $slot) {
+                $priceVal = (float) $slot->price;
+                if ($minPrice === null || $priceVal < $minPrice) {
+                    $minPrice = $priceVal;
+                    $minCourtTypeId = (int) $slot->court_type_id;
+                }
+            }
+
+            $basePrices = VenueBasePrice::query()
                 ->where('venue_cluster_id', $cluster->id)
                 ->whereIn('court_type_id', $priceCourtTypeIds)
-                ->min('price');
-        $minPrice = collect([$weeklyMinPrice, $baseMinPrice])
-            ->filter(fn ($price) => $price !== null)
-            ->map(fn ($price) => (float) $price)
-            ->min();
+                ->select('court_type_id', 'price')
+                ->get();
+
+            foreach ($basePrices as $base) {
+                $priceVal = (float) $base->price;
+                if ($minPrice === null || $priceVal < $minPrice) {
+                    $minPrice = $priceVal;
+                    $minCourtTypeId = (int) $base->court_type_id;
+                }
+            }
+        }
+
+        $minPriceCourtTypeName = null;
+        if ($minCourtTypeId !== null) {
+            $courtTypeObj = DB::table('court_types')->where('id', $minCourtTypeId)->first(['name']);
+            $minPriceCourtTypeName = $courtTypeObj?->name;
+        }
 
         $courtTypes = $cluster->venueCourts
             ->pluck('courtType')
@@ -498,6 +534,7 @@ class VenueController extends Controller
             'court_count' => $cluster->venueCourts->count(),
             'court_types' => $courtTypes,
             'min_price' => $minPrice,
+            'min_price_court_type_name' => $minPriceCourtTypeName,
             'amenities' => $cluster->amenityCatalog
                 ->where('status', 'active')
                 ->filter(fn ($amenity) => (bool) ($amenity->pivot?->is_visible ?? true))
@@ -778,6 +815,30 @@ class VenueController extends Controller
             + cos(deg2rad($latitudeA)) * cos(deg2rad($latitudeB)) * sin($deltaLongitude / 2) ** 2;
 
         return $earthRadius * (2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a))));
+    }
+
+    private function courtTypeIdsWithDescendants(int $courtTypeId): array
+    {
+        $childrenByType = DB::table('court_types')
+            ->whereNull('deleted_at')
+            ->get(['id', 'parent_id'])
+            ->groupBy('parent_id');
+
+        $ids = [$courtTypeId];
+        $queue = [$courtTypeId];
+
+        while (! empty($queue)) {
+            $currentId = array_shift($queue);
+            if (isset($childrenByType[$currentId])) {
+                foreach ($childrenByType[$currentId] as $child) {
+                    $childId = (int) $child->id;
+                    $ids[] = $childId;
+                    $queue[] = $childId;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private function courtTypeIdsWithAncestors(Collection $courtTypeIds): array

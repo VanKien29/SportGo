@@ -866,12 +866,6 @@ body {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
-.alb-venue-card:hover {
-  transform: translateY(-2px) !important;
-  border-color: #cbd5e1 !important;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
-}
-
 .alb-venue-card__thumb {
   position: relative;
   width: 100%;
@@ -913,18 +907,37 @@ body {
 .alb-venue-card__footer {
   margin-top: auto;
   padding-top: 14px;
-  border-top: 1px solid #f1f5f9 !important;
+  border-top: none !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+}
+
+.alb-venue-card__price-box {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .alb-venue-card__price {
   font-size: 15px;
   font-weight: 700;
   color: #5c7e6e;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.alb-venue-card__price-subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 3px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alb-venue-card__btn {
@@ -945,11 +958,6 @@ body {
   transition: all 0.15s ease;
 }
 
-.alb-venue-card__btn:hover {
-  background: #405059;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(84, 101, 111, 0.3);
-}
 
 /* Stats Section */
 .alb-stats-banner {
@@ -1131,6 +1139,25 @@ body {
   .alb-dual-features {
     grid-template-columns: 1fr;
   }
+  .alb-story-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .alb-workflow-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    margin-top: 24px;
+  }
+  .alb-workflow-connector {
+    display: none !important;
+  }
+  .alb-workflow-step {
+    width: 100%;
+    max-width: 340px;
+    padding: 10px;
+  }
   .alb-search-form-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1153,6 +1180,42 @@ body {
   .alb-orbit-ring--1 { width: 140px; height: 140px; }
   .alb-orbit-ring--2 { width: 240px; height: 240px; }
   .alb-orbit-ring--3 { width: 330px; height: 330px; }
+}
+
+@media (max-width: 768px) {
+  .sg-container, .sg3-container, .detail-container, .community-container, .sg-container-wide {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .alb-hero {
+    padding: 16px 0 16px !important;
+  }
+  .alb-story-card {
+    padding: 20px 16px !important;
+  }
+  .alb-story-card__title {
+    font-size: 18px !important;
+  }
+  .alb-orbit-container {
+    padding: 10px 0;
+    overflow: hidden;
+  }
+  .alb-orbit-wrapper {
+    width: 270px !important;
+    height: 270px !important;
+  }
+  .alb-orbit-center {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  .alb-orbit-ring--1 { width: 100px !important; height: 100px !important; }
+  .alb-orbit-ring--2 { width: 180px !important; height: 180px !important; }
+  .alb-orbit-ring--3 { width: 260px !important; height: 260px !important; }
+  .alb-orbit-node {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+    border-radius: 12px !important;
+  }
 }
 
 @media (max-width: 640px) {
