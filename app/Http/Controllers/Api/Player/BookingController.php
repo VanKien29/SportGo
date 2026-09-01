@@ -636,6 +636,7 @@ class BookingController extends Controller
         $bookingArray['payment_deadline_at'] = $booking->payment_deadline_at?->toIso8601String();
         $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
+        $bookingArray = array_merge($bookingArray, $this->settlementPayload($booking));
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [
             'completed', 'completed_cash',
         ])->sum('amount');
@@ -907,6 +908,7 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,
             'cancelled_at' => $booking->cancelled_at,
@@ -1015,6 +1017,7 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,
             'cancelled_at' => $booking->cancelled_at,
@@ -1022,6 +1025,20 @@ class BookingController extends Controller
             'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
             'venue_court' => $booking->venueCourt,
             'items' => $booking->items->values(),
+        ];
+    }
+
+    private function settlementPayload(Booking $booking): array
+    {
+        $summary = $this->bookingService->settlementSummary($booking);
+
+        return [
+            'settlement_status' => $summary['status'],
+            'settlement_status_label' => $summary['label'],
+            'paid_amount' => $summary['paid_amount'],
+            'outstanding_amount' => $summary['outstanding_amount'],
+            'settlement_due_at' => $summary['due_at'],
+            'settlement_overdue' => $summary['is_overdue'],
         ];
     }
 

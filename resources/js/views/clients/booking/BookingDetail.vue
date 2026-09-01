@@ -293,6 +293,37 @@
                             </div>
 
                             <div
+                                v-if="['confirmed', 'checked_in', 'completed', 'no_show'].includes(booking.status)"
+                                class="bd-price-row"
+                            >
+                                <span class="bd-label">Đã thanh toán</span>
+                                <strong class="bd-price-val bd-price-val--green">{{
+                                    formatCurrency(paidAmount)
+                                }}</strong>
+                            </div>
+
+                            <div
+                                v-if="['confirmed', 'checked_in', 'completed', 'no_show'].includes(booking.status) && outstandingAmount > 0"
+                                class="bd-price-row"
+                            >
+                                <span class="bd-label">Còn phải thanh toán</span>
+                                <strong class="bd-price-val bd-price-val--danger">{{
+                                    formatCurrency(outstandingAmount)
+                                }}</strong>
+                            </div>
+
+                            <div
+                                v-if="['confirmed', 'checked_in', 'completed', 'no_show'].includes(booking.status)"
+                                class="bd-price-row"
+                            >
+                                <span class="bd-label">Tình trạng thanh toán</span>
+                                <strong
+                                    class="bd-price-val"
+                                    :class="settlementStatus === 'paid' ? 'bd-price-val--green' : 'bd-price-val--danger'"
+                                >{{ settlementStatusLabel }}</strong>
+                            </div>
+
+                            <div
                                 v-if="canPayOnline"
                                 class="bd-price-row bd-price-row--req"
                             >
@@ -917,6 +948,12 @@ export default {
                     : "Đơn đã quá hạn thanh toán. Sân đã được giải phóng để người khác có thể đặt.",
                 cancelled: "Đơn đặt sân này đã bị hủy bỏ.",
             };
+            if (
+                ["checked_in", "completed"].includes(this.booking.status) &&
+                this.settlementStatus === "overdue"
+            ) {
+                return `Buổi chơi đã kết thúc nhưng còn ${this.formatCurrency(this.outstandingAmount)} chưa thanh toán cho sân.`;
+            }
             return map[this.booking.status] || "";
         },
         statusLabel() {
@@ -1040,6 +1077,35 @@ export default {
         },
         cancelDescription() {
             return "Quy định hủy sân: Hoàn lại 100% số tiền vào Ví SportGo khi hủy trước giờ chơi.";
+        },
+        paidAmount() {
+            return (this.booking?.payments || [])
+                .filter((payment) => payment.status === "paid")
+                .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        },
+        outstandingAmount() {
+            return Math.max(
+                Number(this.booking?.total_price || 0) - this.paidAmount,
+                0,
+            );
+        },
+        settlementStatus() {
+            if (this.booking?.settlement_status) {
+                return this.booking.settlement_status;
+            }
+            if (this.outstandingAmount <= 0) return "paid";
+            if (this.booking?.settlement_overdue) return "overdue";
+            return this.paidAmount > 0 ? "partial" : "unpaid";
+        },
+        settlementStatusLabel() {
+            return (
+                {
+                    paid: "Đã đủ",
+                    partial: "Còn thiếu",
+                    unpaid: "Chưa thanh toán",
+                    overdue: "Quá hạn thanh toán",
+                }[this.settlementStatus] || "Chưa xác định"
+            );
         },
     },
     async mounted() {
@@ -1627,6 +1693,11 @@ export default {
 .bd-price-val--green {
     color: #15803d;
     font-weight: 500;
+}
+
+.bd-price-val--danger {
+    color: #b91c1c;
+    font-weight: 600;
 }
 
 .bd-slots-section,

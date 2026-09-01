@@ -157,15 +157,41 @@ class ReconcileBookingLifecycle extends Command
 
     private function notifyPaymentOverdue(Booking $booking): void
     {
-        if (! $booking->venueCluster?->owner_id) return;
-        Notification::query()->firstOrCreate(
-            ['user_id' => $booking->venueCluster->owner_id, 'type' => 'booking_payment_overdue', 'reference_type' => 'booking', 'reference_id' => (string) $booking->id],
-            [
-                'title' => 'Booking còn thiếu tiền',
+        $recipients = [];
+        if ($booking->venueCluster?->owner_id) {
+            $recipients[] = [
+                'user_id' => $booking->venueCluster->owner_id,
+                'type' => 'booking_payment_overdue_owner',
+                'title' => 'Booking còn công nợ',
                 'body' => 'Booking ' . $booking->booking_code . ' đã kết thúc nhưng vẫn còn khoản cần thu.',
-                'data' => ['booking_id' => $booking->id, 'action_url' => '/owner/bookings/' . $booking->id],
-                'is_read' => false,
-            ],
-        );
+                'action_url' => '/owner/bookings/' . $booking->id,
+            ];
+        }
+        if ($booking->customer_id) {
+            $recipients[] = [
+                'user_id' => $booking->customer_id,
+                'type' => 'booking_payment_overdue_customer',
+                'title' => 'Booking chưa thanh toán đủ',
+                'body' => 'Booking ' . $booking->booking_code . ' đã kết thúc nhưng vẫn còn khoản cần thanh toán cho sân.',
+                'action_url' => '/booking/' . $booking->id,
+            ];
+        }
+
+        foreach ($recipients as $recipient) {
+            Notification::query()->firstOrCreate(
+                [
+                    'user_id' => $recipient['user_id'],
+                    'type' => $recipient['type'],
+                    'reference_type' => 'booking',
+                    'reference_id' => (string) $booking->id,
+                ],
+                [
+                    'title' => $recipient['title'],
+                    'body' => $recipient['body'],
+                    'data' => ['booking_id' => $booking->id, 'action_url' => $recipient['action_url']],
+                    'is_read' => false,
+                ],
+            );
+        }
     }
 }
