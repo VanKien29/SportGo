@@ -4272,7 +4272,7 @@ export default {
                     this.counterQrBookingId = response.data?.id || "";
                     this.startCounterQrPolling();
                 }
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 this.selectedSlotKeys = [];
                 this.selectedGridCourtId = "";
                 this.syncCounterRangeFields();
@@ -4403,7 +4403,7 @@ export default {
             ].filter(Boolean);
 
             this.notice = `Đã tạo ${response.data?.created_count || this.recurringPreview.length} buổi cố định${extras.length ? `, ${extras.join(", ")}` : ""}.`;
-            this.recurringConflict = null;
+            this.closeSuccessfulActionPanels();
             this.conflictSelections = {};
             this.clearVoucherSelection();
             await this.loadSchedule();
@@ -4946,6 +4946,13 @@ export default {
             if (this.bookingActionLoading) return;
             this.bookingActionConfirm = null;
         },
+        closeSuccessfulActionPanels() {
+            this.counterDrawerOpen = false;
+            this.bookingActionConfirm = null;
+            this.recurringGroupConfirm = null;
+            this.recurringGroupDetail = null;
+            this.recurringConflict = null;
+        },
         async confirmBookingAction() {
             const action = this.bookingActionConfirm;
             if (!action || this.bookingActionLoading) return;
@@ -4985,8 +4992,7 @@ export default {
                 );
                 this.selectedBusyBooking = response.data || response;
                 this.notice = "Đã cập nhật trạng thái booking.";
-                this.bookingActionConfirm = null;
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể cập nhật booking.";
@@ -5009,8 +5015,7 @@ export default {
                     { payment_method: method },
                 );
                 this.selectedBusyBooking = response.data || response;
-                this.bookingActionConfirm = null;
-                this.counterDrawerOpen = false;
+                this.closeSuccessfulActionPanels();
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể ghi nhận thu tiền.";
@@ -5432,6 +5437,7 @@ export default {
                     { payment_method: method },
                 );
                 this.notice = "Đã ghi nhận thu tiền cho nhóm lịch cố định.";
+                this.closeSuccessfulActionPanels();
                 await this.loadRecurringGroups();
                 return true;
             } catch (error) {

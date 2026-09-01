@@ -322,15 +322,19 @@ export default {
           body: JSON.stringify(payload),
         });
 
-        playSuccessChime();
-        this.$emit('order-completed', {
-          items: this.cartItems,
+        const completedOrder = {
+          items: this.cartItems.map((item) => ({ ...item })),
           totalAmount: res.data?.total_amount || this.totalAmount,
           paymentMethod: this.paymentMethod,
           customerNote: this.customerNote,
           payment: res.data?.payment,
-        });
+        };
+
+        // Close the modal before notifying the parent so the UI is not kept
+        // open while the parent refreshes its data or displays the notice.
         this.onClose();
+        playSuccessChime();
+        this.$emit('order-completed', completedOrder);
       } catch (err) {
         alert(err.message || 'Không thể ghi nhận đơn bán lẻ.');
       } finally {
