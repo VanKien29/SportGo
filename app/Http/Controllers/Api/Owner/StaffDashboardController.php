@@ -52,8 +52,9 @@ class StaffDashboardController extends Controller
             ]);
         }
 
-        $today = Carbon::now('Asia/Ho_Chi_Minh')->toDateString();
-        $nowTime = Carbon::now('Asia/Ho_Chi_Minh')->toTimeString();
+        $businessNow = Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $today = $businessNow->toDateString();
+        $nowTime = $businessNow->toTimeString();
 
         // 1. Số sân đang hoạt động
         $totalCourts = VenueCourt::where('venue_cluster_id', $clusterId)->count();

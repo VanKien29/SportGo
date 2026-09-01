@@ -90,6 +90,7 @@ import PricingHeaderHero from '../../components/owner/pricing/PricingHeaderHero.
 import PricingRuleModal from '../../components/owner/pricing/PricingRuleModal.vue';
 import PricingRulesTable from '../../components/owner/pricing/PricingRulesTable.vue';
 import { api } from '../../services/api.js';
+import { businessDateString } from '../../utils/businessTime.js';
 
 export default {
   name: 'OwnerPricing',
@@ -220,7 +221,7 @@ export default {
       return {
         court_type_id: null,
         apply_to_days: [1, 2, 3, 4, 5],
-        holiday_date: new Date().toISOString().split('T')[0],
+        holiday_date: businessDateString(),
         start_time: '06:00',
         end_time: '22:00',
         booking_type: 'all',
@@ -328,7 +329,7 @@ export default {
         ...this.defaultForm(),
         court_type_id: row.court_type_id,
         apply_to_days: this.normalizeDays(row.apply_to_days),
-        holiday_date: this.dateOnly(row.holiday_date) || new Date().toISOString().split('T')[0],
+        holiday_date: this.dateOnly(row.holiday_date) || businessDateString(),
         start_time: this.time(row.start_time),
         end_time: this.time(row.end_time),
         booking_type: row.booking_type,

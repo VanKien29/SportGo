@@ -89,6 +89,8 @@
                   class="sg-nearby-btn"
                   :class="{ 'is-active': filters.sort === 'distance' }"
                   :disabled="locationLoading"
+                  title="Cho phép SportGo truy cập vị trí để tính khoảng cách"
+                  aria-label="Tìm sân gần vị trí của bạn"
                   @click="activateNearbySort"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -107,7 +109,27 @@
                 </div>
               </div>
             </div>
-            <p v-if="locationMessage" class="sg-location-message" role="status">{{ locationMessage }}</p>
+            <div
+              v-if="locationMessage"
+              class="sg-location-message"
+              :class="`is-${locationPermission}`"
+              role="status"
+              aria-live="polite"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M12 21s7-6.1 7-12A7 7 0 0 0 5 9c0 5.9 7 12 7 12Z" />
+                <circle cx="12" cy="9" r="2.2" />
+              </svg>
+              <span>{{ locationMessage }}</span>
+              <button
+                v-if="locationPermission === 'denied'"
+                type="button"
+                class="sg-location-retry"
+                @click="activateNearbySort"
+              >
+                Thử lại
+              </button>
+            </div>
 
             <!-- Loading Skeleton -->
             <div v-if="loading" class="alb-venue-grid">
@@ -139,15 +161,33 @@
             <div v-else class="alb-venue-grid">
               <article v-for="venue in venues" :key="venue.id" class="alb-venue-card">
                 <div class="alb-venue-card__thumb">
-                  <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" />
+                  <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" @error="onVenueImageError($event, venue)" />
                 </div>
 
                 <div class="alb-venue-card__body">
                   <h3 class="alb-venue-card__title">{{ venue.name }}</h3>
                   <div class="alb-venue-card__address">
                     <span>{{ venue.address || venue.province || "Đang cập nhật địa chỉ" }}</span>
-                    <span v-if="venue.distance_km !== undefined && venue.distance_km !== null" class="sg-venue-card__distance">
-                      · {{ formatDistance(venue.distance_km) }}
+                  </div>
+                  <div class="sg-venue-card__distance-row">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M12 21s7-6.1 7-12A7 7 0 0 0 5 9c0 5.9 7 12 7 12Z" />
+                      <circle cx="12" cy="9" r="2.2" />
+                    </svg>
+                    <span v-if="venue.distance_km !== undefined && venue.distance_km !== null">
+                      Cách vị trí của bạn {{ formatDistance(venue.distance_km) }}
+                    </span>
+                    <span v-else-if="locationPermission === 'denied'" class="is-muted">
+                      Chưa cấp quyền vị trí để tính khoảng cách
+                    </span>
+                    <span v-else-if="locationPermission === 'error' || locationPermission === 'unsupported'" class="is-muted">
+                      Chưa lấy được vị trí để tính khoảng cách
+                    </span>
+                    <span v-else-if="filters.sort === 'distance'" class="is-muted">
+                      Chưa có tọa độ để tính khoảng cách
+                    </span>
+                    <span v-else class="is-muted">
+                      Bấm “Sân gần tôi” để xem khoảng cách
                     </span>
                   </div>
 
@@ -182,15 +222,9 @@ import ClientTimeSlots from "../../components/ClientTimeSlots.vue";
 import { courtTypeService } from "../../services/courtTypes.js";
 import { venueService } from "../../services/venues.js";
 import { api } from "../../services/api.js";
+import { businessDateString } from "../../utils/businessTime.js";
 
 const fallbackImage = "/images/home/badminton-cover.webp";
-
-function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export default {
   name: "VenueList",
@@ -202,7 +236,7 @@ export default {
   },
   data() {
     return {
-      today: localDateString(),
+      today: businessDateString(),
       loading: true,
       venues: [],
       courtTypes: [],
@@ -216,14 +250,17 @@ export default {
         province_name: "",
         ward_code: "",
         ward_name: "",
-        booking_date: localDateString(),
+        booking_date: businessDateString(),
         start_time: "18:00:00",
-        sort: "recommended",
+        sort: "distance",
       },
       userLatitude: null,
       userLongitude: null,
       locationLoading: false,
       locationMessage: "",
+      locationPermission: "idle",
+      locationResolveInFlight: false,
+      venueRequestId: 0,
       timeOptions: ["06:00", "08:00", "10:00", "14:00", "16:00", "18:00", "20:00"],
     };
   },
@@ -263,7 +300,7 @@ export default {
     this.syncQueryToFilters();
     this.loadCourtTypes();
     if (this.filters.sort === "distance") {
-      this.activateNearbySort();
+      this.initializeNearbySearch();
     } else {
       this.loadVenues();
     }
@@ -320,7 +357,6 @@ export default {
       if (q.area) this.filters.area = q.area;
       if (q.booking_date) this.filters.booking_date = q.booking_date;
       if (q.start_time) this.filters.start_time = q.start_time;
-      if (q.sort) this.filters.sort = q.sort;
     },
     async loadCourtTypes() {
       try {
@@ -331,6 +367,7 @@ export default {
       }
     },
     async loadVenues() {
+      const requestId = ++this.venueRequestId;
       this.loading = true;
       try {
         const params = { ...this.filters };
@@ -339,11 +376,17 @@ export default {
           params.longitude = this.userLongitude;
         }
         const res = await venueService.list(params);
+        if (requestId !== this.venueRequestId) return;
         this.venues = res.data || res || [];
       } catch (e) {
+        if (requestId !== this.venueRequestId) return;
         this.venues = [];
+        this.locationMessage = "Không tải được danh sách sân. Vui lòng thử lại.";
+        this.locationPermission = "error";
       } finally {
-        this.loading = false;
+        if (requestId === this.venueRequestId) {
+          this.loading = false;
+        }
       }
     },
     applyFilters() {
@@ -357,39 +400,95 @@ export default {
       this.locationMessage = "";
       this.loadVenues();
     },
+    async initializeNearbySearch() {
+      if (this.locationResolveInFlight || this.locationLoading) return;
+      this.locationResolveInFlight = true;
+      this.filters.sort = "distance";
+
+      try {
+        if (this.userLatitude !== null && this.userLongitude !== null) {
+          this.locationPermission = "granted";
+          this.locationMessage = "";
+          this.loadVenues();
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          this.locationPermission = "unsupported";
+          this.filters.sort = "recommended";
+          this.locationMessage = "Trình duyệt không hỗ trợ định vị. Bạn có thể xem sân trên bản đồ để chọn khu vực.";
+          this.loadVenues();
+          return;
+        }
+
+        let permissionState = "prompt";
+        if (navigator.permissions?.query) {
+          try {
+            const permission = await navigator.permissions.query({ name: "geolocation" });
+            permissionState = permission.state;
+          } catch (error) {
+            // Một số trình duyệt không cho truy vấn trạng thái quyền; tiếp tục xin vị trí bình thường.
+          }
+        }
+
+        if (permissionState === "denied") {
+          this.locationPermission = "denied";
+          this.filters.sort = "recommended";
+          this.locationMessage = "Bạn chưa cấp quyền vị trí. Hãy bật quyền Vị trí cho website SportGo rồi bấm Thử lại.";
+          this.loadVenues();
+          return;
+        }
+
+        this.requestCurrentLocation(permissionState !== "granted");
+      } finally {
+        this.locationResolveInFlight = false;
+      }
+    },
     activateNearbySort() {
       this.filters.sort = "distance";
 
+      if (this.locationLoading) return;
+
       if (this.userLatitude !== null && this.userLongitude !== null) {
-        this.locationMessage = "Đang hiển thị sân theo khoảng cách từ vị trí của bạn.";
+        this.locationPermission = "granted";
+        this.locationMessage = "";
         this.loadVenues();
         return;
       }
 
-      if (!navigator.geolocation) {
-        this.filters.sort = "recommended";
-        this.locationMessage = "Trình duyệt không hỗ trợ định vị. Bạn có thể xem sân trên bản đồ để chọn khu vực.";
-        this.loadVenues();
-        return;
-      }
+      this.initializeNearbySearch();
+    },
+    requestCurrentLocation(showPermissionNotice = true) {
+      if (this.locationLoading) return;
 
       this.locationLoading = true;
-      this.locationMessage = "Đang lấy vị trí để tìm sân gần nhất...";
+      this.locationPermission = showPermissionNotice ? "prompt" : "granted";
+      this.locationMessage = showPermissionNotice
+        ? "SportGo cần quyền truy cập vị trí để tính khoảng cách. Hãy chọn Cho phép trong thông báo của trình duyệt."
+        : "";
       navigator.geolocation.getCurrentPosition(
         (position) => {
           this.userLatitude = position.coords.latitude;
           this.userLongitude = position.coords.longitude;
           this.locationLoading = false;
-          this.locationMessage = "Đang hiển thị sân theo khoảng cách từ vị trí của bạn.";
+          this.locationPermission = "granted";
+          this.locationMessage = "";
           this.loadVenues();
         },
-        () => {
+        (error) => {
           this.locationLoading = false;
-          this.filters.sort = "recommended";
-          this.locationMessage = "Không thể lấy vị trí. Hãy cho phép định vị để tìm sân gần nhất.";
+          // Khi quyền đã được cấp nhưng thiết bị chưa trả được tọa độ,
+          // giữ chế độ gần bạn để UI không quay về lời mời bấm lại vô nghĩa.
+          if (showPermissionNotice) {
+            this.filters.sort = "recommended";
+          }
+          this.locationPermission = error?.code === 1 ? "denied" : "error";
+          this.locationMessage = error?.code === 1
+            ? "Bạn chưa cấp quyền vị trí. Hãy bật quyền Vị trí cho website SportGo trong cài đặt trình duyệt rồi bấm Thử lại."
+            : "Đã được cấp quyền nhưng thiết bị chưa trả được vị trí. Vui lòng kiểm tra dịch vụ vị trí rồi thử lại.";
           this.loadVenues();
         },
-        { enableHighAccuracy: true, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
       );
     },
     resetFilters() {
@@ -401,28 +500,46 @@ export default {
         province_name: "",
         ward_code: "",
         ward_name: "",
-        booking_date: localDateString(),
+        booking_date: businessDateString(),
         start_time: "18:00:00",
-        sort: "recommended",
+        sort: "distance",
       };
       this.wardsList = [];
       this.locationMessage = "";
-      this.loadVenues();
+      if (this.filters.sort === "distance") {
+        this.initializeNearbySearch();
+      } else {
+        this.loadVenues();
+      }
     },
     venueImage(venue) {
       const img = venue.image_path || venue.cover_image || venue.thumbnail;
       if (img && !/kitchen|cabinet|furniture/i.test(img)) {
-        if (/^https?:\/\//.test(img)) return img;
-        return img.startsWith("/") ? img : `/storage/${img}`;
+        const value = String(img).trim();
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith("/")) return value;
+        if (value.startsWith("storage/")) return `/${value}`;
+        if (value.startsWith("public/")) return `/storage/${value.slice(7)}`;
+        return `/storage/${value}`;
       }
+      return this.fallbackVenueImage(venue?.id);
+    },
+    fallbackVenueImage(venueId = 0) {
       const pool = [
         "/images/home/badminton-cover.webp",
         "/images/home/anhbia2.webp",
         "/images/home/sportgo-home-hero-v2.webp",
         "/images/about_hero.png",
       ];
-      const index = (venue.id || 0) % pool.length;
-      return pool[index];
+      return pool[Math.abs(Number(venueId) || 0) % pool.length];
+    },
+    onVenueImageError(event, venue) {
+      if (event?.target?.dataset?.fallbackApplied === "1") {
+        event.target.style.display = "none";
+        return;
+      }
+      event.target.dataset.fallbackApplied = "1";
+      event.target.src = this.fallbackVenueImage(venue?.id);
     },
     formatRating(venue) {
       const rating = Number(venue.rating_avg || venue.average_rating || 4.9);
@@ -741,9 +858,64 @@ export default {
 }
 
 .sg-location-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: -12px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+  background: #f0fdf4;
   color: #166534;
   font-size: 13px;
+}
+
+.sg-location-message.is-prompt {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.sg-location-message.is-denied,
+.sg-location-message.is-error,
+.sg-location-message.is-unsupported {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.sg-location-retry {
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sg-location-retry:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.sg-venue-card__distance-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  margin-top: 7px;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sg-venue-card__distance-row .is-muted {
+  color: #64748b;
+  font-weight: 400;
 }
 
 .sg-venue-card__distance {

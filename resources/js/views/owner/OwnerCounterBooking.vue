@@ -2227,7 +2227,7 @@ import MiniCalendar from "../../components/MiniCalendar.vue";
 import AppTabs from "../../components/common/AppTabs.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
-import { businessDateString, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
+import { businessDateString, businessDateTime, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
 
 function toIsoDate(date) {
     return businessDateString(date);
@@ -5759,15 +5759,15 @@ export default {
             return now < endsAt.getTime() ? "in-progress" : "ended";
         },
         occurrenceDateTime(occurrence, field) {
-            const date = this.parseDate(occurrence?.booking_date);
+            const date = String(occurrence?.booking_date || "").slice(0, 10);
             const time = this.formatTime(occurrence?.[field]);
-            if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
 
             const minutes = this.timeToMinutes(time);
             if (!Number.isFinite(minutes)) return null;
 
-            date.setHours(0, minutes, 0, 0);
-            return date;
+            const result = businessDateTime(date, time);
+            return Number.isNaN(result.getTime()) ? null : result;
         },
         occurrenceStatusLabel(occurrence) {
             const state = this.occurrenceOperationalState(occurrence);
@@ -6067,7 +6067,11 @@ export default {
             const raw = String(value);
             const date = raw.includes("T")
                 ? new Date(raw)
-                : new Date(`${raw}T00:00:00`);
+                : (() => {
+                    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                    if (!match) return new Date(NaN);
+                    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+                })();
             return Number.isNaN(date.getTime()) ? null : date;
         },
         formatIsoDate(value) {

@@ -6,35 +6,65 @@
         <header class="scanner-head">
           <div class="header-titles">
             <h3>Nhận diện &amp; Quét vé đặt sân</h3>
-            <span class="scanner-head-subtitle">Hỗ trợ súng quét mã vạch 2D/QR USB, tra cứu theo mã đơn hoặc SĐT khách</span>
+            <span class="scanner-head-subtitle">Quét QR bằng camera hoặc tải ảnh QR</span>
           </div>
           <button type="button" class="scanner-close-btn" aria-label="Đóng" @click="onClose">✕</button>
         </header>
 
         <!-- BODY -->
         <div class="scanner-body">
-          <!-- Scanner Input Bar -->
-          <div class="scanner-top-bar">
-            <div class="scanner-input-wrap">
-              <AppIcon name="search" :size="15" class="scanner-search-icon" />
-              <input
-                ref="barcodeInput"
-                v-model.trim="scannedCode"
-                type="text"
-                class="scanner-text-input"
-                placeholder="Bắn súng quét QR vé hoặc nhập mã booking (#BK-1001), SĐT..."
-                autofocus
-                @keydown.enter.prevent="handleSearchBooking"
-              />
-              <button
-                type="button"
-                class="scanner-search-btn"
-                :disabled="!scannedCode || searching"
-                @click="handleSearchBooking"
-              >
-                {{ searching ? 'Đang tìm...' : 'Nhận diện vé' }}
-              </button>
+          <div class="scanner-method-tabs" role="tablist" aria-label="Cách quét vé">
+            <button
+              type="button"
+              class="scanner-method-tab"
+              :class="{ 'is-active': scanMethod === 'camera' }"
+              role="tab"
+              :aria-selected="scanMethod === 'camera'"
+              @click="selectScanMethod('camera')"
+            >
+              <AppIcon name="camera" :size="15" />
+              Camera QR
+            </button>
+            <button
+              type="button"
+              class="scanner-method-tab"
+              :class="{ 'is-active': scanMethod === 'upload' }"
+              role="tab"
+              :aria-selected="scanMethod === 'upload'"
+              @click="selectScanMethod('upload')"
+            >
+              <AppIcon name="image" :size="15" />
+              Tải ảnh QR
+            </button>
+          </div>
+
+          <div v-if="scanMethod === 'camera'" class="camera-scanner">
+            <div class="camera-preview">
+              <video ref="qrVideo" class="qr-video" muted playsinline></video>
+              <div class="qr-scan-frame" aria-hidden="true"></div>
+              <div v-if="!cameraActive && !cameraError" class="camera-starting">Đang mở camera...</div>
             </div>
+            <div class="camera-status-row">
+              <span v-if="cameraActive">Đưa mã QR vé vào khung quét</span>
+              <span v-else-if="cameraError" class="camera-error">{{ cameraError }}</span>
+              <span v-else>Camera sẽ tự nhận diện mã QR</span>
+              <button v-if="cameraError" type="button" class="camera-retry-btn" @click="startCamera">Thử lại</button>
+            </div>
+          </div>
+
+          <div v-else-if="scanMethod === 'upload'" class="upload-qr-panel">
+            <label class="upload-qr-picker" for="staff-qr-image-input">
+              <AppIcon name="image" :size="25" />
+              <strong>{{ uploadSearching ? 'Đang kiểm tra ảnh QR...' : 'Chọn ảnh có mã QR vé' }}</strong>
+              <span>JPG, PNG hoặc WEBP · tối đa 5MB · ảnh rõ, không bị cắt góc</span>
+              <input
+                id="staff-qr-image-input"
+                ref="qrImageInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                @change="handleQrImageUpload"
+              />
+            </label>
           </div>
 
           <!-- Search Error Message -->
@@ -43,12 +73,6 @@
           </div>
 
           <!-- Empty State Hint -->
-          <div v-if="!matchedBooking && !error" class="scanner-hint-box">
-            <div class="hint-text">
-              <strong>Sẵn sàng quét vé:</strong> Đưa súng bắn mã vạch vào mã QR trên điện thoại khách hàng hoặc nhập mã đơn / SĐT để tra cứu nhanh.
-            </div>
-          </div>
-
           <!-- Booking Result Found -->
           <div v-if="matchedBooking" class="matched-booking-card">
             <div class="matched-head">
@@ -132,6 +156,7 @@
 
 <script>
 import AppIcon from '../AppIcon.vue';
+import QrScanner from 'qr-scanner';
 import { playSuccessChime, playWarningChime } from '../../utils/audioChime.js';
 import { ownerBookingService } from '../../services/ownerBookings.js';
 
@@ -151,9 +176,14 @@ export default {
   emits: ['close', 'booking-selected', 'collect-requested', 'checked-in'],
   data() {
     return {
+      scanMethod: 'camera',
       scannedCode: '',
       searching: false,
       actionLoading: false,
+      uploadSearching: false,
+      cameraActive: false,
+      cameraError: '',
+      qrScanner: null,
       error: '',
       matchedBooking: null,
     };
@@ -161,21 +191,172 @@ export default {
   watch: {
     isOpen(val) {
       if (val) {
+        this.scanMethod = 'camera';
         this.scannedCode = '';
         this.matchedBooking = null;
         this.error = '';
+        this.cameraError = '';
+        this.uploadSearching = false;
         this.$nextTick(() => {
-          if (this.$refs.barcodeInput) {
-            this.$refs.barcodeInput.focus();
+          if (this.scanMethod === 'camera') {
+            this.startCamera();
           }
         });
+      } else {
+        this.stopCamera();
       }
     },
   },
+  beforeUnmount() {
+    this.stopCamera();
+  },
   methods: {
+    async selectScanMethod(method) {
+      this.stopCamera();
+      this.scanMethod = method;
+      this.cameraError = '';
+      this.error = '';
+
+      await this.$nextTick();
+      if (method === 'camera') {
+        this.startCamera();
+      }
+    },
+    async startCamera() {
+      if (!this.isOpen || this.scanMethod !== 'camera' || this.qrScanner) return;
+
+      this.cameraError = '';
+      await this.$nextTick();
+      if (!this.$refs.qrVideo) return;
+
+      try {
+        if (!(await QrScanner.hasCamera())) {
+          throw new Error('Không tìm thấy camera trên thiết bị này.');
+        }
+
+        this.qrScanner = new QrScanner(
+          this.$refs.qrVideo,
+          (result) => this.handleDecodedQr(typeof result === 'string' ? result : result?.data),
+          {
+            preferredCamera: 'environment',
+            maxScansPerSecond: 10,
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            returnDetailedScanResult: true,
+          },
+        );
+        await this.qrScanner.start();
+        this.cameraActive = true;
+      } catch (err) {
+        this.stopCamera();
+        this.cameraError = err?.name === 'NotAllowedError'
+          ? 'Chưa được cấp quyền camera. Hãy cho phép camera cho website SportGo.'
+          : (err?.message || 'Không thể mở camera để quét QR.');
+      }
+    },
+    stopCamera() {
+      if (this.qrScanner) {
+        this.qrScanner.stop();
+        this.qrScanner.destroy();
+        this.qrScanner = null;
+      }
+      this.cameraActive = false;
+    },
+    handleDecodedQr(value) {
+      if (!value || this.searching || this.matchedBooking) return;
+      const code = this.extractBookingCode(value);
+      if (!code) {
+        this.cameraError = 'Mã QR không chứa mã vé SportGo hợp lệ.';
+        this.stopCamera();
+        playWarningChime();
+        return;
+      }
+      this.scannedCode = code;
+      this.stopCamera();
+      this.handleSearchBooking();
+    },
+    async handleQrImageUpload(event) {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+
+      this.uploadSearching = true;
+      this.error = '';
+      this.matchedBooking = null;
+      try {
+        await this.validateQrImageFile(file);
+        const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
+        const value = typeof result === 'string' ? result : result?.data;
+        if (!value) throw new Error('Không tìm thấy mã QR trong ảnh.');
+        const code = this.extractBookingCode(value);
+        if (!code) throw new Error('Ảnh không chứa mã vé SportGo hợp lệ.');
+        this.scannedCode = code;
+        await this.handleSearchBooking();
+      } catch (err) {
+        this.error = /No QR code found/i.test(err?.message || '')
+          ? 'Không tìm thấy mã QR trong ảnh. Vui lòng chọn ảnh rõ hơn.'
+          : (err?.message || 'Không thể đọc ảnh QR.');
+        playWarningChime();
+      } finally {
+        this.uploadSearching = false;
+        if (event?.target) event.target.value = '';
+      }
+    },
+    validateQrImageFile(file) {
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+      const fileName = String(file?.name || '').toLowerCase();
+      const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+
+      if (!file || !file.size) {
+        throw new Error('Ảnh QR không hợp lệ hoặc đang bị trống.');
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Ảnh QR không được vượt quá 5MB.');
+      }
+      if (!allowedMimeTypes.includes(file.type) || !allowedExtensions.includes(extension)) {
+        throw new Error('Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP.');
+      }
+
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        const cleanup = () => {
+          URL.revokeObjectURL(objectUrl);
+          image.onload = null;
+          image.onerror = null;
+        };
+
+        image.onload = () => {
+          const { width, height } = image;
+          cleanup();
+          if (width < 120 || height < 120) {
+            reject(new Error('Ảnh QR quá nhỏ. Vui lòng chọn ảnh rõ, tối thiểu 120×120 pixel.'));
+          } else if (width > 10000 || height > 10000) {
+            reject(new Error('Kích thước ảnh QR không hợp lệ.'));
+          } else {
+            resolve();
+          }
+        };
+        image.onerror = () => {
+          cleanup();
+          reject(new Error('Không thể đọc tệp ảnh QR.'));
+        };
+        image.src = objectUrl;
+      });
+    },
+    extractBookingCode(value) {
+      const raw = String(value || '').trim();
+      const match = raw.match(/(?:^|[^A-Z0-9])((?:DEMO-)?BK[A-Z0-9-]{6,})(?![A-Z0-9])/i);
+      return match?.[1]?.toUpperCase() || null;
+    },
     async handleSearchBooking() {
-      const code = this.scannedCode.trim();
-      if (!code) return;
+      const code = this.extractBookingCode(this.scannedCode);
+      if (!code) {
+        this.error = 'Mã QR không chứa mã vé SportGo hợp lệ.';
+        playWarningChime();
+        return;
+      }
+      this.scannedCode = code;
       this.searching = true;
       this.error = '';
       this.matchedBooking = null;
@@ -185,7 +366,7 @@ export default {
           search: code,
         });
         const items = response.data || [];
-        const found = items.find((b) => b.booking_code?.toLowerCase() === code.toLowerCase()) || items[0];
+        const found = items.find((b) => b.booking_code?.toLowerCase() === code.toLowerCase());
         if (found) {
           this.matchedBooking = found;
           playSuccessChime();
@@ -343,78 +524,138 @@ export default {
   gap: 16px;
 }
 
-.scanner-top-bar {
+.scanner-method-tabs {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 6px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.scanner-input-wrap {
-  position: relative;
-  flex: 1;
-  display: flex;
+.scanner-method-tab {
+  display: inline-flex;
   align-items: center;
-}
-
-.scanner-search-icon {
-  position: absolute;
-  left: 12px;
+  gap: 6px;
+  padding: 9px 11px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
   color: #64748b;
-}
-
-.scanner-text-input {
-  width: 100%;
-  padding: 10px 110px 10px 36px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 13.5px;
-  color: #0f172a;
-  outline: none;
-  font-family: inherit;
-  transition: border-color 0.15s ease;
-}
-
-.scanner-text-input:focus {
-  border-color: #087642;
-  box-shadow: 0 0 0 3px rgba(8, 118, 66, 0.1);
-}
-
-.scanner-search-btn {
-  position: absolute;
-  right: 6px;
-  background: #087642;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 14px;
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s ease;
 }
 
-.scanner-search-btn:hover:not(:disabled) {
-  background: #065f35;
+.scanner-method-tab:hover,
+.scanner-method-tab.is-active {
+  color: #087642;
 }
 
-.scanner-search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.scanner-method-tab.is-active {
+  border-bottom-color: #087642;
 }
 
-.scanner-hint-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 16px;
+.camera-scanner {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.camera-preview {
+  position: relative;
+  min-height: 270px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.qr-video {
+  display: block;
+  width: 100%;
+  min-height: 270px;
+  max-height: 360px;
+  object-fit: cover;
+}
+
+.qr-scan-frame {
+  position: absolute;
+  inset: 18% 20%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.2);
+  pointer-events: none;
+}
+
+.camera-starting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
   font-size: 13px;
-  color: #475569;
-  line-height: 1.5;
 }
 
-.scanner-hint-box strong {
+.camera-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 24px;
+  color: #475569;
+  font-size: 12.5px;
+}
+
+.camera-error {
+  color: #b91c1c;
+}
+
+.camera-retry-btn {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #087642;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.upload-qr-panel {
+  display: flex;
+}
+
+.upload-qr-picker {
+  width: 100%;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.upload-qr-picker:hover {
+  border-color: #087642;
+  background: #f0fdf4;
+}
+
+.upload-qr-picker strong {
   color: #0f172a;
-  font-weight: 600;
+  font-size: 14px;
+}
+
+.upload-qr-picker span {
+  font-size: 12px;
+}
+
+.upload-qr-picker input {
+  display: none;
 }
 
 .scanner-msg.error {
@@ -580,5 +821,30 @@ export default {
   color: #087642;
   font-size: 13px;
   font-weight: 500;
+}
+
+@media (max-width: 560px) {
+  .scanner-method-tabs {
+    gap: 2px;
+  }
+
+  .scanner-method-tab {
+    padding: 8px 7px;
+    font-size: 11.5px;
+  }
+
+  .camera-preview,
+  .qr-video {
+    min-height: 230px;
+  }
+
+  .matched-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .matched-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>

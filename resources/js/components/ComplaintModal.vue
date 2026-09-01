@@ -154,6 +154,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
 import { api, apiFormData } from '@/services/api';
+import { businessDateLabel } from '@/utils/businessTime.js';
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
@@ -220,7 +221,7 @@ async function fetchBookings() {
 
 function bookingOptionLabel(booking) {
   const date = booking.booking_date
-    ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('vi-VN')
+    ? businessDateLabel(booking.booking_date)
     : 'Chưa rõ ngày';
   const cluster = bookingCluster(booking)?.name || 'Cụm sân';
   const code = booking.booking_code || booking.code || booking.id;

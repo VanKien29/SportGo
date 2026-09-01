@@ -353,7 +353,7 @@ export default {
   },
   computed: {
     today() {
-      return this.isoDate(new Date());
+      return businessDateString();
     },
     isCurrentPeriodSelected() {
       if (this.scheduleViewMode === 'day') {
@@ -1433,4 +1433,3 @@ export default {
   }
 }
 </style>
-

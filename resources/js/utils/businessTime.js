@@ -25,6 +25,22 @@ export function businessDateString(value = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+export function businessDateLabel(value) {
+  if (!value) return "";
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const date = businessDateString(parsed);
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 export function businessMinutes(value = new Date()) {
   const parts = partsFor(value);
   return Number(parts.hour) * 60 + Number(parts.minute);
@@ -49,6 +65,18 @@ export function addCalendarDays(dateString, amount) {
   const [year, month, day] = String(dateString).split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   date.setUTCDate(date.getUTCDate() + Number(amount));
+
+  return [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()]
+    .map((part) => String(part).padStart(2, "0"))
+    .join("-");
+}
+
+export function addCalendarMonths(dateString, amount) {
+  const [year, month, day] = String(dateString).split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  date.setUTCMonth(date.getUTCMonth() + Number(amount));
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
 
   return [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()]
     .map((part) => String(part).padStart(2, "0"))

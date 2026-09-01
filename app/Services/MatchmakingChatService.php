@@ -93,7 +93,7 @@ class MatchmakingChatService
         $participant->save();
 
         if ($wasNew || $wasInactive) {
-            $this->systemMessage($conversation, ($displayName ?: 'Một người chơi') . ' đã tham gia nhóm lúc ' . now()->format('d/m/Y H:i') . '.');
+            $this->systemMessage($conversation, ($displayName ?: 'Một người chơi') . ' đã tham gia nhóm lúc ' . $this->businessNow()->format('d/m/Y H:i') . '.');
         }
 
         return $conversation->fresh();
@@ -112,7 +112,7 @@ class MatchmakingChatService
 
         $leftAt = now();
         $participant->forceFill(['left_at' => $leftAt])->save();
-        $this->systemMessage($conversation, ($displayName ?: 'Một người chơi') . ' đã rời nhóm lúc ' . $leftAt->format('d/m/Y H:i') . '.');
+        $this->systemMessage($conversation, ($displayName ?: 'Một người chơi') . ' đã rời nhóm lúc ' . $leftAt->copy()->setTimezone($this->businessTimezone())->format('d/m/Y H:i') . '.');
 
         return $conversation->fresh();
     }
@@ -129,7 +129,7 @@ class MatchmakingChatService
             ->whereNull('left_at')
             ->update(['left_at' => $now]);
 
-        $this->systemMessage($conversation, 'Nhóm giao lưu đã được giải tán bởi chủ bài lúc ' . $now->format('d/m/Y H:i') . '. Bạn vẫn có thể xem lại lịch sử trò chuyện.');
+        $this->systemMessage($conversation, 'Nhóm giao lưu đã được giải tán bởi chủ bài lúc ' . $now->copy()->setTimezone($this->businessTimezone())->format('d/m/Y H:i') . '. Bạn vẫn có thể xem lại lịch sử trò chuyện.');
     }
 
     private function systemMessage(Conversation $conversation, string $content): void
@@ -159,5 +159,15 @@ class MatchmakingChatService
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessNow(): \Carbon\Carbon
+    {
+        return now($this->businessTimezone());
     }
 }

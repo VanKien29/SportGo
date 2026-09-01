@@ -1614,6 +1614,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppIcon from "../../components/AppIcon.vue";
 import DocumentViewerModal from "../../components/DocumentViewerModal.vue";
 import { adminPartnerApplicationService } from "../../services/adminPartnerApplications.js";
+import { addCalendarDays, businessDateString } from "../../utils/businessTime.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -2149,14 +2150,11 @@ function canWithdrawUnilateralNotice(request) {
 }
 
 function openTerminationDraftModal() {
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 30);
+    const defaultDate = addCalendarDays(businessDateString(), 30);
     terminationModal.open = true;
     terminationModal.reason = "";
     terminationModal.detail_reason = "";
-    terminationModal.requested_effective_date = defaultDate
-        .toISOString()
-        .slice(0, 10);
+    terminationModal.requested_effective_date = defaultDate;
     terminationModal.future_booking_policy = "manual_per_booking";
 }
 

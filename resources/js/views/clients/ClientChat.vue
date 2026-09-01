@@ -2451,7 +2451,8 @@ export default {
     },
     formatDate(dateStr) {
       if (!dateStr) return "-";
-      return new Date(dateStr).toLocaleDateString("vi-VN");
+      const [year, month, day] = String(dateStr).slice(0, 10).split("-");
+      return year && month && day ? `${day}/${month}/${year}` : "-";
     },
     formatTime(timeStr) {
       if (!timeStr) return "";

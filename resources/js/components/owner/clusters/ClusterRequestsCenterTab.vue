@@ -170,6 +170,8 @@
 </template>
 
 <script>
+import { BUSINESS_TIMEZONE } from '@/utils/businessTime.js';
+
 export default {
   name: 'ClusterRequestsCenterTab',
   props: {
@@ -241,12 +243,14 @@ export default {
       if (!dateStr) return '';
       try {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('vi-VN', {
+        if (Number.isNaN(d.getTime())) return dateStr;
+        return d.toLocaleString('vi-VN', {
           hour: '2-digit',
           minute: '2-digit',
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
+          timeZone: BUSINESS_TIMEZONE,
         });
       } catch (e) {
         return dateStr;

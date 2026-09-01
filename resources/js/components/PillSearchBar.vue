@@ -117,13 +117,7 @@ import ClientDatePicker from "./ClientDatePicker.vue";
 import ClientTimeSlots from "./ClientTimeSlots.vue";
 import { api } from "../services/api.js";
 import { courtTypeService } from "../services/courtTypes.js";
-
-function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { businessDateString } from "../utils/businessTime.js";
 
 export default {
   name: "PillSearchBar",
@@ -134,7 +128,7 @@ export default {
   },
   data() {
     return {
-      today: localDateString(),
+      today: businessDateString(),
       searchQuery: "",
       showFilterModal: false,
       provincesList: [],
@@ -146,7 +140,7 @@ export default {
         province_name: "",
         ward_code: "",
         ward_name: "",
-        booking_date: localDateString(),
+        booking_date: businessDateString(),
         start_time: "18:00:00",
         court_type_id: "",
       },
@@ -258,7 +252,7 @@ export default {
         province_name: "",
         ward_code: "",
         ward_name: "",
-        booking_date: localDateString(),
+        booking_date: businessDateString(),
         start_time: "18:00:00",
         court_type_id: "",
       };

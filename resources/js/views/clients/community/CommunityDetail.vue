@@ -312,6 +312,7 @@ import ReportModal from "@/components/ReportModal.vue";
 import { api } from "@/services/api.js";
 import { getAuth } from "@/stores/auth.js";
 import { normalizeMediaUrl } from "@/utils/mediaUrl.js";
+import { BUSINESS_TIMEZONE, businessDateLabel } from "@/utils/businessTime.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -511,12 +512,16 @@ function initials(name) {
 
 function formatDate(value) {
     if (!value) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return businessDateLabel(value);
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
     return new Intl.DateTimeFormat("vi-VN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: BUSINESS_TIMEZONE,
     }).format(new Date(value));
 }
 

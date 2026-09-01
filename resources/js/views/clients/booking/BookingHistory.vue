@@ -253,6 +253,7 @@
 import ClientDatePicker from "../../../components/ClientDatePicker.vue";
 import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
+import { businessDateLabel } from "../../../utils/businessTime.js";
 
 export default {
   name: "BookingHistory",
@@ -418,7 +419,7 @@ export default {
     },
     formatDate(dateStr) {
       if (!dateStr) return "-";
-      return new Date(dateStr).toLocaleDateString("vi-VN");
+      return businessDateLabel(dateStr) || "-";
     },
     formatTime(timeStr) {
       if (!timeStr) return "";

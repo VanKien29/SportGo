@@ -716,6 +716,9 @@ class VenueController extends Controller
         return DB::table('media')
             ->where('mediable_type', VenueCluster::class)
             ->where('mediable_id', $cluster->id)
+            ->where('mime_type', 'like', 'image/%')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->value('file_path');
     }
 

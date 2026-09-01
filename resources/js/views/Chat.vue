@@ -1433,6 +1433,7 @@ import echo from '../echo.js';
 import { getAuth } from '../stores/auth.js';
 import { chatService } from '../services/chat.service.js';
 import { getAvatarColorHex } from '../utils/avatar.js';
+import { businessDateLabel } from '../utils/businessTime.js';
 
 export default {
   name: 'Chat',
@@ -2946,9 +2947,7 @@ export default {
 
     bookingDateLabel(dateStr) {
       if (!dateStr) return "";
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString("vi-VN");
+      return businessDateLabel(dateStr) || dateStr;
     },
 
     bookingTimeRange(booking) {

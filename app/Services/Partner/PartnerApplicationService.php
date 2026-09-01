@@ -615,7 +615,7 @@ class PartnerApplicationService
                 'requested_by' => $owner->id,
                 'requested_at' => now(),
                 'reason' => $reason,
-                'requested_effective_date' => now()->addDays(30)->toDateString(),
+                'requested_effective_date' => $this->businessNow()->addDays(30)->toDateString(),
                 'status' => 'submitted',
             ]);
 
@@ -664,7 +664,7 @@ class PartnerApplicationService
         return DB::transaction(function () use ($termination, $admin, $request): PartnerTerminationRequest {
             $termination->loadMissing(['contract.application.user']);
             $contract = $termination->contract;
-            $transitionEndAt = now()->addDays(30);
+            $transitionEndAt = $this->businessNow()->addDays(30);
             $oldStatus = $termination->status;
 
             $termination->forceFill([
@@ -710,7 +710,7 @@ class PartnerApplicationService
 
         return DB::transaction(function () use ($contract, $admin, $request, $reason): PartnerTerminationRequest {
             $contract->loadMissing(['application.user']);
-            $transitionEndAt = now()->addDays(30);
+            $transitionEndAt = $this->businessNow()->addDays(30);
             $termination = PartnerTerminationRequest::create([
                 'termination_code' => $this->uniqueTerminationCode('SPORTGO'),
                 'partner_contract_id' => $contract->id,
@@ -1790,20 +1790,21 @@ class PartnerApplicationService
         $ownerName = $this->applicationSignerName($application, $application->user);
         $ownerPhone = $application->applicant_phone ?: $application->venue_phone ?: $application->user?->phone;
         $ownerEmail = $application->applicant_email ?: $application->venue_email ?: $application->user?->email;
+        $businessNow = $this->businessNow();
 
         return [
             'contract_number' => $contractCode,
             'contract_code' => $contractCode,
-            'signed_date' => now()->format('d/m/Y'),
+            'signed_date' => $businessNow->format('d/m/Y'),
             'party_b_name' => $application->business_name,
             'party_b_id' => $application->tax_code ?: $application->representative_identity_number,
             'party_b_address' => $application->business_address ?: $application->venue_address,
             'venue_cluster_list' => $application->venue_name . ' - ' . $application->venue_address,
-            'contract_start_date' => now()->format('d/m/Y'),
+            'contract_start_date' => $businessNow->format('d/m/Y'),
             'contract_duration' => '12 tháng',
             'contract_title' => 'Hợp đồng hợp tác đối tác ' . $application->venue_name,
-            'effective_from' => now()->format('d/m/Y'),
-            'effective_to' => now()->addYear()->format('d/m/Y'),
+            'effective_from' => $businessNow->format('d/m/Y'),
+            'effective_to' => $businessNow->copy()->addYear()->format('d/m/Y'),
             'sportgo_company_name' => 'Công ty TNHH SportGo',
             'sportgo_tax_code' => '0000000000',
             'sportgo_address' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
@@ -1922,7 +1923,7 @@ class PartnerApplicationService
     private function uniqueContractCode(): string
     {
         do {
-            $code = 'HD-SG-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $code = 'HD-SG-' . $this->businessNow()->format('Ymd') . '-' . Str::upper(Str::random(5));
         } while (PartnerContract::query()->where('contract_code', $code)->exists());
 
         return $code;
@@ -1931,7 +1932,7 @@ class PartnerApplicationService
     private function uniqueTerminationCode(string $prefix): string
     {
         do {
-            $code = 'TERM-' . $prefix . '-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $code = 'TERM-' . $prefix . '-' . $this->businessNow()->format('Ymd') . '-' . Str::upper(Str::random(5));
         } while (PartnerTerminationRequest::query()->where('termination_code', $code)->exists());
 
         return $code;
@@ -1940,7 +1941,7 @@ class PartnerApplicationService
     private function uniqueSettlementCode(): string
     {
         do {
-            $code = 'SETTLE-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $code = 'SETTLE-' . $this->businessNow()->format('Ymd') . '-' . Str::upper(Str::random(5));
         } while (PartnerSettlement::query()->where('settlement_code', $code)->exists());
 
         return $code;
@@ -2002,6 +2003,11 @@ class PartnerApplicationService
         }
 
         return Carbon::parse($value)->format('d/m/Y H:i:s');
+    }
+
+    private function businessNow(): Carbon
+    {
+        return Carbon::now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
     }
 
     private function money(mixed $amount): string

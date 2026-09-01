@@ -1,8 +1,11 @@
 import { api } from './api.js';
 import { getLedgers, markLedgerOverdue } from './platformFeeLedger.service.js';
+import { businessDateString } from '../utils/businessTime.js';
 
 function dateOnly(value) {
-  return new Date(value).toISOString().slice(0, 10);
+  if (!value) return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return businessDateString(value);
 }
 
 function diffDays(left, right) {

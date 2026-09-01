@@ -209,6 +209,7 @@
 import { chatService } from "../services/chat.service.js";
 import { getAuth } from "../stores/auth.js";
 import { getAvatarColorHex, getAvatarInitial } from "../utils/avatar.js";
+import { businessDateLabel, businessDateString, businessTimeString } from "../utils/businessTime.js";
 
 export default {
   name: "FloatingChatWidget",
@@ -512,15 +513,16 @@ export default {
     formatShortTime(dateStr) {
       if (!dateStr) return "";
       const date = new Date(dateStr);
-      const now = new Date();
-      if (date.toDateString() === now.toDateString()) {
-        return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+      if (Number.isNaN(date.getTime())) return "";
+      if (businessDateString(date) === businessDateString()) {
+        return businessTimeString(date);
       }
-      return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+      return businessDateLabel(date).slice(0, 5);
     },
     formatMsgTime(dateStr) {
       if (!dateStr) return "";
-      return new Date(dateStr).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+      const date = new Date(dateStr);
+      return Number.isNaN(date.getTime()) ? "" : businessTimeString(date);
     },
     renderContent(msg) {
       const raw = (msg?.content || msg?.body || "").trim();

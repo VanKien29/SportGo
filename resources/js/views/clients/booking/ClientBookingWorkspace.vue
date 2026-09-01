@@ -635,7 +635,7 @@ import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 import echo from "../../../echo.js";
-import { addCalendarDays, businessDateString, businessMinutes } from "../../../utils/businessTime.js";
+import { addCalendarDays, addCalendarMonths, businessDateString, businessMinutes } from "../../../utils/businessTime.js";
 import { useToast } from "vue-toastification";
 
 export default {
@@ -1628,12 +1628,8 @@ export default {
       }
     },
     initRecurringDates() {
-      const s = new Date();
-      s.setDate(s.getDate() + 1);
-      const startStr = s.toLocaleDateString("en-CA");
-      const e = new Date(s);
-      e.setMonth(e.getMonth() + 1);
-      const endStr = e.toLocaleDateString("en-CA");
+      const startStr = this.tomorrow;
+      const endStr = addCalendarMonths(startStr, 1);
 
       this.recurringForm.recurring_start_date = startStr;
       this.recurringForm.recurring_end_date = endStr;
@@ -1642,10 +1638,8 @@ export default {
       this.recurringActiveWeekday = 1;
     },
     selectRecurringPreset(months) {
-      const s = new Date(this.recurringForm.recurring_start_date || this.tomorrow);
-      const e = new Date(s);
-      e.setMonth(e.getMonth() + months);
-      this.recurringForm.recurring_end_date = e.toLocaleDateString("en-CA");
+      const startDate = this.recurringForm.recurring_start_date || this.tomorrow;
+      this.recurringForm.recurring_end_date = addCalendarMonths(startDate, months);
       this.recurringPreviewResult = null;
     },
     isRecurringWeekdaySelected(day) {

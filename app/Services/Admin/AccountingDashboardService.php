@@ -65,7 +65,7 @@ class AccountingDashboardService
 
     private function periodRange(string $periodType): array
     {
-        $now = CarbonImmutable::now();
+        $now = CarbonImmutable::now($this->businessTimezone());
 
         return match ($periodType) {
             'week' => [$now->startOfWeek(), $now->endOfWeek(), 'Tuần này'],
@@ -93,9 +93,11 @@ class AccountingDashboardService
 
     private function paidPlatformFees(CarbonImmutable $start, CarbonImmutable $end): float
     {
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
+
         return round((float) DB::table('venue_platform_fee_ledgers')
             ->where('status', 'paid')
-            ->whereBetween('paid_at', [$start, $end])
+            ->whereBetween('paid_at', [$storageStart, $storageEnd])
             ->sum('amount_paid'), 2);
     }
 
@@ -105,10 +107,12 @@ class AccountingDashboardService
             return 0.0;
         }
 
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
+
         return round((float) DB::table('payments')
             ->where('status', 'paid')
             ->where('payment_context', 'vip_subscription')
-            ->whereBetween('paid_at', [$start, $end])
+            ->whereBetween('paid_at', [$storageStart, $storageEnd])
             ->sum('amount'), 2);
     }
 
@@ -177,13 +181,14 @@ class AccountingDashboardService
 
     private function bookingLedgers(CarbonImmutable $start, CarbonImmutable $end): array
     {
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
         $query = DB::table('payments as p')
             ->leftJoin('bookings as b', 'b.id', '=', 'p.booking_id')
             ->leftJoin('users as u', 'u.id', '=', 'b.customer_id')
             ->leftJoin('venue_clusters as vc', 'vc.id', '=', 'b.venue_cluster_id')
             ->where('p.status', 'paid')
             ->whereNotIn(DB::raw('LOWER(p.method)'), ['cash', 'direct', 'offline'])
-            ->whereBetween('p.paid_at', [$start, $end]);
+            ->whereBetween('p.paid_at', [$storageStart, $storageEnd]);
 
         if (Schema::hasColumn('payments', 'payment_context')) {
             $query->where(function ($builder): void {
@@ -227,11 +232,12 @@ class AccountingDashboardService
 
     private function withdrawalLedgers(CarbonImmutable $start, CarbonImmutable $end): array
     {
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
         $owners = DB::table('owner_withdrawal_requests as wr')
             ->leftJoin('users as u', 'u.id', '=', 'wr.owner_id')
             ->leftJoin('owner_wallets as ow', 'ow.id', '=', 'wr.owner_wallet_id')
             ->leftJoin('venue_clusters as vc', 'vc.id', '=', 'ow.venue_cluster_id')
-            ->whereBetween('wr.requested_at', [$start, $end])
+            ->whereBetween('wr.requested_at', [$storageStart, $storageEnd])
             ->orderByDesc('wr.requested_at')
             ->limit(12)
             ->get([
@@ -258,7 +264,7 @@ class AccountingDashboardService
 
         $users = DB::table('user_withdrawal_requests as wr')
             ->leftJoin('users as u', 'u.id', '=', 'wr.user_id')
-            ->whereBetween('wr.requested_at', [$start, $end])
+            ->whereBetween('wr.requested_at', [$storageStart, $storageEnd])
             ->orderByDesc('wr.requested_at')
             ->limit(12)
             ->get([
@@ -352,8 +358,10 @@ class AccountingDashboardService
             return [];
         }
 
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
+
         $query = DB::table('system_wallet_ledgers')
-            ->whereBetween('transacted_at', [$start, $end])
+            ->whereBetween('transacted_at', [$storageStart, $storageEnd])
             ->orderByDesc('transacted_at')
             ->limit(12);
 
@@ -379,10 +387,11 @@ class AccountingDashboardService
 
     private function revenueLedgers(CarbonImmutable $start, CarbonImmutable $end): array
     {
+        [$storageStart, $storageEnd] = $this->storageRange($start, $end);
         $platformFees = DB::table('venue_platform_fee_ledgers as pfl')
             ->leftJoin('venue_clusters as vc', 'vc.id', '=', 'pfl.venue_cluster_id')
             ->where('pfl.status', 'paid')
-            ->whereBetween('pfl.paid_at', [$start, $end])
+            ->whereBetween('pfl.paid_at', [$storageStart, $storageEnd])
             ->orderByDesc('pfl.paid_at')
             ->limit(12)
             ->get([
@@ -409,7 +418,7 @@ class AccountingDashboardService
                 ->leftJoin('users as u', 'u.id', '=', 'us.user_id')
                 ->where('p.status', 'paid')
                 ->where('p.payment_context', 'vip_subscription')
-                ->whereBetween('p.paid_at', [$start, $end])
+                ->whereBetween('p.paid_at', [$storageStart, $storageEnd])
                 ->orderByDesc('p.paid_at')
                 ->limit(12)
                 ->get(['p.id', 'p.payment_code', 'p.amount', 'p.paid_at', 'u.full_name'])
@@ -463,7 +472,23 @@ class AccountingDashboardService
     private function between($query, string $column, ?CarbonImmutable $start, ?CarbonImmutable $end): void
     {
         if ($start && $end) {
-            $query->whereBetween($column, [$start, $end]);
+            [$storageStart, $storageEnd] = $this->storageRange($start, $end);
+            $query->whereBetween($column, [$storageStart, $storageEnd]);
         }
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function storageRange(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $storageTimezone = (string) config('app.timezone', 'UTC');
+
+        return [
+            $start->setTimezone($storageTimezone),
+            $end->setTimezone($storageTimezone),
+        ];
     }
 }
