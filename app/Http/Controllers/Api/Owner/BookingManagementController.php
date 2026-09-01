@@ -109,6 +109,8 @@ class BookingManagementController extends Controller
             ->limit(200)
             ->get();
 
+        $bookings->each(fn (Booking $booking) => $this->attachSettlementSummary($booking));
+
         return response()->json(['data' => $bookings]);
     }
 
@@ -193,6 +195,8 @@ class BookingManagementController extends Controller
 
         $this->ensureBookingAccess($request, $booking);
         $this->assertBookingCourtAccess($request, $booking);
+
+        $this->attachSettlementSummary($booking);
 
         return response()->json(['data' => $booking]);
     }
@@ -485,11 +489,7 @@ class BookingManagementController extends Controller
             ]);
         }
 
-        if (
-            $validated['action'] === 'complete'
-            && $booking->source === 'counter'
-            && $this->bookingService->outstandingAmount($booking) > 0
-        ) {
+        if ($validated['action'] === 'complete' && $this->bookingService->outstandingAmount($booking) > 0.009) {
             throw ValidationException::withMessages([
                 'action' => 'Vui lòng thu đủ tiền trước khi hoàn thành booking.',
             ]);
@@ -505,7 +505,7 @@ class BookingManagementController extends Controller
 
             return response()->json([
                 'message' => 'Đã hủy booking và vô hiệu giao dịch đang chờ.',
-                'data' => $result['booking']->fresh(['venueCourt.courtType', 'customer', 'payments']),
+                'data' => $this->attachSettlementSummary($result['booking']->fresh(['venueCourt.courtType', 'customer', 'payments'])),
             ]);
         }
 
@@ -522,7 +522,7 @@ class BookingManagementController extends Controller
                 'message' => ($result['fallback_to_pay_later'] ?? false)
                     ? 'Đã duyệt booking và chuyển hình thức thanh toán sang trả sau.'
                     : 'Đã duyệt booking và xác nhận lịch chơi.',
-                'data' => $result['booking'],
+                'data' => $this->attachSettlementSummary($result['booking']),
                 'refunds' => [],
             ]);
         }
@@ -547,7 +547,7 @@ class BookingManagementController extends Controller
                 'message' => count($result['refunds'])
                     ? 'Đã hủy booking và tạo yêu cầu hoàn tiền chờ admin chuyển khoản.'
                     : 'Đã hủy booking.',
-                'data' => $result['booking'],
+                'data' => $this->attachSettlementSummary($result['booking']),
                 'refunds' => $result['refunds'],
             ]);
         }
@@ -580,7 +580,7 @@ class BookingManagementController extends Controller
 
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',
-            'data' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments']),
+            'data' => $this->attachSettlementSummary($booking->fresh(['venueCourt.courtType', 'customer', 'payments'])),
             'refunds' => $refunds,
         ]);
     }
@@ -672,7 +672,7 @@ class BookingManagementController extends Controller
                     ? 'Đã mở lại thông tin chuyển khoản đang chờ.'
                     : 'Đã tạo thông tin chuyển khoản.',
                 'payment_qr' => $paymentQr,
-                'data' => $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']),
+                'data' => $this->attachSettlementSummary($booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments'])),
             ]);
         }
 
@@ -684,8 +684,8 @@ class BookingManagementController extends Controller
         );
 
         return response()->json([
-            'message' => 'Đã ghi nhận thu tiền tại quầy.',
-            'data' => $updated,
+            'message' => 'Đã ghi nhận thanh toán.',
+            'data' => $this->attachSettlementSummary($updated),
         ]);
     }
 
@@ -1089,6 +1089,7 @@ class BookingManagementController extends Controller
                     || $item['status'] === 'interrupted_by_emergency');
                 $activeItems = $itemPayload->reject(fn (array $item): bool => str_starts_with((string) $item['status'], 'cancelled_')
                     || $item['status'] === 'interrupted_by_emergency');
+                $settlement = $this->bookingService->settlementSummary($booking);
 
                 return [
                     'booking_id' => $booking->id,
@@ -1099,7 +1100,12 @@ class BookingManagementController extends Controller
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
                     'total_price' => (float) $booking->total_price,
-                    'paid_amount' => (float) $booking->payments->where('status', 'paid')->sum('amount'),
+                    'paid_amount' => $settlement['paid_amount'],
+                    'outstanding_amount' => $settlement['outstanding_amount'],
+                    'settlement_status' => $settlement['status'],
+                    'settlement_status_label' => $settlement['label'],
+                    'settlement_due_at' => $settlement['due_at'],
+                    'settlement_overdue' => $settlement['is_overdue'],
                     'items' => $itemPayload,
                     'active_item_count' => $activeItems->count(),
                     'cancelled_item_count' => $cancelledItems->count(),
@@ -1149,6 +1155,20 @@ class BookingManagementController extends Controller
             'occurrences' => $occurrences,
             'has_conflict_sensitive_items' => $bookings->contains(fn (Booking $booking): bool => in_array($booking->status, ['pending_payment', 'confirmed', 'checked_in'], true)),
         ];
+    }
+
+    private function attachSettlementSummary(Booking $booking): Booking
+    {
+        $summary = $this->bookingService->settlementSummary($booking);
+
+        $booking->setAttribute('settlement_status', $summary['status']);
+        $booking->setAttribute('settlement_status_label', $summary['label']);
+        $booking->setAttribute('paid_amount', $summary['paid_amount']);
+        $booking->setAttribute('outstanding_amount', $summary['outstanding_amount']);
+        $booking->setAttribute('settlement_due_at', $summary['due_at']);
+        $booking->setAttribute('settlement_overdue', $summary['is_overdue']);
+
+        return $booking;
     }
 
     public function createRetailOrder(Request $request): JsonResponse

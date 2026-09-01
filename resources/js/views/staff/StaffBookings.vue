@@ -520,6 +520,12 @@
                     {{ formatCurrency(outstandingAmount(selectedTimelineBooking)) }}
                   </strong>
                 </div>
+                <div v-if="outstandingAmount(selectedTimelineBooking) > 0" class="pos-info-row is-due">
+                  <span class="pos-info-label">Tình trạng thanh toán</span>
+                  <strong class="pos-info-val is-outstanding">
+                    {{ paymentStateLabel(selectedTimelineBooking) }}
+                  </strong>
+                </div>
               </div>
 
               <!-- FAST POS ACTION BUTTONS -->
@@ -1625,7 +1631,10 @@ export default {
       let statusPill = null;
       let turnoverClass = '';
       if (booking.status === 'checked_in') {
-        if (isTodayBooking && currentMinutes > end) {
+        if (paymentState === 'overdue') {
+          statusPill = { type: 'overtime', label: 'Quá hạn thanh toán' };
+          turnoverClass = 'is-overtime';
+        } else if (isTodayBooking && currentMinutes > end) {
           const overMins = currentMinutes - end;
           statusPill = { type: 'overtime', label: `Quá ${overMins}p` };
           turnoverClass = 'is-overtime';
@@ -1853,7 +1862,7 @@ export default {
 
     canCollectPayment(booking) {
       return (
-        !['cancelled', 'expired', 'rejected'].includes(booking.status) &&
+        !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status) &&
         this.outstandingAmount(booking) > 0
       );
     },
@@ -1933,7 +1942,8 @@ export default {
           this.collectQr = response.payment_qr || null;
           this.startCollectPolling();
         } else {
-          this.notice = 'Đã ghi nhận thu tiền tại quầy thành công!';
+          this.notice = 'Đã ghi nhận thanh toán thành công!';
+          await this.loadBookings();
           this.closeCollectPayment();
           this.closeDrawer();
           await this.loadBookings();
@@ -2058,9 +2068,31 @@ export default {
 
     paymentState(booking) {
       if (this.outstandingAmount(booking) <= 0) return 'paid';
+      if (booking?.settlement_status === 'overdue' || this.isSettlementOverdue(booking)) return 'overdue';
       if (this.bookingHasPendingTransfer(booking)) return 'pending';
+      if (booking?.settlement_status) return booking.settlement_status;
       if (this.paidAmount(booking) > 0) return 'partial';
       return 'unpaid';
+    },
+
+    isSettlementOverdue(booking) {
+      if (!booking?.booking_date || !booking?.end_time || !['checked_in', 'completed'].includes(booking.status)) {
+        return false;
+      }
+
+      const endAt = new Date(`${String(booking.booking_date).slice(0, 10)}T${String(booking.end_time).slice(0, 8)}`);
+      return !Number.isNaN(endAt.getTime())
+        && Date.now() > endAt.getTime() + 15 * 60 * 1000;
+    },
+
+    paymentStateLabel(booking) {
+      return {
+        paid: 'Đã đủ',
+        pending: 'Chờ chuyển khoản',
+        partial: 'Còn thiếu',
+        unpaid: 'Chưa thanh toán',
+        overdue: 'Quá hạn thanh toán',
+      }[this.paymentState(booking)] || 'Chưa xác định';
     },
 
     bookingHasPendingTransfer(booking) {

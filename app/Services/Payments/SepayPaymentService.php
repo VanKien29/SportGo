@@ -100,11 +100,7 @@ class SepayPaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($booking->source !== 'counter') {
-                throw new RuntimeException('Chỉ hỗ trợ tạo QR thu tiền cho booking tại quầy.');
-            }
-
-            if (in_array($booking->status, ['cancelled', 'expired', 'rejected'], true)) {
+            if (in_array($booking->status, ['cancelled', 'expired', 'rejected', 'no_show'], true)) {
                 throw new RuntimeException('Booking này không còn ở trạng thái có thể thu tiền.');
             }
 
