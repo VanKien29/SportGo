@@ -86,6 +86,20 @@ class OwnerBookingCancellationService
                 'owner_booking_cancelled',
             );
 
+            $this->lifecycle->notifyMatchmakingBookingChanged(
+                $booking,
+                'booking-cancelled-'.$booking->id.'-'.$targetStatus,
+                'Kèo giao lưu bị hủy',
+                'Booking gốc của bài giao lưu đã bị chủ sân hủy. Khoản đã thanh toán được hoàn vào ví SportGo nếu có.',
+                [
+                    'status' => $targetStatus,
+                    'reason' => $reason,
+                    'refund_destination' => 'user_wallet',
+                    'refund_amount' => round(array_sum(array_map(fn (array $refund): float => (float) ($refund['amount'] ?? 0), $refunds)), 2),
+                    'refunds' => $refunds,
+                ],
+            );
+
             return [
                 'booking' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments', 'items']),
                 'refunds' => $refunds,
@@ -193,6 +207,23 @@ class OwnerBookingCancellationService
                 $source,
                 $refundRatio,
                 $completeAsCashRefund,
+            );
+
+            $this->lifecycle->notifyMatchmakingBookingChanged(
+                $booking,
+                'booking-maintenance-cancelled-'.$booking->id.'-'.$items->pluck('id')->sort()->implode('-'),
+                $activeItemsLeft ? 'Một phần kèo giao lưu bị hủy do khóa sân' : 'Kèo giao lưu bị hủy do khóa sân',
+                $activeItemsLeft
+                    ? 'Một phần khung giờ của booking gốc bị hủy do sân cần khóa/bảo trì. Khoản đã thanh toán được xử lý hoàn theo thông tin bên dưới.'
+                    : 'Booking gốc của bài giao lưu đã bị hủy do sân cần khóa/bảo trì. Khoản đã thanh toán được xử lý hoàn theo thông tin bên dưới.',
+                [
+                    'status' => $activeItemsLeft ? 'partially_cancelled' : 'cancelled',
+                    'reason' => $reason,
+                    'booking_item_ids' => $items->pluck('id')->values()->all(),
+                    'refund_destination' => $completeAsCashRefund ? 'cash' : 'user_wallet',
+                    'refund_amount' => round(array_sum(array_map(fn (array $refund): float => (float) ($refund['amount'] ?? 0), $refunds)), 2),
+                    'refunds' => $refunds,
+                ],
             );
 
             return [

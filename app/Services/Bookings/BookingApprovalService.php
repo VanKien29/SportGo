@@ -113,6 +113,16 @@ class BookingApprovalService
         return max(0, (int) Carbon::now($this->businessTimezone())->diffInSeconds($this->approvalDeadline($booking), false));
     }
 
+    public function approvalExpiredMessage(Booking $booking): string
+    {
+        $deadline = $this->approvalDeadline($booking)
+            ->copy()
+            ->setTimezone($this->businessTimezone());
+
+        return 'Booking đã hết hạn do quá thời hạn chủ sân duyệt (hạn '
+            .$deadline->format('H:i d/m/Y').'). Vui lòng tạo booking mới.';
+    }
+
     public function initializeApprovalDeadline(Booking $booking): ?Carbon
     {
         if ($booking->status !== 'pending_approval') {

@@ -59,10 +59,10 @@ export const authService = {
     return apiFormData('/api/auth/profile', formData);
   },
 
-  requestEmailChangeOtp(email) {
+  requestEmailChangeOtp(email, current_password) {
     return api('/api/auth/profile/email/request-otp', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, current_password }),
     });
   },
 
@@ -70,6 +70,20 @@ export const authService = {
     return api('/api/auth/profile/email/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, otp }),
+    });
+  },
+
+  requestPhoneChangeOtp(phone, current_password) {
+    return api('/api/auth/profile/phone/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone, current_password }),
+    });
+  },
+
+  verifyPhoneChangeOtp(phone, otp) {
+    return api('/api/auth/profile/phone/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp }),
     });
   },
 
@@ -84,13 +98,6 @@ export const authService = {
     return api('/api/auth/set-password', {
       method: 'POST',
       body: JSON.stringify({ password, password_confirmation }),
-    });
-  },
-
-  changePassword(current_password, password, password_confirmation) {
-    return api('/api/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ current_password, password, password_confirmation }),
     });
   },
 

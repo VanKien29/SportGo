@@ -3580,6 +3580,31 @@ function money(value) {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
 
+/* Keep the partner application controls readable even when global form styles
+   are loaded after this page. Checkboxes keep their native compact sizing. */
+.partner-portal-page .wizard-form .form-group input:not([type='checkbox']):not([type='radio']),
+.partner-portal-page .wizard-form .form-group select,
+.partner-portal-page .wizard-form .form-group textarea {
+  min-height: 42px !important;
+  padding: 10px 14px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.partner-portal-page .wizard-form .form-group textarea {
+  min-height: 76px !important;
+  resize: vertical;
+}
+
+.partner-portal-page .wizard-form .form-group input:not([type='checkbox']):not([type='radio']):focus,
+.partner-portal-page .wizard-form .form-group select:focus,
+.partner-portal-page .wizard-form .form-group textarea:focus {
+  border-color: #5c7e6e !important;
+  box-shadow: 0 0 0 3px rgba(92, 126, 110, 0.15) !important;
+  outline: none !important;
+}
+
 .partner-portal-page .map-suggestion-card {
   grid-column: span 2 !important;
   background: #f0fdf4 !important;

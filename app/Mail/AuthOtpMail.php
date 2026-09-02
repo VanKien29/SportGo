@@ -27,6 +27,7 @@ class AuthOtpMail extends Mailable
             subject: match ($this->purpose) {
                 'register' => 'SportGo - Mã xác thực đăng ký tài khoản',
                 'change_email' => 'SportGo - Mã xác thực email mới',
+                'change_phone' => 'SportGo - Mã xác thực đổi số điện thoại',
                 default => 'SportGo - Mã xác thực đặt lại mật khẩu',
             },
         );

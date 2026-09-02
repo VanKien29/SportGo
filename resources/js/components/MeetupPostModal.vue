@@ -17,19 +17,19 @@
           </div>
         </div>
 
-        <div v-if="bookingsLoading" class="modal-state">
+        <div v-if="!isEditMode && bookingsLoading" class="modal-state">
           <span class="spinner" aria-hidden="true"></span>
           Đang tải lịch sân đủ điều kiện...
         </div>
 
-        <div v-else-if="bookingsError" class="modal-state empty modal-state--error" role="alert">
+        <div v-else-if="!isEditMode && bookingsError" class="modal-state empty modal-state--error" role="alert">
           <AppIcon name="alert" size="28" />
           <strong>Không thể tải lịch đã đặt</strong>
           <span>{{ bookingsError }}</span>
           <SgButton type="secondary" @click="fetchEligibleBookings">Tải lại</SgButton>
         </div>
 
-        <div v-else-if="!userBookings.length" class="modal-state empty">
+        <div v-else-if="!isEditMode && !userBookings.length" class="modal-state empty">
           <AppIcon name="calendar" size="32" />
           <strong>Chưa có lịch sân phù hợp</strong>
           <span>Bạn cần một booking sắp tới đã được xác nhận để đăng bài tìm người ghép kèo.</span>
@@ -45,7 +45,7 @@
 
         <form v-else class="meetup-form" @submit.prevent="submit">
           <!-- DANH SÁCH THẺ ĐƠN ĐẶT SÂN (INFOGRAPHIC & ISOMETRIC STYLE) -->
-          <div class="field-block">
+          <div v-if="!isEditMode" class="field-block">
             <span class="field-label">Chọn đơn đặt sân của bạn</span>
             <div class="booking-cards-list">
               <button
@@ -76,6 +76,12 @@
                   <div class="bsc-sub-row">
                     <span class="bsc-sport-meta">{{ b.sport_name }} ({{ cleanCourtType(b.court_type_name, b.sport_name) }})</span>
                     <span class="bsc-code">{{ b.booking_code || `#BK${b.id}` }}</span>
+                  </div>
+
+                  <div v-if="b.courts?.length > 1" class="bsc-courts">
+                    <span v-for="court in b.courts" :key="`${b.id}-${court.id}-${court.start_time}`" class="bsc-court-line">
+                      {{ court.name }} · {{ court.start_time }} - {{ court.end_time }} · {{ court.sport_name || 'Thể thao' }}
+                    </span>
                   </div>
 
                   <div class="bsc-footer-row">
@@ -302,8 +308,12 @@ import { businessDateTime } from '@/utils/businessTime.js';
 
 const router = useRouter();
 const toast = useToast();
-const props = defineProps({ isOpen: { type: Boolean, default: false } });
+const props = defineProps({
+  isOpen: { type: Boolean, default: false },
+  editPost: { type: Object, default: null },
+});
 const emit = defineEmits(['close', 'success']);
+const isEditMode = computed(() => Boolean(props.editPost));
 const user = getAuth();
 const userInitial = computed(() => user?.fullName?.charAt(0)?.toUpperCase() || '?');
 const form = reactive({
@@ -324,6 +334,7 @@ const errorMsg = ref('');
 const fileError = ref('');
 const selectedImages = ref([]);
 const fileInput = ref(null);
+const editImageRemoved = ref(false);
 
 const skillOptions = [
   { value: 'all', label: 'Mọi trình độ (Vui vẻ)' },
@@ -370,6 +381,7 @@ function removeImage(index) {
   const item = selectedImages.value[index];
   if (item?.url) URL.revokeObjectURL(item.url);
   selectedImages.value.splice(index, 1);
+  if (isEditMode.value && item?.file == null) editImageRemoved.value = true;
   fileError.value = '';
   if (fileInput.value) fileInput.value.value = '';
 }
@@ -379,6 +391,7 @@ function clearAllImages() {
     if (img?.url) URL.revokeObjectURL(img.url);
   });
   selectedImages.value = [];
+  editImageRemoved.value = false;
   fileError.value = '';
   if (fileInput.value) fileInput.value.value = '';
 }
@@ -488,7 +501,10 @@ const bookingOptions = computed(() => {
 
 const selectedBooking = computed(() => {
   if (!form.booking_id) return null;
-  return userBookings.value.find((b) => String(b.id) === String(form.booking_id)) || null;
+  return userBookings.value.find((b) => String(b.id) === String(form.booking_id))
+    || (isEditMode.value && props.editPost?.booking?.id
+      ? { ...props.editPost.booking, id: props.editPost.booking.id, venue_id: props.editPost.booking.venue_id || props.editPost.booking.venue_cluster_id }
+      : null);
 });
 
 const estimatedSplitCost = computed(() => {
@@ -500,8 +516,9 @@ const estimatedSplitCost = computed(() => {
 const isValid = computed(() => {
   const players = Number(form.required_players);
   const descriptionValid = !form.content || form.content.length >= 10;
-  const customCostValid = form.cost_type !== 'custom' || (form.cost_per_player !== null && form.cost_per_player >= 0);
-  return Boolean(form.booking_id)
+  const customCost = Number(form.cost_per_player);
+  const customCostValid = form.cost_type !== 'custom' || (form.cost_per_player !== null && Number.isFinite(customCost) && customCost >= 0);
+  return (isEditMode.value || Boolean(form.booking_id))
     && players >= 1
     && players <= 50
     && descriptionValid
@@ -544,6 +561,25 @@ function selectBooking(booking) {
   if (!booking) return;
   form.booking_id = String(booking.id);
   form.venue_id = String(booking.venue_id);
+}
+
+function populateEditForm(post) {
+  if (!post) return;
+  const booking = post.booking || post.booking_details || {};
+  form.venue_id = booking.venue_id ? String(booking.venue_id) : '';
+  form.booking_id = booking.id ? String(booking.id) : String(post.booking_id || '');
+  form.required_players = Number(post.target_players ?? post.needed_players ?? 1);
+  form.lock_lead_minutes = Number(post.lock_lead_minutes ?? 30);
+  form.skill_level = post.skill_level || 'all';
+  form.cost_type = post.cost_type || 'free';
+  form.cost_per_player = post.cost_per_player == null ? null : Number(post.cost_per_player);
+  form.content = post.description || '';
+  errorMsg.value = '';
+  fileError.value = '';
+  clearAllImages();
+  if (post.image_url || post.image_path) {
+    selectedImages.value = [{ file: null, url: post.image_url || `/storage/${post.image_path}` }];
+  }
 }
 
 function reset() {
@@ -644,8 +680,9 @@ async function submit() {
   submitTimer = timer;
   try {
     const payload = new FormData();
-    payload.append('booking_id', form.booking_id);
-    payload.append('required_players', form.required_players);
+    if (!isEditMode.value) payload.append('booking_id', form.booking_id);
+    if (isEditMode.value) payload.append('_method', 'PATCH');
+    payload.append(isEditMode.value ? 'target_players' : 'required_players', form.required_players);
     payload.append('lock_lead_minutes', form.lock_lead_minutes ?? 30);
     payload.append('skill_level', form.skill_level || 'all');
     payload.append('cost_type', form.cost_type || 'split');
@@ -656,13 +693,14 @@ async function submit() {
     if (selectedImages.value.length > 0 && selectedImages.value[0].file) {
       payload.append('image', selectedImages.value[0].file);
     }
+    if (isEditMode.value && editImageRemoved.value) payload.append('remove_image', '1');
 
-    const response = await api('/api/matchmaking-posts', {
+    const response = await api(isEditMode.value ? `/api/matchmaking-posts/${props.editPost.id}` : '/api/matchmaking-posts', {
       method: 'POST',
       signal: controller.signal,
       body: payload,
     });
-    userBookings.value = userBookings.value.filter(
+    if (!isEditMode.value) userBookings.value = userBookings.value.filter(
       (booking) => String(booking.id) !== String(form.booking_id),
     );
     eligibleLoadedAt = 0;
@@ -687,15 +725,17 @@ async function submit() {
 }
 
 watch(() => form.venue_id, () => {
+  if (isEditMode.value) return;
   if (!bookingOptions.value.some((option) => String(option.value) === String(form.booking_id))) {
     form.booking_id = '';
   }
 });
 
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) fetchEligibleBookings({ force: true });
+watch(() => [props.isOpen, props.editPost], ([isOpen, editPost]) => {
+  if (isOpen && editPost) populateEditForm(editPost);
+  else if (isOpen) fetchEligibleBookings({ force: true });
   else if (!isSubmitting.value) reset();
-});
+}, { deep: true });
 
 onMounted(() => document.addEventListener('keydown', handleEscape));
 onBeforeUnmount(() => {
@@ -986,6 +1026,22 @@ textarea.field-control {
   font-weight: 400;
   color: #475569;
   line-height: 1.3;
+}
+
+.bsc-courts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.bsc-court-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bsc-code {

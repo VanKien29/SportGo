@@ -9,6 +9,15 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Demo data is opt-in in production. This prevents an accidental
+        // `php artisan db:seed` from recreating demo users, venues and
+        // transactions in the live database.
+        if (app()->environment('production') && ! filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOLEAN)) {
+            $this->command?->warn('Demo seeding skipped in production. Set SEED_DEMO_DATA=true only for an intentional demo reset.');
+
+            return;
+        }
+
         // Demo data is intentionally orchestrated by one deterministic seeder.
         // The legacy chain below is retained for reference but must not run
         // together with it because several legacy seeders create stale rows.

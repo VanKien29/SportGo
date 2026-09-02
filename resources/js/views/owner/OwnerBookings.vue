@@ -218,6 +218,24 @@
               :variant="primaryAction(selectedTimelineBooking).variant"
               @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
             />
+            <template v-if="canCollectPayment(selectedTimelineBooking)">
+              <button
+                type="button"
+                class="drawer-action"
+                @click="openCollectPayment(selectedTimelineBooking)"
+              >
+                <AppIcon name="banknote" size="16" />
+                <span>Tiền mặt</span>
+              </button>
+              <button
+                type="button"
+                class="drawer-action"
+                @click="openPaymentQrDirect(selectedTimelineBooking)"
+              >
+                <AppIcon name="qrCode" size="16" />
+                <span>Chuyển khoản / QR</span>
+              </button>
+            </template>
             <button
               v-for="action in secondaryActions(selectedTimelineBooking)"
               :key="action.key"
@@ -336,19 +354,6 @@
           </button>
         </div>
 
-        <div v-if="collectQr" class="collect-qr">
-          <img :src="collectQr.qr_url" alt="Mã chuyển khoản" />
-          <div>
-            <span>Nội dung chuyển khoản</span>
-            <button type="button" @click="copyText(collectQr.transfer_content)">{{ collectQr.transfer_content }}</button>
-          </div>
-          <div>
-            <span>Số tiền</span>
-            <strong>{{ formatCurrency(collectQr.payment?.amount) }}</strong>
-          </div>
-          <small>Hệ thống sẽ tự cập nhật khi ngân hàng xác nhận thanh toán.</small>
-        </div>
-
         <footer>
           <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
           <button class="primary-link" type="submit" :disabled="collectingPayment">
@@ -356,6 +361,39 @@
           </button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="paymentQrModal" class="modal-backdrop" @click.self="closePaymentQrModal">
+      <section class="modal-panel collect-panel payment-qr-panel">
+        <header>
+          <div>
+            <h2>Thanh toán chuyển khoản / QR</h2>
+            <p>{{ paymentQrModal.booking?.booking_code }} · {{ customerName(paymentQrModal.booking) }}</p>
+          </div>
+          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closePaymentQrModal" />
+        </header>
+
+        <img :src="paymentQrModal.qr.qr_url" alt="Mã QR thanh toán" class="payment-qr-image" />
+        <dl class="collect-summary">
+          <div>
+            <dt>Nội dung chuyển khoản</dt>
+            <dd><button type="button" @click="copyText(paymentQrModal.qr.transfer_content)">{{ paymentQrModal.qr.transfer_content }}</button></dd>
+          </div>
+          <div>
+            <dt>Số tiền</dt>
+            <dd>{{ formatCurrency(paymentQrModal.qr.payment?.amount) }}</dd>
+          </div>
+          <div class="highlight">
+            <dt>Còn phải thu</dt>
+            <dd>{{ formatCurrency(outstandingAmount(paymentQrModal.booking)) }}</dd>
+          </div>
+        </dl>
+        <p class="collect-payment-hint">Popup sẽ tự đóng khi hệ thống nhận webhook thanh toán thành công.</p>
+
+        <footer>
+          <button type="button" class="ghost-btn" @click="closePaymentQrModal">Đóng</button>
+        </footer>
+      </section>
     </div>
 
     <div v-if="statusActionBooking" class="modal-backdrop" @click.self="closeStatusAction">
@@ -390,6 +428,7 @@
 <script>
 import { ownerBookingService } from '../../services/ownerBookings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
+import echo from '../../echo.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
@@ -442,8 +481,9 @@ export default {
         amount: 0,
       },
       collectQr: null,
+      paymentQrModal: null,
+      paymentQrChannelName: null,
       collectingPayment: false,
-      collectPollInterval: null,
       holdClock: Date.now(),
       holdClockInterval: null,
       actionMenu: {
@@ -615,7 +655,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('scroll', this.handleScroll);
-    this.clearCollectPolling();
+    this.unsubscribePaymentQrChannel();
     this.closeActionMenu();
     if (this.holdClockInterval) clearInterval(this.holdClockInterval);
   },
@@ -835,19 +875,19 @@ export default {
         return { key: 'confirm', label: 'Duyệt booking', icon: 'check', variant: 'success' };
       }
       if (booking.status === 'confirmed' && this.canCollectPayment(booking)) {
-        return { key: 'collect', label: 'Thu tiền trước khi check-in', icon: 'banknote', variant: 'primary' };
+        return null;
       }
       if (booking.status === 'confirmed') {
         return { key: 'check_in', label: 'Check-in', icon: 'clock', variant: 'success' };
       }
       if (booking.status === 'checked_in') {
         if (this.canCollectPayment(booking)) {
-          return { key: 'collect', label: 'Thu tiền trước khi hoàn thành', icon: 'banknote', variant: 'primary' };
+          return null;
         }
         return { key: 'complete', label: 'Hoàn thành', icon: 'circleCheck', variant: 'success' };
       }
       if (this.canCollectPayment(booking)) {
-        return { key: 'collect', label: 'Thu tiền', icon: 'banknote', variant: 'primary' };
+        return null;
       }
       return null;
     },
@@ -866,12 +906,8 @@ export default {
           || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0));
     },
     secondaryActions(booking) {
-      const primaryKey = this.primaryAction(booking)?.key;
       const actions = [];
 
-      if (this.canCollectPayment(booking) && primaryKey !== 'collect') {
-        actions.push({ key: 'collect', label: 'Thu tiền', icon: 'banknote', variant: 'primary' });
-      }
       if (this.canChangeCourt(booking)) {
         actions.push({ key: 'change_court', label: 'Đổi sân', icon: 'pencil', variant: 'secondary' });
       }
@@ -890,6 +926,7 @@ export default {
     },
     runBookingAction(booking, action) {
       this.closeActionMenu();
+      this.selectedTimelineItem = null;
 
       if (action === 'collect') {
         this.openCollectPayment(booking);
@@ -952,7 +989,13 @@ export default {
         court_changed_reason: '',
       };
       const response = await venueClusterService.getCourts(booking.venue_cluster_id, { status: 'active' });
-      this.changeCourtOptions = response.data || [];
+      const oldTypeId = booking.venue_court?.court_type_id
+        || booking.venueCourt?.court_type_id
+        || booking.venue_court?.court_type?.id
+        || booking.venueCourt?.court_type?.id;
+      this.changeCourtOptions = (response.data || []).filter((court) => (
+        !oldTypeId || String(court.court_type_id || court.court_type?.id) === String(oldTypeId)
+      ));
     },
     closeChangeCourt() {
       this.changeCourtBooking = null;
@@ -976,6 +1019,8 @@ export default {
       }
     },
     openCollectPayment(booking) {
+      this.selectedTimelineItem = null;
+      this.closeActionMenu();
       const pendingTransfer = this.pendingTransfer(booking);
       this.collectBooking = booking;
       this.collectForm = {
@@ -983,12 +1028,12 @@ export default {
         amount: pendingTransfer ? Number(pendingTransfer.amount) : this.outstandingAmount(booking),
       };
       this.collectQr = null;
-      this.clearCollectPolling();
+      this.paymentQrModal = null;
+      this.unsubscribePaymentQrChannel();
     },
     closeCollectPayment() {
       this.collectBooking = null;
       this.collectQr = null;
-      this.clearCollectPolling();
     },
     async submitCollectPayment() {
       if (!this.collectBooking || this.collectingPayment) return;
@@ -1008,11 +1053,16 @@ export default {
         });
 
         if (this.collectForm.payment_method === 'sepay') {
-          this.collectQr = response.payment_qr || null;
+          const updatedBooking = response.data || this.collectBooking;
+          if (!response.payment_qr) {
+            throw new Error('Không tạo được thông tin QR thanh toán.');
+          }
+          this.paymentQrModal = { booking: updatedBooking, qr: response.payment_qr };
+          this.closeCollectPayment();
           this.notice = response.payment_qr?.reused
             ? 'Đã mở lại thông tin chuyển khoản đang chờ.'
             : 'Đã tạo thông tin chuyển khoản.';
-          this.startCollectPolling();
+          this.openPaymentQrRealtime();
         } else {
           this.notice = 'Đã ghi nhận thanh toán.';
           await this.loadBookings();
@@ -1024,34 +1074,91 @@ export default {
         this.collectingPayment = false;
       }
     },
-    startCollectPolling() {
-      this.clearCollectPolling();
-      this.collectPollInterval = setInterval(() => {
-        this.refreshCollectBooking();
-      }, 5000);
+    async openPaymentQrDirect(booking) {
+      if (!booking?.id || this.collectingPayment) return;
+
+      this.collectingPayment = true;
+      this.error = '';
+      this.notice = '';
+      try {
+        const response = await ownerBookingService.collectPayment(booking.id, {
+          payment_method: 'sepay',
+        });
+        if (!response.payment_qr) {
+          throw new Error('Không tạo được thông tin QR thanh toán.');
+        }
+
+        this.paymentQrModal = {
+          booking: response.data || booking,
+          qr: response.payment_qr,
+        };
+        this.selectedTimelineItem = null;
+        this.closeActionMenu();
+        this.notice = response.payment_qr.reused
+          ? 'Đã mở lại thông tin chuyển khoản đang chờ.'
+          : 'Đã tạo thông tin chuyển khoản.';
+        await this.loadBookings();
+        this.openPaymentQrRealtime();
+      } catch (error) {
+        this.error = error.message || 'Không thể tạo thông tin QR thanh toán.';
+      } finally {
+        this.collectingPayment = false;
+      }
     },
-    async refreshCollectBooking() {
-      if (!this.collectBooking) return;
+    subscribePaymentQrChannel(bookingId) {
+      if (!echo || !bookingId) return;
+
+      const channelName = `booking.${bookingId}`;
+      if (this.paymentQrChannelName === channelName) return;
+
+      this.unsubscribePaymentQrChannel();
+      try {
+        this.paymentQrChannelName = channelName;
+        echo.private(channelName).listen('.booking.payment.updated', (event) => {
+          if (String(event?.booking_id) !== String(bookingId)) return;
+          void this.refreshPaymentQrBooking();
+        });
+      } catch (error) {
+        this.paymentQrChannelName = null;
+        console.warn('Không thể đăng ký realtime thanh toán booking:', error);
+      }
+    },
+    unsubscribePaymentQrChannel() {
+      if (this.paymentQrChannelName && echo) {
+        try {
+          echo.leave(this.paymentQrChannelName);
+        } catch {}
+      }
+      this.paymentQrChannelName = null;
+    },
+    async refreshPaymentQrBooking() {
+      const modal = this.paymentQrModal;
+      const bookingId = modal?.booking?.id;
+      if (!bookingId) return;
 
       try {
-        const response = await ownerBookingService.show(this.collectBooking.id);
+        const response = await ownerBookingService.show(bookingId);
         const booking = response.data || response;
-        this.collectBooking = booking;
-
-        if (this.outstandingAmount(booking) <= 0) {
-          this.notice = 'Chuyển khoản đã được ghi nhận.';
+        this.paymentQrModal = { ...modal, booking };
+        const completed = this.outstandingAmount(booking) <= 0;
+        const terminal = ['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status);
+        if (completed || terminal) {
+          this.notice = completed
+            ? 'Chuyển khoản đã được ghi nhận.'
+            : 'Booking không còn hiệu lực.';
+          this.closePaymentQrModal();
           await this.loadBookings();
-          this.closeCollectPayment();
         }
-      } catch {
-        this.clearCollectPolling();
+      } catch (error) {
+        console.warn('Không thể làm mới trạng thái QR booking:', error);
       }
     },
-    clearCollectPolling() {
-      if (this.collectPollInterval) {
-        clearInterval(this.collectPollInterval);
-        this.collectPollInterval = null;
-      }
+    closePaymentQrModal() {
+      this.paymentQrModal = null;
+      this.unsubscribePaymentQrChannel();
+    },
+    openPaymentQrRealtime() {
+      this.subscribePaymentQrChannel(this.paymentQrModal?.booking?.id);
     },
     canCollectPayment(booking) {
       return booking.status !== 'pending_approval'

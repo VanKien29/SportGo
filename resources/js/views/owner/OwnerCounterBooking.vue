@@ -2383,6 +2383,7 @@ import AppTabs from "../../components/common/AppTabs.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 import { businessDateString, businessDateTime, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
+import echo from "../../echo.js";
 
 function toIsoDate(date) {
     return businessDateString(date);
@@ -2507,7 +2508,7 @@ export default {
             notice: "",
             counterQr: null,
             counterQrBookingId: "",
-            counterQrPollInterval: null,
+            counterQrChannelName: null,
             qrModalOpen: false,
             counterDrawerOpen: false,
             selectedOccupiedInterval: null,
@@ -3618,7 +3619,7 @@ export default {
             "owner-cluster-changed",
             this.handleExternalClusterChange,
         );
-        this.clearCounterQrPolling();
+        this.unsubscribeCounterQrChannel();
         clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
@@ -4931,7 +4932,7 @@ export default {
             this.counterDrawerOpen = true;
             this.counterQr = null;
             this.qrModalOpen = false;
-            this.clearCounterQrPolling();
+            this.unsubscribeCounterQrChannel();
 
             if (!this.selectedOccupiedInterval?.booking_id) return;
 
@@ -4974,7 +4975,7 @@ export default {
             this.notice = "";
             this.counterQr = null;
             this.qrModalOpen = false;
-            this.clearCounterQrPolling();
+            this.unsubscribeCounterQrChannel();
 
             try {
                 const timeRanges = this.selectedSlotRanges.map((range) => ({
@@ -5027,7 +5028,7 @@ export default {
                     this.counterDrawerOpen = false;
                     this.qrModalOpen = true;
                     this.counterQrBookingId = response.data?.id || "";
-                    this.startCounterQrPolling();
+            this.subscribeCounterQrChannel();
                 }
                 this.counterDrawerOpen = false;
                 this.selectedSlotKeys = [];
@@ -5362,56 +5363,71 @@ export default {
             this.form.start_time = this.minutesToTime(start);
             this.form.end_time = this.minutesToTime(end);
         },
-        startCounterQrPolling() {
-            this.clearCounterQrPolling();
-            if (!this.counterQrBookingId) return;
+        subscribeCounterQrChannel() {
+            if (!echo || !this.counterQrBookingId) return;
 
-            this.counterQrPollInterval = setInterval(() => {
-                this.refreshCounterQrBooking();
-            }, 5000);
+            const channelName = `booking.${this.counterQrBookingId}`;
+            if (this.counterQrChannelName === channelName) return;
+
+            this.unsubscribeCounterQrChannel();
+            try {
+                this.counterQrChannelName = channelName;
+                echo.private(channelName).listen(
+                    ".booking.payment.updated",
+                    (event) => {
+                        if (String(event?.booking_id) !== String(this.counterQrBookingId)) return;
+                        void this.refreshCounterQrBooking(event);
+                    },
+                );
+            } catch (error) {
+                this.counterQrChannelName = null;
+                console.warn("Không thể đăng ký kênh thanh toán booking:", error);
+            }
+        },
+        unsubscribeCounterQrChannel() {
+            if (this.counterQrChannelName && echo) {
+                try {
+                    echo.leave(this.counterQrChannelName);
+                } catch {}
+            }
+            this.counterQrChannelName = null;
         },
         async refreshCounterQrBooking() {
             if (!this.counterQrBookingId) return;
 
             try {
-                const response = await ownerBookingService.show(
-                    this.counterQrBookingId,
-                );
+                const response = await ownerBookingService.show(this.counterQrBookingId);
                 const booking = response.data || response;
-                const paidAmount = this.paidAmount(booking);
-
-                const paymentCompleted =
-                    paidAmount + 0.01 >= Number(booking.total_price || 0);
-                const paymentCancelled = [
-                    "cancelled",
-                    "expired",
-                    "rejected",
-                    "no_show",
-                ].includes(booking.status);
+                const listIndex = this.bookingList.findIndex(
+                    (item) => String(item.id) === String(booking.id),
+                );
+                if (listIndex !== -1) {
+                    this.bookingList.splice(listIndex, 1, booking);
+                }
+                const paymentCompleted = this.bookingOutstandingAmount(booking) <= 0;
+                const paymentCancelled = ["cancelled", "expired", "rejected", "no_show"].includes(booking.status);
 
                 if (paymentCompleted || paymentCancelled) {
                     this.counterQr = null;
                     this.qrModalOpen = false;
                     this.counterQrBookingId = "";
-                    this.clearCounterQrPolling();
+                    this.unsubscribeCounterQrChannel();
                     this.bookingListDetail = null;
-                    await Promise.all([
-                        this.loadBookingList(),
-                        this.loadSchedule(),
-                    ]);
+                    await Promise.all([this.loadBookingList(), this.loadSchedule()]);
+                    return;
                 }
-            } catch {
-                this.clearCounterQrPolling();
-            }
-        },
-        clearCounterQrPolling() {
-            if (this.counterQrPollInterval) {
-                clearInterval(this.counterQrPollInterval);
-                this.counterQrPollInterval = null;
+
+                if (this.bookingListDetail?.id === booking.id) this.bookingListDetail = booking;
+                if (this.selectedBusyBooking?.id === booking.id) this.selectedBusyBooking = booking;
+            } catch (error) {
+                console.warn("Không thể làm mới trạng thái QR booking:", error);
             }
         },
         closeQrModal() {
             this.qrModalOpen = false;
+            this.counterQr = null;
+            this.counterQrBookingId = "";
+            this.unsubscribeCounterQrChannel();
         },
         paidAmount(booking) {
             if (booking?.paid_amount !== undefined && booking?.paid_amount !== null) {
@@ -5916,7 +5932,7 @@ export default {
                     this.selectedBusyBooking = updatedBooking;
                 }
                 this.bookingActionConfirm = null;
-                this.startCounterQrPolling();
+                this.subscribeCounterQrChannel();
                 await Promise.all([
                     this.loadBookingList(),
                     this.loadSchedule(),

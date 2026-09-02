@@ -448,11 +448,11 @@ class SepayPaymentService
         $payment = $result['payment'] ?? null;
         if ($payment?->booking_id) {
             $booking = Booking::query()->find($payment->booking_id);
-            if ($booking?->customer_id) {
+            if ($booking) {
                 try {
                     broadcast(new BookingPaymentUpdated(
                         $booking->id,
-                        $booking->customer_id,
+                        $booking->customer_id ?? 0,
                         $payment->id,
                         (string) $payment->status,
                         (string) $booking->status,
