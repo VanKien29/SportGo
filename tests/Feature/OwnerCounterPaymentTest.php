@@ -110,7 +110,7 @@ class OwnerCounterPaymentTest extends TestCase
         ]);
     }
 
-    public function test_owner_can_collect_cash_after_counter_booking_is_played(): void
+    public function test_owner_collecting_cash_auto_checkins_counter_booking(): void
     {
         $booking = $this->createPayLaterCounterBooking();
 
@@ -124,7 +124,7 @@ class OwnerCounterPaymentTest extends TestCase
             ]);
 
         $response->assertOk()
-            ->assertJsonPath('data.status', 'completed');
+            ->assertJsonPath('data.status', 'checked_in');
 
         $this->assertDatabaseHas('payments', [
             'booking_id' => $booking->id,
@@ -200,7 +200,7 @@ class OwnerCounterPaymentTest extends TestCase
 
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
-            'status' => 'completed',
+            'status' => 'checked_in',
         ]);
 
         $this->assertDatabaseHas('owner_wallets', [
@@ -239,34 +239,16 @@ class OwnerCounterPaymentTest extends TestCase
             ->assertJsonValidationErrors(['action']);
     }
 
-    public function test_pay_later_booking_can_be_played_then_paid_without_reverting_operational_status(): void
+    public function test_pay_later_booking_is_auto_checked_in_after_cash_payment(): void
     {
         $booking = $this->createPayLaterCounterBooking();
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
-                'action' => 'check_in',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'checked_in');
-
-        $this->assertDatabaseMissing('payments', ['booking_id' => $booking->id]);
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
-                'action' => 'complete',
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['action']);
-
-        $this->assertDatabaseMissing('payments', ['booking_id' => $booking->id]);
 
         $this->actingAs($this->owner, 'sanctum')
             ->postJson("/api/owner/bookings/{$booking->id}/payments/collect", [
                 'payment_method' => 'cash',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'completed');
+            ->assertJsonPath('data.status', 'checked_in');
 
         $this->assertDatabaseHas('payments', [
             'booking_id' => $booking->id,
@@ -275,7 +257,7 @@ class OwnerCounterPaymentTest extends TestCase
         ]);
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
-            'status' => 'completed',
+            'status' => 'checked_in',
         ]);
     }
 

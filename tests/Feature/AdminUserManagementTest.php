@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\Permission;
 use App\Models\Role;
+use App\Models\RolePermission;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Mail\UserAccountLockedMail;
@@ -19,11 +21,13 @@ class AdminUserManagementTest extends TestCase
     private User $superAdmin;
     private User $admin;
     private User $staff;
+    private User $staffManager;
     private User $customer;
 
     private Role $superAdminRole;
     private Role $adminRole;
     private Role $staffRole;
+    private Role $staffManagerRole;
     private Role $userRole;
 
     protected function setUp(): void
@@ -49,6 +53,12 @@ class AdminUserManagementTest extends TestCase
             'is_system' => true,
         ]);
 
+        $this->staffManagerRole = Role::query()->create([
+            'name' => 'staff_manager',
+            'display_name' => 'Quản lý nhân sự',
+            'is_system' => true,
+        ]);
+
         $this->userRole = Role::query()->create([
             'name' => 'user',
             'display_name' => 'Người dùng',
@@ -59,13 +69,25 @@ class AdminUserManagementTest extends TestCase
         $this->superAdmin = $this->createUser('super_admin_test', 'superadmin@sportgo.test');
         $this->admin = $this->createUser('admin_test', 'admin@sportgo.test');
         $this->staff = $this->createUser('staff_test', 'staff@sportgo.test');
+        $this->staffManager = $this->createUser('staff_manager_test', 'staff_manager@sportgo.test');
         $this->customer = $this->createUser('customer_test', 'customer@sportgo.test');
 
         // 3. Gán vai trò
         $this->assignRole($this->superAdmin, $this->superAdminRole);
         $this->assignRole($this->admin, $this->adminRole);
         $this->assignRole($this->staff, $this->staffRole);
+        $this->assignRole($this->staffManager, $this->staffManagerRole);
         $this->assignRole($this->customer, $this->userRole);
+
+        $assignRolePermission = Permission::query()->create([
+            'code' => 'staff.assign_role',
+            'name' => 'Gán nhóm quyền',
+            'group_name' => 'staff',
+        ]);
+        RolePermission::query()->create([
+            'role_id' => $this->staffManagerRole->id,
+            'permission_id' => $assignRolePermission->id,
+        ]);
     }
 
     /**
@@ -168,6 +190,79 @@ class AdminUserManagementTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['roles']);
+    }
+
+    /**
+     * Super Admin khÃ´ng Ä‘Æ°á»£c tá»± háº¡ quyá»n cá»§a chÃ­nh mÃ¬nh, nhÆ°ng váº«n cÃ³ thá»ƒ cáº­p nháº­t thÃ´ng tin cÃ¡ nhÃ¢n.
+     */
+    public function test_super_admin_cannot_change_own_role(): void
+    {
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson("/api/admin/users/{$this->superAdmin->id}", [
+                'full_name' => 'Super Admin Updated',
+                'email' => $this->superAdmin->email,
+                'roles' => [$this->staffRole->id],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['roles']);
+
+        $this->assertDatabaseHas('user_roles', [
+            'user_id' => $this->superAdmin->id,
+            'role_id' => $this->superAdminRole->id,
+        ]);
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $this->superAdmin->id,
+            'role_id' => $this->staffRole->id,
+        ]);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson("/api/admin/users/{$this->superAdmin->id}", [
+                'full_name' => 'Super Admin Updated',
+                'email' => $this->superAdmin->email,
+                'roles' => [$this->superAdminRole->id],
+            ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('users', [
+            'id' => $this->superAdmin->id,
+            'full_name' => 'Super Admin Updated',
+        ]);
+    }
+
+    public function test_staff_manager_cannot_change_own_role(): void
+    {
+        $response = $this->actingAs($this->staffManager, 'sanctum')
+            ->putJson("/api/admin/users/{$this->staffManager->id}", [
+                'full_name' => 'Staff Manager Updated',
+                'email' => $this->staffManager->email,
+                'roles' => [$this->staffRole->id],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['roles']);
+
+        $this->assertDatabaseHas('user_roles', [
+            'user_id' => $this->staffManager->id,
+            'role_id' => $this->staffManagerRole->id,
+        ]);
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $this->staffManager->id,
+            'role_id' => $this->staffRole->id,
+        ]);
+
+        $response = $this->actingAs($this->staffManager, 'sanctum')
+            ->putJson("/api/admin/users/{$this->staffManager->id}", [
+                'full_name' => 'Staff Manager Updated',
+                'email' => $this->staffManager->email,
+                'roles' => [$this->staffManagerRole->id],
+            ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('users', [
+            'id' => $this->staffManager->id,
+            'full_name' => 'Staff Manager Updated',
+        ]);
     }
 
     /**

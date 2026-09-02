@@ -60,6 +60,12 @@ class FinanceController extends Controller
             ->orderByDesc('is_default')
             ->orderBy('bank_name')
             ->get();
+        $managedBankAccounts = OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->orderByDesc('is_default')
+            ->orderByDesc('status')
+            ->orderBy('bank_name')
+            ->get();
 
         $summary = [
             'available_balance' => (float) $wallets->sum(fn ($wallet) => $this->platformFeeWallets->withdrawableAmount($wallet)),
@@ -129,9 +135,176 @@ class FinanceController extends Controller
             // Keep the alias for older owner screens while the canonical payload is data.
             'wallets' => $wallets,
             'bank_accounts' => $bankAccounts,
+            'managed_bank_accounts' => $managedBankAccounts,
             'summary' => $summary,
             'cashflow' => $cashflow->values(),
         ]);
+    }
+
+    public function bankAccounts(Request $request): JsonResponse
+    {
+        $accounts = OwnerBankAccount::query()
+            ->where('owner_id', $request->user()->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('status')
+            ->orderBy('bank_name')
+            ->get();
+
+        return response()->json(['data' => $accounts]);
+    }
+
+    public function storeBankAccount(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'bank_name' => ['required', 'string', 'max:100'],
+            'bank_code' => ['required', 'string', 'max:50'],
+            'account_number' => ['required', 'regex:/^\d{6,19}$/'],
+            'account_holder_name' => ['required', 'string', 'max:150'],
+            'branch_name' => ['nullable', 'string', 'max:150'],
+            'is_default' => ['nullable', 'boolean'],
+        ]);
+
+        $ownerId = $request->user()->id;
+        $data = $this->normalizeBankAccountData($data);
+
+        $duplicate = OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->where('bank_code', $data['bank_code'])
+            ->where('account_number', $data['account_number'])
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'account_number' => 'Tài khoản ngân hàng này đã được thêm trước đó.',
+            ]);
+        }
+
+        $account = DB::transaction(function () use ($ownerId, $data): OwnerBankAccount {
+            $hasAccounts = OwnerBankAccount::query()
+                ->where('owner_id', $ownerId)
+                ->exists();
+            $isDefault = (bool) ($data['is_default'] ?? false) || ! $hasAccounts;
+
+            if ($isDefault) {
+                OwnerBankAccount::query()
+                    ->where('owner_id', $ownerId)
+                    ->update(['is_default' => false]);
+            }
+
+            $account = OwnerBankAccount::query()->create([
+                'owner_id' => $ownerId,
+                'bank_name' => $data['bank_name'],
+                'bank_code' => $data['bank_code'],
+                'account_number' => $data['account_number'],
+                'account_holder_name' => $data['account_holder_name'],
+                'branch_name' => $data['branch_name'] ?? null,
+                'status' => 'active',
+                'is_default' => $isDefault,
+            ]);
+
+            $this->ensureDefaultBankAccount($ownerId);
+
+            return $account->fresh();
+        });
+
+        return response()->json([
+            'message' => 'Đã thêm tài khoản nhận tiền.',
+            'data' => $account,
+        ], 201);
+    }
+
+    public function updateBankAccount(Request $request, string $id): JsonResponse
+    {
+        $account = OwnerBankAccount::query()
+            ->where('owner_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $data = $request->validate([
+            'bank_name' => ['required', 'string', 'max:100'],
+            'bank_code' => ['required', 'string', 'max:50'],
+            'account_number' => ['required', 'regex:/^\d{6,19}$/'],
+            'account_holder_name' => ['required', 'string', 'max:150'],
+            'branch_name' => ['nullable', 'string', 'max:150'],
+            'is_default' => ['nullable', 'boolean'],
+        ]);
+
+        $data = $this->normalizeBankAccountData($data);
+        $duplicate = OwnerBankAccount::query()
+            ->where('owner_id', $request->user()->id)
+            ->where('bank_code', $data['bank_code'])
+            ->where('account_number', $data['account_number'])
+            ->whereKeyNot($account->id)
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'account_number' => 'Tài khoản ngân hàng này đã được thêm trước đó.',
+            ]);
+        }
+
+        $updated = DB::transaction(function () use ($request, $account, $data): OwnerBankAccount {
+            $isDefault = array_key_exists('is_default', $data)
+                ? (bool) $data['is_default']
+                : (bool) $account->is_default;
+
+            if ($isDefault) {
+                OwnerBankAccount::query()
+                    ->where('owner_id', $request->user()->id)
+                    ->whereKeyNot($account->id)
+                    ->update(['is_default' => false]);
+            }
+
+            $account->update([
+                'bank_name' => $data['bank_name'],
+                'bank_code' => $data['bank_code'],
+                'account_number' => $data['account_number'],
+                'account_holder_name' => $data['account_holder_name'],
+                'branch_name' => $data['branch_name'] ?? null,
+                'status' => 'active',
+                'is_default' => $isDefault,
+                'rejected_reason' => null,
+            ]);
+
+            $this->ensureDefaultBankAccount($request->user()->id);
+
+            return $account->fresh();
+        });
+
+        return response()->json([
+            'message' => 'Đã cập nhật tài khoản nhận tiền.',
+            'data' => $updated,
+        ]);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function normalizeBankAccountData(array $data): array
+    {
+        $data['bank_name'] = trim((string) $data['bank_name']);
+        $data['bank_code'] = Str::upper(trim((string) $data['bank_code']));
+        $data['account_number'] = trim((string) $data['account_number']);
+        $data['account_holder_name'] = Str::upper(trim((string) $data['account_holder_name']));
+        $data['branch_name'] = trim((string) ($data['branch_name'] ?? '')) ?: null;
+
+        return $data;
+    }
+
+    private function ensureDefaultBankAccount(int|string $ownerId): void
+    {
+        $hasDefault = OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->where('status', 'active')
+            ->where('is_default', true)
+            ->exists();
+
+        if ($hasDefault) {
+            return;
+        }
+
+        OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first()?->update(['is_default' => true]);
     }
 
     public function ledgers(Request $request): JsonResponse

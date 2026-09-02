@@ -628,6 +628,7 @@ class UserController extends Controller
         }
 
         $roles = $user->roles->pluck('name')->values()->all();
+        $roleIds = $user->roles->pluck('id')->values()->all();
         $isAdmin = $user->role_group === 'admin';
 
         $reports = $isAdmin ? 0 : ($extras['reports_count_recent'] ?? $this->reportSummary($user->id)['reports_14_days']);
@@ -650,6 +651,7 @@ class UserController extends Controller
             'locked_by' => $user->locked_by,
             'locked_by_name' => $user->relationLoaded('lockedBy') ? ($user->lockedBy?->full_name ?: $user->lockedBy?->username) : null,
             'roles' => $roles,
+            'role_ids' => $roleIds,
             'role_labels' => array_map(fn (string $role): string => $this->roleLabel($role), $roles),
             'primary_role_label' => $this->primaryRoleLabel($roles),
             'role_group' => $this->roleRedirectService->roleGroup($roles),
@@ -1468,7 +1470,29 @@ class UserController extends Controller
             ->pluck('name')
             ->all();
 
-        if (in_array('super_admin', $targetNewRoleNames, true)) {
+        $isSelfSuperAdmin = (int) $actor->id === (int) $user->id
+            && in_array('super_admin', $targetCurrentRoles, true);
+        $isSelfStaffManager = (int) $actor->id === (int) $user->id
+            && in_array('staff_manager', $targetCurrentRoles, true);
+        $currentRoleSet = array_values(array_unique($targetCurrentRoles));
+        $newRoleSet = array_values(array_unique($targetNewRoleNames));
+        sort($currentRoleSet);
+        sort($newRoleSet);
+        $sameRoleSet = $currentRoleSet === $newRoleSet;
+
+        if ($isSelfSuperAdmin && ! $sameRoleSet) {
+            throw ValidationException::withMessages([
+                'roles' => 'Super Admin không được tự thay đổi hoặc hạ quyền của chính mình.',
+            ]);
+        }
+
+        if ($isSelfStaffManager && ! $sameRoleSet) {
+            throw ValidationException::withMessages([
+                'roles' => 'Quản lý nhân sự không được tự thay đổi vai trò của chính mình.',
+            ]);
+        }
+
+        if (in_array('super_admin', $targetNewRoleNames, true) && ! ($isSelfSuperAdmin && $sameRoleSet)) {
             throw ValidationException::withMessages([
                 'roles' => 'Không được phép cấp hoặc gán lại vai trò Super Admin.',
             ]);
@@ -1485,7 +1509,9 @@ class UserController extends Controller
 
         $oldValues = $this->payload($user);
 
-        DB::transaction(function () use ($user, $data, $actor): void {
+        $isSelfRoleProtected = $isSelfSuperAdmin || $isSelfStaffManager;
+
+        DB::transaction(function () use ($user, $data, $actor, $isSelfRoleProtected): void {
             $updateData = [
                 'full_name' => $data['full_name'],
                 'email' => $data['email'],
@@ -1498,14 +1524,16 @@ class UserController extends Controller
 
             $user->update($updateData);
 
-            DB::table('user_roles')->where('user_id', $user->id)->delete();
-            foreach ($data['roles'] as $roleId) {
-                DB::table('user_roles')->insert([
-                    'user_id' => $user->id,
-                    'role_id' => $roleId,
-                    'granted_by' => $actor->id,
-                    'created_at' => now(),
-                ]);
+            if (! $isSelfRoleProtected) {
+                DB::table('user_roles')->where('user_id', $user->id)->delete();
+                foreach ($data['roles'] as $roleId) {
+                    DB::table('user_roles')->insert([
+                        'user_id' => $user->id,
+                        'role_id' => $roleId,
+                        'granted_by' => $actor->id,
+                        'created_at' => now(),
+                    ]);
+                }
             }
         });
 

@@ -655,7 +655,10 @@ function isChunkLoadError(error) {
 function recoverFromChunkError(error, to) {
     if (!isChunkLoadError(error) || typeof window === "undefined") return;
 
-    const marker = `${window.location.pathname}:${to?.fullPath || ""}`;
+    // Use the failed destination as the retry identity. The current pathname
+    // changes after a hard reload and would otherwise allow a second reload
+    // for the same missing asset.
+    const marker = to?.fullPath || window.location.pathname;
     let shouldReload = true;
 
     try {
@@ -676,7 +679,7 @@ function recoverFromChunkError(error, to) {
         return;
     }
 
-    const url = new URL(window.location.href);
+    const url = new URL(to?.fullPath || window.location.href, window.location.origin);
     url.searchParams.set("__asset_reload", String(Date.now()));
     window.location.replace(url.toString());
 }
@@ -845,6 +848,17 @@ router.afterEach((to) => {
         document.head.appendChild(metaDesc);
     }
     metaDesc.content = `${title}. Tìm sân gần bạn, xem ma trận giờ trống và giữ chỗ dễ dàng cùng SportGo.`;
+
+    // A successful navigation means the current app/asset graph is healthy;
+    // allow a future deploy to trigger its own one-time recovery.
+    try {
+        const previous = JSON.parse(sessionStorage.getItem(chunkReloadStorageKey) || "null");
+        if (previous?.marker === to.fullPath) {
+            sessionStorage.removeItem(chunkReloadStorageKey);
+        }
+    } catch {
+        // Storage can be unavailable in privacy-restricted browsers.
+    }
 });
 
 router.onError((error, to) => {

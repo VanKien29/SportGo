@@ -392,6 +392,42 @@
                                     <span>Xác nhận</span>
                                 </button>
                                 <button
+                                    v-if="
+                                        selectedBusyBooking.status ===
+                                            'confirmed' &&
+                                        selectedBookingOutstanding <= 0
+                                    "
+                                    class="secondary-btn compact action-success"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="
+                                        openBookingActionConfirm('status', {
+                                            action: 'check_in',
+                                        })
+                                    "
+                                >
+                                    <AppIcon name="clock" size="15" />
+                                    <span>Check-in</span>
+                                </button>
+                                <button
+                                    v-if="
+                                        selectedBusyBooking.status ===
+                                            'checked_in' &&
+                                        selectedBookingOutstanding <= 0
+                                    "
+                                    class="secondary-btn compact action-success"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="
+                                        openBookingActionConfirm('status', {
+                                            action: 'complete',
+                                        })
+                                    "
+                                >
+                                    <AppIcon name="circleCheck" size="15" />
+                                    <span>Hoàn thành</span>
+                                </button>
+                                <button
                                     v-if="selectedBookingOutstanding > 0"
                                     class="secondary-btn compact action-cash"
                                     type="button"
@@ -428,12 +464,21 @@
                                     :disabled="bookingActionLoading"
                                     @click="
                                         openBookingActionConfirm('status', {
-                                            action: 'cancel',
+                                            action:
+                                                selectedBusyBooking.status ===
+                                                'pending_approval'
+                                                    ? 'reject'
+                                                    : 'cancel',
                                         })
                                     "
                                 >
                                     <AppIcon name="trash" size="15" />
-                                    <span>Hủy booking</span>
+                                    <span>{{
+                                        selectedBusyBooking.status ===
+                                        "pending_approval"
+                                            ? "Từ chối booking"
+                                            : "Hủy booking"
+                                    }}</span>
                                 </button>
                             </div>
                         </section>
@@ -1500,7 +1545,7 @@
                                     <button
                                         type="button"
                                         class="secondary-btn compact"
-                                        @click="openBookingListDetail(booking)"
+                                        @click.stop="openBookingListDetail(booking)"
                                     >
                                         <AppIcon name="eye" size="15" />
                                         <span>Chi tiết</span>
@@ -1910,6 +1955,106 @@
                             {{ bookingActionLoading ? "Đang xử lý..." : "Duyệt booking" }}
                         </button>
                         <button
+                            v-if="bookingListDetail.status === 'pending_approval'"
+                            class="secondary-btn danger"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListAction(
+                                    bookingListDetail,
+                                    'reject',
+                                )
+                            "
+                        >
+                            <AppIcon name="trash" size="15" />
+                            Từ chối
+                        </button>
+                        <button
+                            v-if="
+                                bookingListDetail.status === 'confirmed' &&
+                                bookingOutstandingAmount(bookingListDetail) <= 0
+                            "
+                            class="secondary-btn action-success"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListAction(
+                                    bookingListDetail,
+                                    'check_in',
+                                )
+                            "
+                        >
+                            <AppIcon name="clock" size="15" />
+                            Check-in
+                        </button>
+                        <button
+                            v-if="canCollectBookingPayment(bookingListDetail)"
+                            class="secondary-btn action-cash"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListPayment(
+                                    bookingListDetail,
+                                    'cash',
+                                )
+                            "
+                        >
+                            <AppIcon name="banknote" size="15" />
+                            Tiền mặt
+                        </button>
+                        <button
+                            v-if="canCollectBookingPayment(bookingListDetail)"
+                            class="secondary-btn action-transfer"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListPayment(
+                                    bookingListDetail,
+                                    'transfer',
+                                )
+                            "
+                        >
+                            <AppIcon name="qrCode" size="15" />
+                            Chuyển khoản
+                        </button>
+                        <button
+                            v-if="
+                                bookingListDetail.status === 'checked_in' &&
+                                !canCollectBookingPayment(bookingListDetail)
+                            "
+                            class="secondary-btn action-success"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListAction(
+                                    bookingListDetail,
+                                    'complete',
+                                )
+                            "
+                        >
+                            <AppIcon name="circleCheck" size="15" />
+                            Hoàn thành
+                        </button>
+                        <button
+                            v-if="
+                                ['pending_payment', 'confirmed'].includes(
+                                    bookingListDetail.status,
+                                )
+                            "
+                            class="secondary-btn danger"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="
+                                openBookingListAction(
+                                    bookingListDetail,
+                                    'cancel',
+                                )
+                            "
+                        >
+                            <AppIcon name="trash" size="15" />
+                            Hủy booking
+                        </button>
+                        <button
                             class="secondary-btn"
                             type="button"
                             @click="closeBookingListDetail"
@@ -1956,11 +2101,19 @@
                     <label
                         v-if="
                             bookingActionConfirm.kind === 'status' &&
-                            bookingActionConfirm.action === 'cancel'
+                            ['cancel', 'reject'].includes(
+                                bookingActionConfirm.action,
+                            )
                         "
                         class="field-stack confirm-reason-field"
                     >
-                        <span>Lý do hủy</span>
+                        <span>
+                            {{
+                                bookingActionConfirm.action === 'reject'
+                                    ? 'Lý do từ chối'
+                                    : 'Lý do hủy'
+                            }}
+                        </span>
                         <textarea
                             v-model.trim="bookingActionConfirm.reason"
                             rows="3"
@@ -1992,7 +2145,9 @@
                             :disabled="
                                 bookingActionLoading ||
                                 (bookingActionConfirm.kind === 'status' &&
-                                    bookingActionConfirm.action === 'cancel' &&
+                                    ['cancel', 'reject'].includes(
+                                        bookingActionConfirm.action,
+                                    ) &&
                                     !bookingActionConfirm.reason)
                             "
                             @click="confirmBookingAction"
@@ -3207,9 +3362,14 @@ export default {
             ];
         },
         bookingActionConfirmRows() {
-            const booking = this.selectedBusyBooking;
+            const booking =
+                this.bookingActionConfirm?.booking || this.selectedBusyBooking;
 
             if (!booking) return [];
+
+            const outstanding = this.bookingActionConfirm?.booking
+                ? this.bookingOutstandingAmount(booking)
+                : this.selectedBookingOutstanding;
 
             return [
                 ["Mã booking", booking.booking_code || "-"],
@@ -3222,7 +3382,7 @@ export default {
                 ["Tổng tiền", this.formatCurrency(booking.total_price)],
                 [
                     "Còn thu",
-                    this.formatCurrency(this.selectedBookingOutstanding),
+                    this.formatCurrency(outstanding),
                 ],
             ];
         },
@@ -4110,6 +4270,43 @@ export default {
         closeBookingListDetail() {
             this.bookingListDetail = null;
         },
+        openBookingListAction(booking, action) {
+            if (!booking?.id) return;
+
+            this.openBookingActionConfirm("status", { action, booking });
+        },
+        openBookingListPayment(booking, method) {
+            if (!booking?.id) return;
+
+            this.openBookingActionConfirm(
+                method === "transfer" ? "transfer" : "collect",
+                {
+                    booking,
+                    ...(method === "transfer" ? {} : { method: "cash" }),
+                },
+            );
+        },
+        canCollectBookingPayment(booking) {
+            if (!booking || booking.status === "pending_approval") {
+                return false;
+            }
+
+            const paymentOption =
+                booking.effective_payment_option || booking.payment_option;
+
+            return (
+                !(booking.status === "pending_payment" &&
+                    paymentOption === "no_prepay") &&
+                ![
+                    "cancelled",
+                    "expired",
+                    "rejected",
+                    "no_show",
+                    "completed",
+                ].includes(booking.status) &&
+                this.bookingOutstandingAmount(booking) > 0
+            );
+        },
         canApproveBooking(booking) {
             if (!booking) return false;
             if (booking.status === 'pending_approval') {
@@ -4140,6 +4337,7 @@ export default {
                 this.bookingListDetail = response.data || response;
                 this.notice = 'Đã duyệt booking.';
                 await Promise.all([this.loadBookingList(), this.loadSchedule()]);
+                this.bookingListDetail = null;
             } catch (error) {
                 this.error = error.message || 'Không thể xác nhận booking.';
             } finally {
@@ -5182,15 +5380,25 @@ export default {
                 const booking = response.data || response;
                 const paidAmount = this.paidAmount(booking);
 
-                if (
-                    paidAmount >= Number(booking.total_price || 0) ||
-                    booking.status !== "pending_payment"
-                ) {
+                const paymentCompleted =
+                    paidAmount + 0.01 >= Number(booking.total_price || 0);
+                const paymentCancelled = [
+                    "cancelled",
+                    "expired",
+                    "rejected",
+                    "no_show",
+                ].includes(booking.status);
+
+                if (paymentCompleted || paymentCancelled) {
                     this.counterQr = null;
                     this.qrModalOpen = false;
                     this.counterQrBookingId = "";
                     this.clearCounterQrPolling();
-                    await this.loadSchedule();
+                    this.bookingListDetail = null;
+                    await Promise.all([
+                        this.loadBookingList(),
+                        this.loadSchedule(),
+                    ]);
                 }
             } catch {
                 this.clearCounterQrPolling();
@@ -5206,11 +5414,22 @@ export default {
             this.qrModalOpen = false;
         },
         paidAmount(booking) {
+            if (booking?.paid_amount !== undefined && booking?.paid_amount !== null) {
+                return Number(booking.paid_amount) || 0;
+            }
+
             return (booking?.payments || [])
                 .filter((payment) => payment.status === "paid")
                 .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
         },
         bookingOutstandingAmount(booking) {
+            if (
+                booking?.outstanding_amount !== undefined &&
+                booking?.outstanding_amount !== null
+            ) {
+                return Math.max(Number(booking.outstanding_amount) || 0, 0);
+            }
+
             return Math.max(
                 Number(booking?.total_price || 0) - this.paidAmount(booking),
                 0,
@@ -5487,9 +5706,12 @@ export default {
             );
         },
         openBookingActionConfirm(kind, payload = {}) {
-            if (!this.selectedBusyBooking) return;
+            const booking = payload.booking || this.selectedBusyBooking;
+            if (!booking) return;
 
-            const amount = this.formatCurrency(this.selectedBookingOutstanding);
+            const amount = this.formatCurrency(
+                this.bookingOutstandingAmount(booking),
+            );
             const configs = {
                 status: {
                     confirm: {
@@ -5497,6 +5719,25 @@ export default {
                         message:
                             "Booking sẽ được chuyển sang trạng thái đã xác nhận.",
                         confirmLabel: "Xác nhận",
+                    },
+                    reject: {
+                        title: "Từ chối booking",
+                        message:
+                            "Booking sẽ bị từ chối và lý do sẽ được gửi cho khách hàng.",
+                        confirmLabel: "Từ chối booking",
+                        variant: "danger",
+                    },
+                    check_in: {
+                        title: "Check-in khách",
+                        message:
+                            "Xác nhận khách đã đến và bắt đầu lượt chơi.",
+                        confirmLabel: "Xác nhận check-in",
+                    },
+                    complete: {
+                        title: "Hoàn thành lượt chơi",
+                        message:
+                            "Xác nhận lượt chơi đã kết thúc và đóng booking.",
+                        confirmLabel: "Hoàn thành",
                     },
                     cancel: {
                         title: "Hủy booking",
@@ -5547,9 +5788,15 @@ export default {
             }
         },
         async updateSelectedBookingStatus(action) {
-            if (!this.selectedBusyBooking?.id || this.bookingActionLoading) {
+            const targetBooking =
+                this.bookingActionConfirm?.booking || this.selectedBusyBooking;
+            if (!targetBooking?.id || this.bookingActionLoading) {
                 return;
             }
+
+            const isBookingListAction = Boolean(
+                this.bookingActionConfirm?.booking,
+            );
 
             this.bookingActionLoading = true;
             this.error = "";
@@ -5557,25 +5804,38 @@ export default {
 
             try {
                 const payload = { action };
-                if (action === "cancel") {
+                if (["cancel", "reject"].includes(action)) {
                     const reason = (
                         this.bookingActionConfirm?.reason || ""
                     ).trim();
                     if (!reason) {
-                        this.error = "Vui lòng nhập lý do hủy booking.";
+                        this.error = ["cancel", "reject"].includes(action)
+                            ? "Vui lòng nhập lý do thao tác với booking."
+                            : "Vui lòng nhập lý do hủy booking.";
                         return;
                     }
                     payload.status_reason = reason;
                 }
                 const response = await ownerBookingService.updateStatus(
-                    this.selectedBusyBooking.id,
+                    targetBooking.id,
                     payload,
                 );
-                this.selectedBusyBooking = response.data || response;
+                const updatedBooking = response.data || response;
+                if (isBookingListAction) {
+                    this.bookingListDetail = updatedBooking;
+                } else {
+                    this.selectedBusyBooking = updatedBooking;
+                }
                 this.notice = "Đã cập nhật trạng thái booking.";
                 this.bookingActionConfirm = null;
                 this.counterDrawerOpen = false;
-                await this.loadSchedule();
+                await Promise.all([
+                    this.loadBookingList(),
+                    this.loadSchedule(),
+                ]);
+                if (isBookingListAction) {
+                    this.bookingListDetail = null;
+                }
             } catch (error) {
                 this.error = error.message || "Không thể cập nhật booking.";
             } finally {
@@ -5583,9 +5843,15 @@ export default {
             }
         },
         async collectSelectedBooking(method) {
-            if (!this.selectedBusyBooking?.id || this.bookingActionLoading) {
+            const targetBooking =
+                this.bookingActionConfirm?.booking || this.selectedBusyBooking;
+            if (!targetBooking?.id || this.bookingActionLoading) {
                 return;
             }
+
+            const isBookingListAction = Boolean(
+                this.bookingActionConfirm?.booking,
+            );
 
             this.bookingActionLoading = true;
             this.error = "";
@@ -5593,13 +5859,25 @@ export default {
 
             try {
                 const response = await ownerBookingService.collectPayment(
-                    this.selectedBusyBooking.id,
+                    targetBooking.id,
                     { payment_method: method },
                 );
-                this.selectedBusyBooking = response.data || response;
+                const updatedBooking = response.data || response;
+                if (isBookingListAction) {
+                    this.bookingListDetail = updatedBooking;
+                } else {
+                    this.selectedBusyBooking = updatedBooking;
+                }
                 this.bookingActionConfirm = null;
                 this.counterDrawerOpen = false;
-                await this.loadSchedule();
+                this.notice = "Đã ghi nhận thanh toán thành công.";
+                await Promise.all([
+                    this.loadBookingList(),
+                    this.loadSchedule(),
+                ]);
+                if (isBookingListAction) {
+                    this.bookingListDetail = null;
+                }
             } catch (error) {
                 this.error = error.message || "Không thể ghi nhận thu tiền.";
             } finally {
@@ -5607,9 +5885,15 @@ export default {
             }
         },
         async openSelectedBookingPaymentQr() {
-            if (!this.selectedBusyBooking?.id || this.bookingActionLoading) {
+            const targetBooking =
+                this.bookingActionConfirm?.booking || this.selectedBusyBooking;
+            if (!targetBooking?.id || this.bookingActionLoading) {
                 return;
             }
+
+            const isBookingListAction = Boolean(
+                this.bookingActionConfirm?.booking,
+            );
 
             this.bookingActionLoading = true;
             this.error = "";
@@ -5617,18 +5901,29 @@ export default {
 
             try {
                 const response = await ownerBookingService.collectPayment(
-                    this.selectedBusyBooking.id,
+                    targetBooking.id,
                     { payment_method: "sepay" },
                 );
                 this.counterQr = response.payment_qr || null;
                 this.counterDrawerOpen = false;
                 this.qrModalOpen = Boolean(this.counterQr);
                 this.counterQrBookingId =
-                    response.data?.id || this.selectedBusyBooking.id;
-                this.selectedBusyBooking =
-                    response.data || this.selectedBusyBooking;
+                    response.data?.id || targetBooking.id;
+                const updatedBooking = response.data || targetBooking;
+                if (isBookingListAction) {
+                    this.bookingListDetail = updatedBooking;
+                } else {
+                    this.selectedBusyBooking = updatedBooking;
+                }
                 this.bookingActionConfirm = null;
                 this.startCounterQrPolling();
+                await Promise.all([
+                    this.loadBookingList(),
+                    this.loadSchedule(),
+                ]);
+                if (isBookingListAction) {
+                    this.bookingListDetail = null;
+                }
             } catch (error) {
                 this.error =
                     error.message || "Không thể mở thông tin thanh toán.";

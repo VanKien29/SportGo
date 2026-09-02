@@ -390,6 +390,44 @@ export default {
         }
       }
       this.showNotifDropdown = false;
+      const target = this.resolveNotificationTarget(notif);
+      if (target) {
+        await this.$router.push(target).catch(() => {});
+      }
+    },
+    resolveNotificationTarget(notif) {
+      const candidates = [
+        notif?.action_url,
+        notif?.data?.action_url,
+        notif?.data?.url,
+        notif?.data?.link,
+      ];
+      const explicitTarget = candidates.find((target) => typeof target === "string" && target.startsWith("/"));
+      if (explicitTarget) return explicitTarget;
+
+      const type = `${notif?.reference_type || ""} ${notif?.type || ""}`.toLowerCase();
+      const referenceId = notif?.reference_id || notif?.data?.booking_id;
+      if (referenceId && type.includes("booking")) return `/booking/${referenceId}`;
+      if (referenceId && type.includes("refund")) return `/refunds/${referenceId}`;
+      if (referenceId && type.includes("complaint")) return `/complaints/${referenceId}`;
+      if (referenceId && type.includes("partner_application")) return `/partner-application/${referenceId}`;
+      if (referenceId && type.includes("player_post")) {
+        return type.includes("participant") || type.includes("matchmaking_request")
+          ? `/matchmaking-requests/${referenceId}`
+          : `/matchmaking-posts/${referenceId}/manage`;
+      }
+      if (type.includes("post_like") || type.includes("post_comment") || type.includes("comment_reply")) {
+        return notif?.data?.slug ? `/community/${notif.data.slug}` : "/community";
+      }
+      if (type.includes("post_approved")) {
+        return notif?.data?.slug && type.includes("system_post")
+          ? `/news/${notif.data.slug}`
+          : "/community";
+      }
+      if (type.includes("wallet") || type.includes("membership")) {
+        return type.includes("membership") ? "/vip-membership" : "/wallet";
+      }
+      return "/notifications";
     },
     goToDashboard() {
       this.showDropdown = false;
