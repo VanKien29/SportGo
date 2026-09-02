@@ -17,6 +17,7 @@ class PartnerApplicationCourt extends Model
         'note',
         'name',
         'sort_order',
+        'base_price_per_hour',
     ];
 
     protected function casts(): array
@@ -25,6 +26,7 @@ class PartnerApplicationCourt extends Model
             'court_type_id' => 'integer',
             'expected_court_count' => 'integer',
             'sort_order' => 'integer',
+            'base_price_per_hour' => 'integer',
         ];
     }
 

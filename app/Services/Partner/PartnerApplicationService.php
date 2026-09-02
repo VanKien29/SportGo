@@ -121,7 +121,7 @@ class PartnerApplicationService
                 'parking_info' => $data['parking_info'] ?? null,
                 'amenities' => $data['amenities'] ?? [],
                 'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
-                'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
+                'base_price_per_hour' => $this->resolveBasePricePerHour($data),
                 'status' => $initialStatus,
                 'submitted_at' => $requiresApplicationSignature ? null : now(),
             ]);
@@ -143,9 +143,12 @@ class PartnerApplicationService
                     'court_type_id' => $court['court_type_id'],
                     'court_type_name_snapshot' => $courtType?->name,
                     'expected_court_count' => $court['expected_court_count'] ?? 1,
-                    'name' => $court['name'],
+                    'name' => $court['name'] ?? ('Sân ' . ($index + 1)),
                     'note' => $court['note'] ?? null,
                     'sort_order' => $court['sort_order'] ?? ($index + 1),
+                    'base_price_per_hour' => isset($court['base_price_per_hour']) && $court['base_price_per_hour'] >= 1000
+                        ? (int) $court['base_price_per_hour']
+                        : null,
                 ]);
             }
 
@@ -2013,5 +2016,26 @@ class PartnerApplicationService
     private function money(mixed $amount): string
     {
         return number_format((float) $amount, 0, ',', '.') . ' VND';
+    }
+
+    private function resolveBasePricePerHour(array $data): int
+    {
+        // Nếu người dùng nhập giá chung thì dùng giá đó
+        if (!empty($data['base_price_per_hour']) && (int) $data['base_price_per_hour'] >= 1000) {
+            return (int) $data['base_price_per_hour'];
+        }
+
+        // Tính trung bình giá theo từng sân con nếu không có giá chung
+        $courts = $data['courts'] ?? [];
+        $prices = array_filter(
+            array_map(fn ($c) => isset($c['base_price_per_hour']) ? (int) $c['base_price_per_hour'] : 0, $courts),
+            fn ($p) => $p >= 1000
+        );
+
+        if (!empty($prices)) {
+            return (int) round(array_sum($prices) / count($prices));
+        }
+
+        return 0;
     }
 }
