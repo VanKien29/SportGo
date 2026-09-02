@@ -242,11 +242,17 @@ class SepayPaymentService
             $gatewayTxnId = $normalized['transaction_id'];
 
             if ($payment->status === 'paid') {
+                $isCounterCollection = data_get($payment->gateway_response, 'counter_collection.source') === 'owner_counter_qr';
                 if (($payment->payment_context ?? 'booking') === 'vip_subscription') {
                     $this->systemVipService->activateSubscriptionFromPayment($payment);
                 } else {
                     $this->ownerWalletService->creditBookingPayment($payment, $normalized);
                     $this->recordSystemWalletPayment($payment, $normalized);
+                    if ($isCounterCollection && $payment->booking) {
+                        $this->bookingService->markCounterBookingCheckedInAfterPayment(
+                            $payment->booking->fresh(),
+                        );
+                    }
                 }
                 $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_duplicate', $gatewayTxnId, 'duplicate_callback', 'SePay gửi lại webhook cho payment đã thanh toán.');
 
@@ -261,6 +267,7 @@ class SepayPaymentService
             // reference for SePay, but the money must be refunded immediately.
             $booking = $payment->booking;
             $paymentGatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+            $isCounterCollection = data_get($paymentGatewayResponse, 'counter_collection.source') === 'owner_counter_qr';
             $latePayment = $payment->status === 'failed'
                 && $booking
                 && in_array($booking->payment_option, ['deposit', 'no_prepay'], true)
@@ -298,6 +305,11 @@ class SepayPaymentService
                 $payment->wallet_amount = 0;
                 $payment->gateway_amount = $payment->amount;
                 $payment->paid_at = now();
+                // Keep the counter-collection marker so duplicate callbacks
+                // can still be identified as owner-created QR payments.
+                $payment->gateway_response = array_merge($paymentGatewayResponse, [
+                    'sepay_ipn' => $payload,
+                ]);
                 $payment->save();
 
                 if (($payment->payment_context ?? 'booking') === 'vip_subscription') {
@@ -372,6 +384,12 @@ class SepayPaymentService
 
                     $this->ownerWalletService->creditBookingPayment($payment, $normalized);
                     $this->recordSystemWalletPayment($payment->fresh(['booking', 'systemBankAccount']), $normalized);
+
+                    if ($isCounterCollection && $payment->booking) {
+                        $this->bookingService->markCounterBookingCheckedInAfterPayment(
+                            $payment->booking->fresh(),
+                        );
+                    }
                 }
             } else {
                 $payment->status = 'failed';

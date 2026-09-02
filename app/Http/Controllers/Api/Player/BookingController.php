@@ -42,7 +42,9 @@ class BookingController extends Controller
     {
         $clusters = VenueCluster::with(['bookingConfig', 'venueCourts' => function ($query) {
             $query->where('status', 'active');
-        }, 'venueCourts.courtType'])->where('status', 'active')->get();
+        }, 'venueCourts.courtType'])
+            ->whereIn('status', ['pending', 'active', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'])
+            ->get();
 
         return response()->json([
             'clusters' => $clusters->map(function (VenueCluster $cluster): array {
@@ -66,6 +68,7 @@ class BookingController extends Controller
                         ? (float) $config->deposit_percent
                         : 30,
                 ];
+                $payload['booking_access'] = $this->bookingService->bookingAccessState((string) $cluster->id);
 
                 return $payload;
             })->values(),
@@ -85,7 +88,10 @@ class BookingController extends Controller
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 
-        $available = $this->bookingService->checkAvailability(
+        $court = VenueCourt::query()->with('venueCluster')->findOrFail($request->input('venue_court_id'));
+        $bookingAccess = $this->bookingService->bookingAccessState((string) $court->venue_cluster_id);
+
+        $available = $bookingAccess['can_book'] && $this->bookingService->checkAvailability(
             $request->input('venue_court_id'),
             $request->input('booking_date'),
             $request->input('start_time'),
@@ -96,7 +102,6 @@ class BookingController extends Controller
             $request->input('start_time'),
         );
 
-        $court = VenueCourt::findOrFail($request->input('venue_court_id'));
         $startTime = $request->input('start_time');
         $endTime = $request->input('end_time');
         [$startHour, $startMinute] = array_map('intval', explode(':', $startTime));
@@ -122,6 +127,7 @@ class BookingController extends Controller
             'total_price' => $totalPrice,
             'final_amount' => $finalPrice,
             'membership_discount' => $membership,
+            'booking_access' => $bookingAccess,
             'price_preview' => [
                 'original_amount' => $totalPrice,
                 'membership_discount_amount' => $membershipDiscount,
@@ -616,16 +622,20 @@ class BookingController extends Controller
             ]);
         }
 
+        $approvalDeadline = $booking->status === 'pending_approval'
+            ? $this->bookingApprovals->approvalDeadline($booking)
+            : $booking->approval_deadline_at;
+
         // Tính thời gian giữ chỗ còn lại (giây)
         $timeLeftSeconds = 0;
         if ($booking->status === 'pending_approval') {
             $timeLeftSeconds = $this->bookingApprovals->approvalSecondsLeft($booking);
         } elseif ($booking->status === 'pending_payment') {
-            $lock = SlotLock::where('booking_id', $booking->id)
+            $lockDeadline = SlotLock::where('booking_id', $booking->id)
                 ->where('expires_at', '>', Carbon::now())
-                ->first();
-            if ($lock) {
-                $timeLeftSeconds = (int) max(0, floor(Carbon::now()->diffInSeconds($lock->expires_at, false)));
+                ->min('expires_at');
+            if ($lockDeadline) {
+                $timeLeftSeconds = (int) max(0, floor(Carbon::now()->diffInSeconds($lockDeadline, false)));
             }
         }
 
@@ -635,7 +645,9 @@ class BookingController extends Controller
         $bookingArray['services'] = $booking->bookingServices->values()->toArray();
         unset($bookingArray['booking_services']);
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
-        $bookingArray['approval_deadline_at'] = $booking->approval_deadline_at?->toIso8601String();
+        $bookingArray['approval_deadline_at'] = $approvalDeadline?->copy()
+            ->setTimezone(config('app.timezone', 'UTC'))
+            ->toIso8601String();
         $bookingArray['payment_deadline_at'] = $booking->payment_deadline_at?->toIso8601String();
         $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');

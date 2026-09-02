@@ -822,7 +822,7 @@ export default {
         });
         this.notice = 'Đã cập nhật trạng thái booking.';
         await this.loadBookings();
-        this.closeStatusAction();
+        this.closeStatusAction(true);
         this.selectedTimelineItem = null;
       } catch (error) {
         this.error = error.message || 'Không thể cập nhật booking.';
@@ -833,6 +833,9 @@ export default {
     primaryAction(booking) {
       if (this.canApproveBooking(booking)) {
         return { key: 'confirm', label: 'Duyệt booking', icon: 'check', variant: 'success' };
+      }
+      if (booking.status === 'confirmed' && this.canCollectPayment(booking)) {
+        return { key: 'collect', label: 'Thu tiền trước khi check-in', icon: 'banknote', variant: 'primary' };
       }
       if (booking.status === 'confirmed') {
         return { key: 'check_in', label: 'Check-in', icon: 'clock', variant: 'success' };
@@ -932,8 +935,8 @@ export default {
       this.statusAction = action;
       this.statusActionReason = '';
     },
-    closeStatusAction() {
-      if (this.updatingStatus) return;
+    closeStatusAction(force = false) {
+      if (this.updatingStatus && !force) return;
       this.statusActionBooking = null;
       this.statusAction = '';
       this.statusActionReason = '';

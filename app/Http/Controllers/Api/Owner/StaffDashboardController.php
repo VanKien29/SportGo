@@ -206,6 +206,7 @@ class StaffDashboardController extends Controller
                     'reference_type' => $notif->reference_type,
                     'reference_id' => $notif->reference_id,
                     'data' => $notif->data,
+                    'action_url' => $this->staffNotificationTarget($notif),
                     'is_read' => $notif->is_read,
                     'created_at' => $notif->created_at,
                 ];
@@ -221,6 +222,22 @@ class StaffDashboardController extends Controller
             'notifications' => $notifications,
             'my_shift_today' => $myShiftToday,
         ]);
+    }
+
+    private function staffNotificationTarget(object $notification): ?string
+    {
+        $data = is_array($notification->data) ? $notification->data : [];
+        foreach ([$data['action_url'] ?? null, $data['url'] ?? null, $data['link'] ?? null] as $candidate) {
+            if (is_string($candidate) && str_starts_with($candidate, '/')) {
+                return $candidate;
+            }
+        }
+
+        $type = strtolower((string) $notification->type . ' ' . (string) $notification->reference_type);
+        $referenceId = $notification->reference_id ?: ($data['booking_id'] ?? null);
+        return $referenceId && str_contains($type, 'booking')
+            ? '/staff/bookings?booking_id=' . $referenceId
+            : '/staff/bookings';
     }
 
     private function visibleClusterIds(string $userId)

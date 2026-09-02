@@ -180,7 +180,21 @@ export default {
 
       try {
         const auth = await login(this.loginValue.trim(), this.password);
-        await this.$router.push(this.safeRequestedRedirect(auth));
+        const target = this.safeRequestedRedirect(auth);
+
+        // A staff/owner/admin login immediately enters a lazy-loaded portal.
+        // Reload the HTML entrypoint first so a browser holding an older app
+        // bundle cannot request a chunk that was removed by the latest deploy.
+        if (typeof window !== 'undefined' && auth.role_group !== 'user') {
+          const targetUrl = new URL(target, window.location.origin);
+          if (targetUrl.origin === window.location.origin) {
+            targetUrl.searchParams.set('__asset_reload', String(Date.now()));
+            window.location.replace(targetUrl.toString());
+            return;
+          }
+        }
+
+        await this.$router.push(target);
       } catch (requestError) {
         const requestMessage = String(requestError?.message || '');
         if (/failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk/i.test(requestMessage)) {

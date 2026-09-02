@@ -299,6 +299,79 @@
             </template>
 
             <template v-else-if="activeTab === 'withdrawals'">
+                <section class="bank-accounts-section">
+                    <div class="bank-accounts-header">
+                        <div>
+                            <span class="section-kicker">Tài khoản nhận tiền</span>
+                            <h2>Quản lý tài khoản ngân hàng</h2>
+                            <p>
+                                Chọn tài khoản nhận tiền khi tạo yêu cầu rút. Bạn có thể thêm nhiều tài khoản và đặt một tài khoản mặc định.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="primary-btn"
+                            @click="openBankAccountModal()"
+                        >
+                            <AppIcon name="plus" size="15" />
+                            Thêm tài khoản
+                        </button>
+                    </div>
+
+                    <div v-if="managedBankAccounts.length" class="bank-account-grid">
+                        <article
+                            v-for="account in managedBankAccounts"
+                            :key="account.id"
+                            class="bank-account-card"
+                        >
+                            <div class="bank-account-card-head">
+                                <strong>{{ account.bank_name }}</strong>
+                                <span
+                                    class="status-pill"
+                                    :class="account.status"
+                                >
+                                    {{ bankAccountStatus(account.status) }}
+                                </span>
+                            </div>
+                            <div class="bank-account-number">
+                                {{ account.account_number }}
+                            </div>
+                            <div class="bank-account-meta">
+                                <span>{{ account.account_holder_name }}</span>
+                                <span v-if="account.branch_name">{{ account.branch_name }}</span>
+                            </div>
+                            <div class="bank-account-card-foot">
+                                <span v-if="account.is_default" class="default-account-label">
+                                    Mặc định
+                                </span>
+                                <button
+                                    type="button"
+                                    class="secondary-btn compact"
+                                    @click="openBankAccountModal(account)"
+                                >
+                                    <AppIcon name="pencil" size="14" />
+                                    Sửa
+                                </button>
+                            </div>
+                            <small
+                                v-if="account.status === 'pending'"
+                                class="bank-account-help"
+                            >
+                                Đang chờ xác minh, chưa thể chọn để rút tiền.
+                            </small>
+                            <small
+                                v-if="account.status === 'rejected' && account.rejected_reason"
+                                class="bank-account-help is-error"
+                            >
+                                {{ account.rejected_reason }}
+                            </small>
+                        </article>
+                    </div>
+                    <div v-else class="bank-account-empty">
+                        Chưa có tài khoản nhận tiền. Hãy thêm tài khoản để có thể rút tiền về ngân hàng.
+                    </div>
+                </section>
+
                 <div class="services-table-section">
 
                     <div v-if="withdrawals.length === 0" class="table-state-card">
@@ -381,6 +454,119 @@
                     />
                 </div>
             </template>
+        </div>
+
+        <!-- Bank account modal -->
+        <div
+            v-if="showBankAccountModal"
+            class="modal-backdrop"
+            @click.self="closeBankAccountModal"
+        >
+            <form
+                class="withdraw-modal bank-account-modal"
+                @submit.prevent="submitBankAccount"
+            >
+                <header class="modal-header">
+                    <div>
+                        <h2>{{ editingBankAccount ? "Chỉnh sửa tài khoản nhận tiền" : "Thêm tài khoản nhận tiền" }}</h2>
+                        <p>Thông tin này được dùng để SportGo chuyển tiền rút cho bạn.</p>
+                    </div>
+                    <button
+                        class="close-btn"
+                        type="button"
+                        @click="closeBankAccountModal"
+                    >
+                        ×
+                    </button>
+                </header>
+
+                <div v-if="bankAccountModalError" class="alert error inline-alert">
+                    {{ bankAccountModalError }}
+                </div>
+
+                <div class="modal-body">
+                    <label v-if="bankSelectOptions.length">
+                        <span>Ngân hàng <em>*</em></span>
+                        <select
+                            v-model="bankAccountForm.bank_code"
+                            required
+                            @change="syncBankAccountBank"
+                        >
+                            <option value="" disabled>-- Chọn ngân hàng --</option>
+                            <option
+                                v-for="bank in bankSelectOptions"
+                                :key="bank.code"
+                                :value="bank.code"
+                            >
+                                {{ bank.short_name || bank.name || bank.code }}
+                            </option>
+                        </select>
+                    </label>
+                    <label v-else>
+                        <span>Tên ngân hàng <em>*</em></span>
+                        <input v-model.trim="bankAccountForm.bank_name" required />
+                    </label>
+
+                    <label v-if="!bankSelectOptions.length">
+                        <span>Mã ngân hàng <em>*</em></span>
+                        <input v-model.trim="bankAccountForm.bank_code" required />
+                    </label>
+
+                    <label>
+                        <span>Số tài khoản <em>*</em></span>
+                        <input
+                            v-model.trim="bankAccountForm.account_number"
+                            inputmode="numeric"
+                            minlength="6"
+                            maxlength="19"
+                            required
+                            @input="normalizeBankAccountNumber"
+                        />
+                    </label>
+
+                    <label>
+                        <span>Tên chủ tài khoản <em>*</em></span>
+                        <input
+                            v-model="bankAccountForm.account_holder_name"
+                            maxlength="150"
+                            required
+                            placeholder="VD: NGUYEN VAN A"
+                            @input="normalizeBankAccountHolder"
+                        />
+                    </label>
+
+                    <label>
+                        <span>Chi nhánh</span>
+                        <input v-model.trim="bankAccountForm.branch_name" maxlength="150" />
+                    </label>
+
+                    <label class="checkbox-field">
+                        <input
+                            v-model="bankAccountForm.is_default"
+                            type="checkbox"
+                        />
+                        <span>Đặt làm tài khoản mặc định</span>
+                    </label>
+                </div>
+
+                <footer class="modal-actions">
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        :disabled="bankAccountSubmitting"
+                        @click="closeBankAccountModal"
+                    >
+                        Đóng
+                    </button>
+                    <button
+                        class="primary-btn"
+                        type="submit"
+                        :disabled="bankAccountSubmitting"
+                    >
+                        {{ bankAccountSubmitting ? "Đang lưu..." : "Lưu tài khoản" }}
+                    </button>
+                </footer>
+            </form>
         </div>
 
         <!-- Withdraw Modal -->
@@ -527,6 +713,8 @@ export default {
             ledgers: [],
             withdrawals: [],
             bankAccounts: [],
+            managedBankAccounts: [],
+            bankOptions: [],
             ledgerMeta: { current_page: 1, last_page: 1, total: 0 },
             withdrawalMeta: { current_page: 1, last_page: 1, total: 0 },
             ledgerFilters: { wallet_id: "" },
@@ -542,6 +730,18 @@ export default {
                 open: false,
                 item: null,
                 message: "",
+            },
+            showBankAccountModal: false,
+            editingBankAccount: null,
+            bankAccountSubmitting: false,
+            bankAccountModalError: "",
+            bankAccountForm: {
+                bank_name: "",
+                bank_code: "",
+                account_number: "",
+                account_holder_name: "",
+                branch_name: "",
+                is_default: false,
             },
             showWithdrawModal: false,
             withdrawForm: {
@@ -589,6 +789,23 @@ export default {
             );
             return w ? this.walletWithdrawableBalance(w) : 0;
         },
+        bankSelectOptions() {
+            const options = [...this.bankOptions];
+            const currentCode = this.bankAccountForm.bank_code;
+
+            if (
+                currentCode &&
+                !options.some((bank) => String(bank.code) === String(currentCode))
+            ) {
+                options.unshift({
+                    code: currentCode,
+                    short_name: this.bankAccountForm.bank_name || currentCode,
+                    name: this.bankAccountForm.bank_name || currentCode,
+                });
+            }
+
+            return options;
+        },
     },
     async mounted() {
         window.addEventListener("scroll", this.handleScroll);
@@ -619,6 +836,8 @@ export default {
                 ]);
                 this.wallets = response.data || response.wallets || [];
                 this.bankAccounts = response.bank_accounts || [];
+                this.managedBankAccounts =
+                    response.managed_bank_accounts || this.bankAccounts;
                 this.minimumWithdrawal = response.minimum_withdrawal || 100000;
                 this.summary = response.summary || this.buildFinanceSummary(this.wallets);
                 this.cashflow = response.cashflow || [];
@@ -685,6 +904,102 @@ export default {
                 this.loading = false;
             }
         },
+        async loadBankOptions() {
+            if (this.bankOptions.length) return;
+
+            try {
+                const response = await api("/api/user/partner-application/banks");
+                this.bankOptions = response.data || [];
+            } catch (error) {
+                this.bankOptions = [];
+                this.bankAccountModalError =
+                    error.message || "Không thể tải danh sách ngân hàng.";
+            }
+        },
+        async openBankAccountModal(account = null) {
+            this.editingBankAccount = account;
+            this.bankAccountModalError = "";
+            this.bankAccountForm = account
+                ? {
+                      bank_name: account.bank_name || "",
+                      bank_code: account.bank_code || "",
+                      account_number: account.account_number || "",
+                      account_holder_name: account.account_holder_name || "",
+                      branch_name: account.branch_name || "",
+                      is_default: Boolean(account.is_default),
+                  }
+                : {
+                      bank_name: "",
+                      bank_code: "",
+                      account_number: "",
+                      account_holder_name: "",
+                      branch_name: "",
+                      is_default: this.managedBankAccounts.length === 0,
+                  };
+            this.showBankAccountModal = true;
+            await this.loadBankOptions();
+        },
+        closeBankAccountModal() {
+            if (this.bankAccountSubmitting) return;
+            this.showBankAccountModal = false;
+            this.editingBankAccount = null;
+            this.bankAccountModalError = "";
+        },
+        syncBankAccountBank() {
+            const bank = this.bankOptions.find(
+                (item) => String(item.code) === String(this.bankAccountForm.bank_code),
+            );
+            if (!bank) return;
+
+            this.bankAccountForm.bank_name =
+                bank.short_name || bank.name || bank.code;
+        },
+        normalizeBankAccountNumber() {
+            this.bankAccountForm.account_number = String(
+                this.bankAccountForm.account_number || "",
+            ).replace(/\D/g, "");
+        },
+        normalizeBankAccountHolder() {
+            this.bankAccountForm.account_holder_name = String(
+                this.bankAccountForm.account_holder_name || "",
+            )
+                .toUpperCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/đ/g, "D")
+                .replace(/Đ/g, "D");
+        },
+        async submitBankAccount() {
+            this.bankAccountSubmitting = true;
+            this.bankAccountModalError = "";
+
+            try {
+                this.normalizeBankAccountNumber();
+                this.normalizeBankAccountHolder();
+
+                const account = this.editingBankAccount;
+                const path = account
+                    ? `/api/owner/finance/bank-accounts/${account.id}`
+                    : "/api/owner/finance/bank-accounts";
+                const response = await api(path, {
+                    method: account ? "PATCH" : "POST",
+                    body: JSON.stringify(this.bankAccountForm),
+                });
+
+                this.notice = response.message || "Đã lưu tài khoản nhận tiền.";
+                this.showBankAccountModal = false;
+                this.editingBankAccount = null;
+                await this.loadInitialData();
+                if (this.activeTab === "withdrawals") {
+                    await this.loadWithdrawals(this.withdrawalMeta.current_page);
+                }
+            } catch (error) {
+                this.bankAccountModalError =
+                    error.message || "Không thể lưu tài khoản nhận tiền.";
+            } finally {
+                this.bankAccountSubmitting = false;
+            }
+        },
         openWithdrawalModal(wallet = null) {
             if (!this.withdrawableWallets.length) {
                 this.error =
@@ -745,9 +1060,9 @@ export default {
                 const response = await api("/api/owner/finance/withdrawals", {
                     method: "POST",
                     body: JSON.stringify({
-                        owner_wallet_id: Number(this.withdrawForm.wallet_id),
+                        owner_wallet_id: Number(this.withdrawForm.owner_wallet_id),
                         owner_bank_account_id: Number(
-                            this.withdrawForm.bank_account_id,
+                            this.withdrawForm.owner_bank_account_id,
                         ),
                         amount,
                         owner_note: this.withdrawForm.owner_note,
@@ -864,6 +1179,16 @@ export default {
                     rejected: "Từ chối",
                     cancelled: "Đã hủy",
                 }[status] || status
+            );
+        },
+        bankAccountStatus(status) {
+            return (
+                {
+                    active: "Đang sử dụng",
+                    pending: "Chờ xác minh",
+                    rejected: "Bị từ chối",
+                    inactive: "Đã tắt",
+                }[status] || status || "-"
             );
         },
         formatCurrency(value) {
@@ -1100,6 +1425,153 @@ export default {
     width: 1%;
     min-width: 90px;
     text-align: right;
+}
+
+.bank-accounts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid #e9eef1;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.bank-accounts-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.bank-accounts-header h2 {
+    margin: 0;
+    color: var(--admin-text, #101c15);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.bank-accounts-header p {
+    max-width: 720px;
+    margin: 5px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.bank-account-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.bank-account-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 9px;
+    padding: 15px;
+    border: 1px solid #e4ece6;
+    border-radius: 11px;
+    background: #fbfefb;
+}
+
+.bank-account-card-head,
+.bank-account-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.bank-account-card-head strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--admin-text, #101c15);
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bank-account-number {
+    color: #216b34;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.bank-account-meta {
+    display: flex;
+    min-height: 34px;
+    flex-direction: column;
+    gap: 3px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+}
+
+.default-account-label {
+    color: #216b34;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bank-account-help {
+    color: #8a4b08;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.bank-account-help.is-error {
+    color: #991b1b;
+}
+
+.bank-account-empty {
+    padding: 22px;
+    border: 1px dashed var(--admin-border, #cfded1);
+    border-radius: 10px;
+    color: var(--admin-muted, #64748b);
+    font-size: 13px;
+    text-align: center;
+}
+
+.status-pill.active {
+    background: #e8f7ec;
+    color: #216b34;
+}
+
+.status-pill.inactive {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.bank-account-modal {
+    width: min(600px, calc(100vw - 32px));
+}
+
+.modal-body em {
+    color: var(--admin-danger, #dc2626);
+    font-style: normal;
+}
+
+.checkbox-field {
+    display: flex !important;
+    align-items: center;
+    grid-template-columns: none !important;
+    gap: 8px !important;
+}
+
+.checkbox-field input {
+    width: auto;
+}
+
+@media (max-width: 680px) {
+    .bank-accounts-header {
+        flex-direction: column;
+    }
+
+    .bank-accounts-header .primary-btn {
+        width: 100%;
+    }
 }
 
 /* Status Pills */

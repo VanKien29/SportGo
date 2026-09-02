@@ -64,7 +64,7 @@ class NotificationController extends Controller
     private function targetUrl(object $notification): ?string
     {
         $data = is_array($notification->data) ? $notification->data : [];
-        foreach ([$data['action_url'] ?? null, $data['url'] ?? null, $data['link'] ?? null] as $candidate) {
+        foreach ([$data['action_url'] ?? null, $data['url'] ?? null, $data['link'] ?? null, $data['redirect_url'] ?? null] as $candidate) {
             if (is_string($candidate) && str_starts_with($candidate, '/')) {
                 return $candidate;
             }
@@ -118,6 +118,14 @@ class NotificationController extends Controller
 
         if (str_contains($type, 'membership')) {
             return '/vip-membership';
+        }
+
+        if ($referenceId && str_contains($referenceType, 'venue_cluster')) {
+            return '/venues';
+        }
+
+        if ($referenceId && str_contains($referenceType, 'venue_unlock_request')) {
+            return '/notifications';
         }
 
         return '/notifications';

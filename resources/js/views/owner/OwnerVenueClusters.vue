@@ -1830,13 +1830,19 @@ export default {
             this.error = null;
             try {
                 const previousClusterId = this.selectedCluster?.id || localStorage.getItem("selected_cluster");
+                const requestedClusterId = this.$route.query?.cluster_id || this.$route.query?.venue_cluster_id;
                 const res = await venueClusterService.getClusters();
                 this.clusters = res.data || [];
                 if (this.clusters.length > 0) {
                     const selected = this.clusters.find(
-                        (cluster) => String(cluster.id) === String(previousClusterId),
+                        (cluster) => String(cluster.id) === String(requestedClusterId || previousClusterId),
                     ) || this.clusters[0];
                     this.selectCluster(selected);
+
+                    const requestedTab = String(this.$route.query?.tab || "");
+                    if (requestedTab && this.tabs.some((tab) => tab.key === requestedTab)) {
+                        this.activeTab = requestedTab;
+                    }
                 }
             } catch (err) {
                 this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
