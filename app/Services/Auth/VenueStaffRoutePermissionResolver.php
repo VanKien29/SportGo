@@ -48,13 +48,9 @@ class VenueStaffRoutePermissionResolver
             return $this->menus(['bookings', 'counter_booking', 'schedules']);
         }
 
-        // 7. On-site F&B Services and Retail Orders for POS
+        // 7. Venue services are informational only; staff has no sales flow.
         if ($method === 'GET' && preg_match('#^venue-clusters/\d+/services#', $relative)) {
-            return $this->menus(['bookings', 'counter_booking', 'services']);
-        }
-
-        if (Str::startsWith($relative, 'retail-orders')) {
-            return $this->menus(['bookings', 'counter_booking', 'services']);
+            return ['owner_only' => true, 'menu_keys' => []];
         }
 
         // 8. Bookings & POS Counter Operations

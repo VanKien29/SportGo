@@ -529,8 +529,6 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
-        Route::post('/retail-orders', [OwnerBookingManagementController::class, 'createRetailOrder']);
-
         // Owner Venue Posts
         Route::post('/venue-posts/upload-editor-image', [OwnerVenuePostController::class, 'uploadEditorImage']);
         Route::post('/venue-posts/{id}/restore', [OwnerVenuePostController::class, 'restore']);
@@ -621,7 +619,6 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
-        Route::post('/bookings/{id}/services', [\App\Http\Controllers\Api\Player\BookingController::class, 'addServices']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
 

@@ -159,17 +159,6 @@
             <span>Quét vé</span>
           </button>
 
-          <!-- Fast Action: Quick Retail F&B -->
-          <button
-            type="button"
-            class="pos-btn-action is-fnb"
-            title="Bán nhanh nước uống & dịch vụ quầy"
-            @click="showQuickRetailModal = true"
-          >
-            <AppIcon name="shoppingBag" :size="14" />
-            <span>Bán F&B</span>
-          </button>
-
           <!-- Utility: Refresh -->
           <button
             type="button"
@@ -1008,15 +997,7 @@
       </div>
     </Teleport>
 
-    <!-- 7. QUICK RETAIL F&B MODAL -->
-    <StaffQuickRetailModal
-      :is-open="showQuickRetailModal"
-      :cluster-id="filters.venue_cluster_id"
-      @close="showQuickRetailModal = false"
-      @order-completed="onRetailOrderCompleted"
-    />
-
-    <!-- 8. QR TICKET SCANNER MODAL -->
+    <!-- 7. QR TICKET SCANNER MODAL -->
     <StaffQrScannerModal
       :is-open="showQrScannerModal"
       :cluster-id="filters.venue_cluster_id"
@@ -1033,7 +1014,6 @@ import { venueClusterService } from '../../services/venueClusters.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
-import StaffQuickRetailModal from '../../components/staff/StaffQuickRetailModal.vue';
 import StaffQrScannerModal from '../../components/staff/StaffQrScannerModal.vue';
 import { playSuccessChime } from '../../utils/audioChime.js';
 import { addCalendarDays, businessDateString, businessMinutes, businessTimeString } from '../../utils/businessTime.js';
@@ -1044,7 +1024,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'StaffBookingsPOS',
-  components: { AppIcon, MiniCalendar, StaffQuickRetailModal, StaffQrScannerModal },
+  components: { AppIcon, MiniCalendar, StaffQrScannerModal },
   data() {
     return {
       clusters: [],
@@ -1075,7 +1055,6 @@ export default {
       notice: '',
       showCalDropdown: false,
       showPeriodDropdown: false,
-      showQuickRetailModal: false,
       showQrScannerModal: false,
       showAnalyticsModal: false,
 
@@ -2120,11 +2099,6 @@ export default {
       }).format(Number(amount || 0));
     },
 
-    onRetailOrderCompleted(orderData) {
-      this.notice = `Đã ghi nhận bán dịch vụ ${this.formatCurrency(orderData.totalAmount)} (${orderData.paymentMethod === 'cash' ? 'Tiền mặt' : 'VietQR'})!`;
-      playSuccessChime();
-    },
-
     async onQrCheckedIn(booking) {
       this.notice = `Đã Check-in vé #${booking.booking_code} vào sân thành công!`;
       playSuccessChime();
@@ -2569,15 +2543,6 @@ export default {
 
 .pos-btn-action.is-qr:hover {
   background: #14532d;
-}
-
-.pos-btn-action.is-fnb {
-  background: #0284c7;
-  color: #ffffff;
-}
-
-.pos-btn-action.is-fnb:hover {
-  background: #0369a1;
 }
 
 .pos-btn-icon-refresh {
@@ -4187,8 +4152,7 @@ export default {
     white-space: nowrap;
     justify-content: center;
   }
-  .pos-btn-action.is-qr,
-  .pos-btn-action.is-fnb {
+  .pos-btn-action.is-qr {
     flex: 1;
     padding: 0 8px;
     font-size: 12px;
@@ -4295,8 +4259,7 @@ export default {
   .pos-view-switcher {
     flex-shrink: 0;
   }
-  .pos-btn-action.is-qr,
-  .pos-btn-action.is-fnb {
+  .pos-btn-action.is-qr {
     flex-shrink: 0;
     padding: 0 10px;
   }

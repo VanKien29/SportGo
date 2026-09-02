@@ -410,7 +410,7 @@
                     <label>
                         <span>Ví rút tiền</span>
                         <select
-                            v-model="withdrawForm.wallet_id"
+                            v-model="withdrawForm.owner_wallet_id"
                             required
                             @change="onWalletSelectChange"
                         >
@@ -426,7 +426,7 @@
 
                     <label>
                         <span>Ngân hàng nhận tiền</span>
-                        <select v-model="withdrawForm.bank_account_id" required>
+                        <select v-model="withdrawForm.owner_bank_account_id" required>
                             <option
                                 v-for="account in bankAccounts"
                                 :key="account.id"
@@ -521,8 +521,8 @@ export default {
             modalError: "",
             showWithdrawModal: false,
             withdrawForm: {
-                wallet_id: "",
-                bank_account_id: "",
+                owner_wallet_id: "",
+                owner_bank_account_id: "",
                 amount: 100000,
                 owner_note: "",
             },
@@ -560,7 +560,7 @@ export default {
         },
         selectedWalletBalance() {
             const w = this.wallets.find(
-                (item) => String(item.id) === String(this.withdrawForm.wallet_id),
+                (item) => String(item.id) === String(this.withdrawForm.owner_wallet_id),
             );
             return w ? Number(w.available_balance || 0) : 0;
         },
@@ -677,8 +677,8 @@ export default {
                 this.bankAccounts[0];
             this.modalError = "";
             this.withdrawForm = {
-                wallet_id: targetWallet.id,
-                bank_account_id: defaultBank.id,
+                owner_wallet_id: targetWallet.id,
+                owner_bank_account_id: defaultBank.id,
                 amount: Math.max(
                     this.minimumWithdrawal,
                     Math.min(
