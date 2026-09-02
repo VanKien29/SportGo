@@ -1,5 +1,5 @@
 <template>
-  <div class="floating-actions">
+  <div v-if="showFloatingActions" class="floating-actions">
     <BackButton 
       v-if="canGoBack" 
       floating 
@@ -16,6 +16,11 @@ export default {
   name: 'FloatingActions',
   components: { ScrollToTopButton, BackButton },
   computed: {
+    showFloatingActions() {
+      const path = this.$route?.path || "";
+      if (path.includes("/venues/map")) return false;
+      return true;
+    },
     canGoBack() {
       if (!this.$route) return false;
       if (this.$route.meta?.hideFloatingBack) return false;

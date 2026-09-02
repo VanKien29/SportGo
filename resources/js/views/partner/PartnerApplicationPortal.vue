@@ -242,27 +242,6 @@
                           <p class="form-hint">Dán liên kết Google Maps và bấm Trích xuất vị trí để hệ thống tự động chọn Tỉnh/Thành phố & Phường/Xã.</p>
                         </FormField>
 
-                        <!-- BANNER ĐỀ XUẤT / THÔNG BÁO TỰ ĐỘNG CHỌN TỈNH/THÀNH & PHƯỜNG/XÃ -->
-                        <div v-if="mapSuggestion" class="full-width map-suggestion-card">
-                          <div class="map-suggestion-content">
-                            <div class="map-suggestion-icon-wrap">
-                              <AppIcon name="map-pin" class="map-suggestion-icon" />
-                            </div>
-                            <div class="map-suggestion-text">
-                              <span class="map-suggestion-title">Đề xuất vị trí từ Google Maps</span>
-                              <p class="map-suggestion-desc">{{ mapSuggestion.message }}</p>
-                            </div>
-                          </div>
-                          <button type="button" class="btn btn-sm btn-primary btn-apply-map-suggestion" @click="applyMapSuggestion">
-                            Xác nhận chọn {{ mapSuggestion.ward_name ? mapSuggestion.ward_name + ', ' : '' }}{{ mapSuggestion.province_name }}
-                          </button>
-                        </div>
-
-                        <div v-else-if="mapStatus" class="full-width map-status-card">
-                          <AppIcon name="check-circle" class="map-status-icon" />
-                          <span>{{ mapStatus }}</span>
-                        </div>
-
                         <!-- 2 Ô CHỌN TỈNH/THÀNH PHỐ VÀ PHƯỜNG/XÃ -->
                         <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
                           <BaseCombobox v-model="form.venue_province_code" :options="provinceOptions" placeholder="Tìm Tỉnh/Thành phố" :invalid="Boolean(fieldErrors.venue_province_code)" @select="onProvinceSelect" />
@@ -532,6 +511,38 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- LOCATION VERIFICATION POPUP MODAL -->
+    <Teleport to="body">
+      <div v-if="locationModal.show" class="location-modal-backdrop" @click.self="rejectLocationModal">
+        <div class="location-modal-card" role="dialog" aria-modal="true">
+          <!-- State 1: Loading -->
+          <div v-if="locationModal.loading" class="location-modal-loading">
+            <span class="location-spinner"></span>
+            <p class="location-loading-text">Đang trích xuất và xác minh vị trí từ tọa độ bản đồ...</p>
+          </div>
+
+          <!-- State 2: Resolved Result with 2 Options -->
+          <div v-else class="location-modal-result">
+            <h3 class="location-modal-title">Xác nhận vị trí hành chính</h3>
+            <p class="location-modal-desc">Hệ thống đã nhận diện được vị trí của bạn thuộc khu vực:</p>
+            <div class="location-detected-box">
+              <p class="location-detected-address">{{ locationModal.resolvedData?.full_address }}</p>
+            </div>
+            <p class="location-modal-question">Bạn có muốn tự động chọn Tỉnh/Thành phố & Phường/Xã này vào thông tin đăng ký không?</p>
+
+            <div class="location-modal-actions">
+              <button type="button" class="location-btn location-btn-accept" @click="acceptLocationModal">
+                Đồng ý và áp dụng
+              </button>
+              <button type="button" class="location-btn location-btn-reject" @click="rejectLocationModal">
+                Từ chối, chọn thủ công
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -645,6 +656,11 @@ const cancelError = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
+const locationModal = reactive({
+  show: false,
+  loading: false,
+  resolvedData: null,
+});
 const bankTimer = ref(null);
 const mapTimer = ref(null);
 const mapInstance = ref(null);
@@ -1187,6 +1203,10 @@ async function parseGoogleMapUrl(silent = false) {
     return false;
   }
 
+  locationModal.show = true;
+  locationModal.loading = true;
+  locationModal.resolvedData = null;
+
   let lat = null;
   let lng = null;
 
@@ -1374,14 +1394,19 @@ function applyPickedCoordinates(point) {
   form.venue_latitude = lat;
   form.venue_longitude = lng;
   form.venue_map_url = googleMapsPointUrl(lat, lng);
-  mapStatus.value = 'Đã chọn tọa độ trên bản đồ, đang cập nhật địa chỉ...';
   mapError.value = '';
+  mapStatus.value = '';
   mapSuggestion.value = null;
   delete fieldErrors.venue_coordinates;
   delete fieldErrors.venue_latitude;
   delete fieldErrors.venue_longitude;
   delete fieldErrors.venue_map_url;
-  reverseCoordinates(lat, lng, { overwriteStreet: true, applyLocation: true });
+
+  locationModal.show = true;
+  locationModal.loading = true;
+  locationModal.resolvedData = null;
+
+  reverseCoordinates(lat, lng, { overwriteStreet: true });
 }
 
 function googleMapsPointUrl(lat, lng) {
@@ -1417,7 +1442,11 @@ function onMapUrlInput() {
 }
 
 async function resolveMapUrl() {
-  mapError.value = ''; mapStatus.value = 'Đang xử lý link...';
+  mapError.value = '';
+  locationModal.show = true;
+  locationModal.loading = true;
+  locationModal.resolvedData = null;
+
   let urlToResolve = (form.venue_map_url || '').trim();
   if (urlToResolve && !/^https?:\/\//i.test(urlToResolve)) {
     urlToResolve = 'https://' + urlToResolve;
@@ -1429,16 +1458,21 @@ async function resolveMapUrl() {
       form.venue_map_url = resolved.final_url || urlToResolve;
       form.venue_latitude = Number(resolved.latitude).toFixed(7);
       form.venue_longitude = Number(resolved.longitude).toFixed(7);
-      await compareResolvedAddress(resolved, { overwriteStreet: false, applyLocation: false });
+      await compareResolvedAddress(resolved, { overwriteStreet: false });
       return;
     }
   } catch (e) { console.error('Lỗi phân giải map:', e); }
   const coords = extractCoordinates(urlToResolve);
-  if (!coords && !form.venue_latitude) { mapStatus.value = ''; mapError.value = 'Không lấy được tọa độ từ link Google Maps này. Vui lòng dùng link đầy đủ có tọa độ.'; return; }
+  if (!coords && !form.venue_latitude) {
+    locationModal.show = false;
+    locationModal.loading = false;
+    mapError.value = 'Không lấy được tọa độ từ link Google Maps này. Vui lòng dùng link đầy đủ có tọa độ.';
+    return;
+  }
   if (coords) {
     form.venue_latitude = Number(coords.latitude).toFixed(7);
     form.venue_longitude = Number(coords.longitude).toFixed(7);
-    await reverseCoordinates(form.venue_latitude, form.venue_longitude, { overwriteStreet: false, applyLocation: false });
+    await reverseCoordinates(form.venue_latitude, form.venue_longitude, { overwriteStreet: false });
   }
 }
 
@@ -1460,7 +1494,11 @@ function streetFromAddress(address) {
 }
 
 async function reverseCoordinates(latitude, longitude, options = {}) {
-  if (!validLatitude(latitude) || !validLongitude(longitude)) return;
+  if (!validLatitude(latitude) || !validLongitude(longitude)) {
+    locationModal.show = false;
+    locationModal.loading = false;
+    return;
+  }
   mapReverseBusy.value = true;
   try {
     const r = await api('/api/user/partner-application/reverse-map', {
@@ -1469,84 +1507,81 @@ async function reverseCoordinates(latitude, longitude, options = {}) {
     });
     await compareResolvedAddress(r.data || {}, options);
   } catch (e) {
-    mapStatus.value = '';
-    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
+    locationModal.show = false;
+    locationModal.loading = false;
+    toast.info('Không xác minh được Tỉnh/Thành phố từ tọa độ này. Bạn vui lòng tự chọn thủ công.');
   } finally {
     mapReverseBusy.value = false;
   }
 }
 
-
-
 async function compareResolvedAddress(resolved, options = {}) {
   const rp = resolved.province_code ? String(resolved.province_code) : '';
   const rw = resolved.ward_code ? String(resolved.ward_code) : '';
 
-  if (resolved.address && (options.overwriteStreet || !form.street_address)) {
-    const street = streetFromAddress(resolved.address);
-    if (street) form.street_address = street;
+  let provName = resolved.province || '';
+  let wardName = resolved.ward || '';
+
+  if (rp && !provName) {
+    provName = provinces.value.find((p) => String(p.code) === String(rp))?.name || '';
+  }
+  if (rp && rw && !wardName) {
+    let wList = wards.value;
+    if (!wList.length || String(wList[0]?.province_code) !== rp) {
+      try {
+        const res = await api(`/api/user/partner-application/provinces/${rp}/wards`);
+        wList = normalizeList(res.data);
+      } catch (e) {
+        wList = [];
+      }
+    }
+    wardName = (wList || []).find((w) => String(w.code) === String(rw))?.name || '';
   }
 
-  if (!rp) {
-    mapStatus.value = '';
-    mapSuggestion.value = null;
-    return;
+  const streetName = streetFromAddress(resolved.address) || '';
+  const fullAddr = [streetName, wardName, provName].filter(Boolean).join(', ') || resolved.address || '';
+
+  if (rp) {
+    locationModal.loading = false;
+    locationModal.resolvedData = {
+      province_code: rp,
+      ward_code: rw,
+      street_address: streetName,
+      province_name: provName,
+      ward_name: wardName,
+      full_address: fullAddr,
+    };
+  } else {
+    locationModal.show = false;
+    locationModal.loading = false;
+    toast.info('Không nhận diện được Tỉnh/Thành phố từ vị trí này. Bạn có thể tự chọn thủ công.');
   }
-
-  // Auto-apply if form.venue_province_code is empty OR applyLocation is requested
-  if ((options.applyLocation || !form.venue_province_code) && rp) {
-    form.venue_province_code = rp;
-    await loadWards(rp);
-    if (rw) form.venue_ward_code = rw;
-    syncVenueAddress();
-    const wardName = wards.value.find((w) => String(w.code) === String(rw))?.name || resolved.ward || '';
-    const provName = provinces.value.find((p) => String(p.code) === String(rp))?.name || resolved.province || '';
-    mapStatus.value = `Đã tự động chọn vị trí hành chính: ${[wardName, provName].filter(Boolean).join(', ')}`;
-    mapSuggestion.value = null;
-    return;
-  }
-
-  const pc = rp && rp !== String(form.venue_province_code);
-  const wc = rw && rw !== String(form.venue_ward_code);
-
-  if (!pc && !wc) {
-    syncVenueAddress();
-    mapStatus.value = 'Vị trí Google Maps hoàn toàn khớp với Tỉnh/Thành và Phường/Xã đã chọn.';
-    mapSuggestion.value = null;
-    return;
-  }
-
-  const curWardName = wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name || '';
-  const curProvName = provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name || '';
-  const curText = [curWardName, curProvName].filter(Boolean).join(', ') || 'Chưa chọn';
-
-  const resWardName = resolved.ward || '';
-  const resProvName = resolved.province || '';
-  const resText = [resWardName, resProvName].filter(Boolean).join(', ') || resolved.address || 'vị trí Google Maps';
-
-  mapSuggestion.value = {
-    province_code: rp,
-    ward_code: rw,
-    province_name: resProvName,
-    ward_name: resWardName,
-    message: `Vị trí từ Google Maps nhận diện thuộc ${resText} (hiện tại bạn đang chọn: ${curText}).`,
-  };
 }
 
-async function applyMapSuggestion() {
-  if (!mapSuggestion.value) return;
-  if (mapSuggestion.value.province_code) {
-    form.venue_province_code = String(mapSuggestion.value.province_code);
+async function acceptLocationModal() {
+  if (!locationModal.resolvedData) return;
+  const data = locationModal.resolvedData;
+  if (data.province_code) {
+    form.venue_province_code = String(data.province_code);
     await loadWards(form.venue_province_code);
   }
-  if (mapSuggestion.value.ward_code) {
-    form.venue_ward_code = String(mapSuggestion.value.ward_code);
+  if (data.ward_code) {
+    form.venue_ward_code = String(data.ward_code);
   }
-  const appliedLocation = [mapSuggestion.value.ward_name, mapSuggestion.value.province_name].filter(Boolean).join(', ');
-  mapSuggestion.value = null;
-  mapStatus.value = `Đã cập nhật chọn Tỉnh/Thành phố & Phường/Xã: ${appliedLocation}`;
+  if (data.street_address) {
+    form.street_address = data.street_address;
+  }
   syncVenueAddress();
-  toast.success('Đã xác nhận và áp dụng vị trí từ Google Maps thành công!');
+  locationModal.show = false;
+  locationModal.resolvedData = null;
+  toast.success('Đã chọn Tỉnh/Thành phố & Phường/Xã theo vị trí nhận diện!');
+}
+
+function rejectLocationModal() {
+  locationModal.show = false;
+  locationModal.loading = false;
+  locationModal.resolvedData = null;
+  toast.info('Đã từ chối áp dụng tự động. Bạn có thể chọn Tỉnh/Thành phố & Phường/Xã thủ công.');
 }
 
 // ─── Courts ───────────────────────────────────────────────────────────────────
@@ -3301,5 +3336,138 @@ function money(value) {
 
 .partner-portal-page .map-status-icon {
   color: #5c7e6e !important;
+}
+
+/* Location Verification Popup Modal */
+.location-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(46, 66, 56, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.location-modal-card {
+  width: min(520px, 100%);
+  padding: 28px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 2px solid #9ebcb0;
+  box-shadow: 0 20px 50px rgba(46, 66, 56, 0.25);
+  font-weight: 400;
+  color: #2e4238;
+}
+
+.location-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.location-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #dce8e2;
+  border-top-color: #5c7e6e;
+  border-radius: 50%;
+  animation: locationSpin 0.8s linear infinite;
+}
+
+@keyframes locationSpin {
+  to { transform: rotate(360deg); }
+}
+
+.location-loading-text {
+  margin: 0;
+  color: #5c7e6e;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.location-modal-result {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.location-modal-title {
+  margin: 0;
+  color: #2e4238;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.location-modal-desc {
+  margin: 0;
+  color: #4d6e5f;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.location-detected-box {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f2f7f4;
+  border: 1px solid #9ebcb0;
+}
+
+.location-detected-address {
+  margin: 0;
+  color: #2e4238;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.location-modal-question {
+  margin: 0;
+  color: #5c7e6e;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.location-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.location-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.location-btn-accept {
+  border: none;
+  background: #5c7e6e;
+  color: #ffffff;
+}
+
+.location-btn-accept:hover {
+  background: #4d6e5f;
+}
+
+.location-btn-reject {
+  border: 1px solid #9ebcb0;
+  background: #f2f7f4;
+  color: #2e4238;
+}
+
+.location-btn-reject:hover {
+  background: #e2ece7;
+  border-color: #5c7e6e;
 }
 </style>

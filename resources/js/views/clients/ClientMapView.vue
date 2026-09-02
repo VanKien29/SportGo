@@ -325,7 +325,7 @@
           @click="showSportsDrawer = true"
           title="Chọn bộ môn thể thao 3D"
         >
-          <IsometricSportIcon :name="selectedSportId" :size="22" />
+          <IsometricSportIcon :name="currentSportIconKey" :size="22" />
           <span class="sg-sports-pill-text">{{ currentSportName }}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
         </button>
@@ -338,7 +338,7 @@
       <div class="sg-map-floating-controls">
         <!-- Nút nổi mở nhanh Bảng bộ môn 3D -->
         <button type="button" class="sg-map-fab-circle is-sports-fab" title="Mở bảng chọn bộ môn 3D" @click="showSportsDrawer = true">
-          <IsometricSportIcon :name="selectedSportId" :size="24" />
+          <IsometricSportIcon :name="currentSportIconKey" :size="24" />
         </button>
         <button type="button" class="sg-map-fab-circle" title="Xem dạng danh sách" @click="goToList">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -527,6 +527,11 @@ export default {
       const s = this.sportsList.find((x) => String(x.id) === String(this.selectedSportId));
       return s ? s.name : "Tất cả môn";
     },
+    currentSportIconKey() {
+      if (!this.selectedSportId || this.selectedSportId === "all") return "trophy";
+      const s = this.sportsList.find((x) => String(x.id) === String(this.selectedSportId));
+      return s ? (s.iconKey && s.iconKey !== "activity" ? s.iconKey : s.name) : "trophy";
+    },
     venueSportsList() {
       if (!this.selectedVenue) return [];
       const courtTypes = this.selectedVenue.court_types || [];
@@ -596,12 +601,17 @@ export default {
 
       const dynamicSports = [
         { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
-        ...targetList.map((ct) => ({
-          id: String(ct.id),
-          name: ct.name,
-          color: this.getSportColor(ct.name),
-          iconKey: ct.icon_key || this.iconKeyFromName(ct.name),
-        })),
+        ...targetList.map((ct) => {
+          const resolvedKey = ct.icon_key && ct.icon_key !== "activity"
+            ? ct.icon_key
+            : this.iconKeyFromName(ct.name);
+          return {
+            id: String(ct.id),
+            name: ct.name,
+            color: this.getSportColor(ct.name),
+            iconKey: resolvedKey !== "activity" ? resolvedKey : ct.name,
+          };
+        }),
       ];
       return dynamicSports;
     },
@@ -1105,7 +1115,7 @@ export default {
 .sg-map-view-shell {
   display: flex;
   width: 100%;
-  height: calc(100vh - 70px);
+  height: 100vh;
   position: relative;
   overflow: hidden;
   background: #ffffff;
@@ -1296,7 +1306,7 @@ export default {
 .sg-map-top-quick-filter {
   position: absolute;
   top: 14px;
-  right: 14px;
+  right: 60px;
   z-index: 500;
 }
 

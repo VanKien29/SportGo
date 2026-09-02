@@ -62,6 +62,7 @@ export default {
       if (/^\/(?:login|register|forgot-password|chat|messages)(?:\/|$)/.test(path)) {
         return false;
       }
+      if (/^\/venues\/map(?:\/|$)/.test(path)) return false;
       return true;
     },
   },

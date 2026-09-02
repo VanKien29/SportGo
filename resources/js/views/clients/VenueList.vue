@@ -8,8 +8,22 @@
       <!-- ───── SEARCH & FILTER CONTENT AREA ───── -->
       <section class="sg-venue-body">
         <div class="sg-container-wide sg-venue-layout">
+          <!-- MOBILE FILTER TOGGLE BAR -->
+          <div class="sg-mobile-filter-bar">
+            <button
+              type="button"
+              class="sg-btn-toggle-mobile-filter"
+              @click="showMobileFilter = !showMobileFilter"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span>{{ showMobileFilter ? 'Thu gọn bộ lọc tìm kiếm' : 'Mở bộ lọc tìm kiếm' }}</span>
+            </button>
+          </div>
+
           <!-- FILTER SIDEBAR (FRAMELESS FLAT DESIGN) -->
-          <aside class="sg-venue-sidebar">
+          <aside class="sg-venue-sidebar" :class="{ 'is-mobile-open': showMobileFilter }">
             <div class="sg-sidebar-header">
               <h2 class="sg-sidebar-title">Bộ Lọc Tìm Kiếm</h2>
               <button type="button" class="sg-btn-reset" @click="resetFilters">Xóa bộ lọc</button>
@@ -30,13 +44,24 @@
                 </div>
               </div>
 
-              <!-- Court Type -->
+              <!-- Sport (Bộ môn) -->
               <div class="sg-filter-item">
                 <label class="sg-filter-label">Môn thể thao</label>
                 <ClientCombobox
+                  v-model="filters.sport_id"
+                  :options="sportOptions"
+                  placeholder="Tất cả bộ môn"
+                  @change="onSportChange"
+                />
+              </div>
+
+              <!-- Court Type (Loại sân) -->
+              <div class="sg-filter-item">
+                <label class="sg-filter-label">Loại sân</label>
+                <ClientCombobox
                   v-model="filters.court_type_id"
                   :options="courtTypeOptions"
-                  placeholder="Tất cả bộ môn"
+                  placeholder="Tất cả loại sân"
                   @change="applyFilters"
                 />
               </div>
@@ -192,8 +217,17 @@
                   </div>
 
                   <div class="alb-venue-card__footer">
-                    <div class="alb-venue-card__price">
-                      {{ priceLabel(venue) }}
+                    <div class="alb-venue-card__price-box">
+                      <div class="alb-venue-card__price">
+                        {{ priceMainLabel(venue) }}
+                      </div>
+                      <div
+                        v-if="venue.min_price && venue.min_price_court_type_name"
+                        class="alb-venue-card__price-subtitle"
+                        :title="venue.min_price_court_type_name"
+                      >
+                        {{ venue.min_price_court_type_name }}
+                      </div>
                     </div>
                     <router-link
                       :to="{ name: 'venue-detail', params: { id: venue.slug || venue.id } }"
@@ -238,12 +272,14 @@ export default {
     return {
       today: businessDateString(),
       loading: true,
+      showMobileFilter: false,
       venues: [],
       courtTypes: [],
       provincesList: [],
       wardsList: [],
       filters: {
         q: "",
+        sport_id: "",
         court_type_id: "",
         area: "",
         province_code: "",
@@ -280,10 +316,25 @@ export default {
     timeSlotOptions() {
       return this.timeOptions.map((t) => ({ value: `${t}:00`, label: t }));
     },
-    courtTypeOptions() {
+    parentSportTypes() {
+      return this.courtTypes.filter((c) => !c.parent_id);
+    },
+    sportOptions() {
       return [
         { value: "", label: "Tất cả bộ môn" },
-        ...this.courtTypes.map((c) => ({ value: String(c.id), label: c.name })),
+        ...this.parentSportTypes.map((c) => ({ value: String(c.id), label: c.name })),
+      ];
+    },
+    childCourtTypes() {
+      if (this.filters.sport_id) {
+        return this.courtTypes.filter((c) => String(c.parent_id) === String(this.filters.sport_id));
+      }
+      return this.courtTypes.filter((c) => c.parent_id !== null);
+    },
+    courtTypeOptions() {
+      return [
+        { value: "", label: "Tất cả loại sân" },
+        ...this.childCourtTypes.map((c) => ({ value: String(c.id), label: c.name })),
       ];
     },
     sortOptions() {
@@ -351,6 +402,7 @@ export default {
     syncQueryToFilters() {
       const q = this.$route.query;
       if (q.q) this.filters.q = q.q;
+      if (q.sport_id) this.filters.sport_id = q.sport_id;
       if (q.court_type_id) this.filters.court_type_id = q.court_type_id;
       if (q.province_code) this.filters.province_code = q.province_code;
       if (q.ward_code) this.filters.ward_code = q.ward_code;
@@ -358,19 +410,51 @@ export default {
       if (q.booking_date) this.filters.booking_date = q.booking_date;
       if (q.start_time) this.filters.start_time = q.start_time;
     },
+    syncSportAndCourtTypeFromQuery() {
+      const q = this.$route.query;
+      if (q.court_type_id && !q.sport_id) {
+        const found = this.courtTypes.find((c) => String(c.id) === String(q.court_type_id));
+        if (found) {
+          if (found.parent_id) {
+            this.filters.sport_id = String(found.parent_id);
+            this.filters.court_type_id = String(found.id);
+          } else {
+            this.filters.sport_id = String(found.id);
+            this.filters.court_type_id = "";
+          }
+        }
+      }
+    },
     async loadCourtTypes() {
       try {
         const types = await courtTypeService.getCourtTypes();
         this.courtTypes = types || [];
+        this.syncSportAndCourtTypeFromQuery();
       } catch (e) {
         this.courtTypes = [];
       }
+    },
+    onSportChange() {
+      if (this.filters.court_type_id) {
+        const validChild = this.childCourtTypes.some((c) => String(c.id) === String(this.filters.court_type_id));
+        if (!validChild) {
+          this.filters.court_type_id = "";
+        }
+      }
+      this.applyFilters();
     },
     async loadVenues() {
       const requestId = ++this.venueRequestId;
       this.loading = true;
       try {
         const params = { ...this.filters };
+        if (this.filters.court_type_id) {
+          params.court_type_id = this.filters.court_type_id;
+        } else if (this.filters.sport_id) {
+          params.court_type_id = this.filters.sport_id;
+        }
+        delete params.sport_id;
+
         if (params.sort === "distance" && this.userLatitude !== null && this.userLongitude !== null) {
           params.latitude = this.userLatitude;
           params.longitude = this.userLongitude;
@@ -390,6 +474,7 @@ export default {
       }
     },
     applyFilters() {
+      this.showMobileFilter = false;
       this.loadVenues();
     },
     onSortChange() {
@@ -494,6 +579,7 @@ export default {
     resetFilters() {
       this.filters = {
         q: "",
+        sport_id: "",
         court_type_id: "",
         area: "",
         province_code: "",
@@ -550,10 +636,13 @@ export default {
       if (!Number.isFinite(value)) return "";
       return value < 10 ? `${value.toFixed(1)} km` : `${Math.round(value)} km`;
     },
-    priceLabel(venue) {
+    priceMainLabel(venue) {
       if (!venue.min_price) return "Liên hệ";
       const formatted = new Intl.NumberFormat("vi-VN").format(venue.min_price);
-      return `${formatted} đ/giờ`;
+      return `Từ ${formatted} đ/giờ`;
+    },
+    priceLabel(venue) {
+      return this.priceMainLabel(venue);
     },
   },
 };
@@ -968,6 +1057,37 @@ export default {
   transform: translateY(-1px);
 }
 
+/* ───── MOBILE FILTER TOGGLE BUTTON ───── */
+.sg-mobile-filter-bar {
+  display: none;
+  grid-column: 1 / -1;
+  margin-bottom: 12px;
+}
+
+.sg-btn-toggle-mobile-filter {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: all 0.18s ease;
+}
+
+.sg-btn-toggle-mobile-filter:hover {
+  background: #f8fafc;
+  border-color: #5c7e6e;
+  color: #5c7e6e;
+}
+
 /* ───── RESPONSIVE ───── */
 @media (max-width: 1024px) {
   .sg-venue-hero-grid {
@@ -981,34 +1101,72 @@ export default {
 
   .sg-venue-layout {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 20px;
   }
 }
 
-@media (max-width: 640px) {
-  .sg-venue-hero {
-    padding: 40px 0 36px;
+@media (max-width: 768px) {
+  .sg-mobile-filter-bar {
+    display: block;
   }
 
-  .sg-venue-hero-media,
-  .sg-venue-hero-media img {
-    min-height: 190px;
+  .sg-venue-sidebar {
+    display: none;
+    border-radius: 12px;
+    padding: 18px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  }
+
+  .sg-venue-sidebar.is-mobile-open {
+    display: block;
+    margin-bottom: 16px;
+    animation: sgFadeIn 0.2s ease-out;
+  }
+
+  .sg-venue-body {
+    padding: 16px 0 32px;
+  }
+
+  .alb-venue-grid {
+    gap: 16px;
   }
 
   .sg-content-toolbar {
     align-items: flex-start;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
   }
 
   .sg-toolbar-actions {
     width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
+  .sg-toolbar-map-btn,
   .sg-nearby-btn,
   .sg-sort-combobox {
     flex: 1;
-    min-width: 0;
+    min-width: 110px;
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sg-venue-hero {
+    padding: 20px 0 20px;
+  }
+
+  .sg-venue-hero-media,
+  .sg-venue-hero-media img {
+    min-height: 160px;
   }
 }
 

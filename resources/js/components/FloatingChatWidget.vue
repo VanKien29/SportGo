@@ -146,13 +146,20 @@
                 class="sg-mini-msg-row"
                 :class="{ 'is-mine': isMyMessage(msg) }"
               >
-                <div
-                  v-if="!isMyMessage(msg)"
-                  class="sg-mini-msg-avatar"
-                  :style="{ backgroundColor: getAvatarColor(senderName(msg)) }"
-                >
-                  {{ getAvatarInitials(senderName(msg)) }}
-                </div>
+                <template v-if="!isMyMessage(msg)">
+                  <div v-if="activeConversation.is_ai || msg.role === 'assistant' || msg.sender_id === 'ai'" class="sg-mini-msg-avatar sg-mini-avatar--ai">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                    </svg>
+                  </div>
+                  <div
+                    v-else
+                    class="sg-mini-msg-avatar"
+                    :style="{ backgroundColor: getAvatarColor(senderName(msg)) }"
+                  >
+                    {{ getAvatarInitials(senderName(msg)) }}
+                  </div>
+                </template>
                 <div class="sg-mini-msg-bubble">
                   <div v-if="!isMyMessage(msg) && activeConversation.type === 'group'" class="sg-mini-msg-sender">
                     {{ senderName(msg) }}
@@ -231,7 +238,7 @@ export default {
   computed: {
     showWidget() {
       const path = this.$route?.path || "";
-      if (path.includes("/chat") || path === "/messages") return false;
+      if (path.includes("/chat") || path === "/messages" || path.includes("/venues/map")) return false;
       return true;
     },
     headerTitle() {
@@ -335,13 +342,17 @@ export default {
         try {
           const res = await chatService.getAiHistory();
           const list = res?.messages || res?.data || [];
-          this.messages = list.map((m) => ({
-            id: m.id || "ai_" + Math.random(),
-            content: m.content || m.body || m.text,
-            sender_id: m.role === "user" ? this.user?.id : "ai",
-            sender: { full_name: m.role === "user" ? (this.user?.fullName || "Tôi") : "Trợ lý AI SportGo" },
-            created_at: m.created_at || new Date().toISOString(),
-          }));
+          this.messages = list.map((m) => {
+            const isUser = m.role === "user" || m.sender_id === "me" || String(m.sender_id) === String(this.user?.id);
+            return {
+              id: m.id || "ai_" + Math.random(),
+              content: m.content || m.body || m.text,
+              sender_id: isUser ? this.user?.id : "ai",
+              role: isUser ? "user" : "assistant",
+              sender: { full_name: isUser ? (this.user?.fullName || "Tôi") : "Trợ lý AI SportGo" },
+              created_at: m.created_at || new Date().toISOString(),
+            };
+          });
         } catch (err) {
           // silent
         } finally {
@@ -497,8 +508,10 @@ export default {
       return "Bắt đầu cuộc trò chuyện";
     },
     isMyMessage(msg) {
-      if (!msg || !this.user) return false;
-      return msg.sender_id === this.user.id || msg.user_id === this.user.id;
+      if (!msg) return false;
+      if (msg.role === "user" || msg.sender_id === "me" || msg.is_user === true) return true;
+      if (!this.user) return false;
+      return String(msg.sender_id) === String(this.user.id) || String(msg.user_id) === String(this.user.id);
     },
     senderName(msg) {
       if (this.isMyMessage(msg)) return this.user?.fullName || "Tôi";
@@ -887,9 +900,9 @@ export default {
 }
 
 .sg-mini-msg-row.is-mine .sg-mini-msg-bubble {
-  background: #5c7e6e;
+  background: #15803d;
   color: #ffffff;
-  border-color: #5c7e6e;
+  border-color: #15803d;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 2px;
 }

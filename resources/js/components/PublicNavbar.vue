@@ -9,8 +9,8 @@
           <div v-else class="alb-brand__mark">SG</div>
         </router-link>
 
-        <!-- Main Navigation Links -->
-        <div class="alb-nav-links">
+        <!-- Main Navigation Links (Desktop) -->
+        <div class="alb-nav-links alb-desktop-only">
           <router-link to="/" class="alb-nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/venues" class="alb-nav-link" active-class="active-link">Tìm sân</router-link>
           <router-link to="/news" class="alb-nav-link" active-class="active-link">Tin tức</router-link>
@@ -26,8 +26,8 @@
           </router-link>
         </div>
 
-        <!-- User Actions -->
-        <div style="display: flex; align-items: center; gap: 16px;">
+        <!-- User Actions (Desktop) -->
+        <div class="alb-nav-actions alb-desktop-only">
           <!-- Messaging / Chat Link -->
           <router-link v-if="user" to="/chat" class="sg3-icon-button" style="text-decoration: none;" title="Hộp thư tin nhắn">
             <span style="font-size: 13px; font-weight: 500; color: #111827;">Tin nhắn</span>
@@ -142,6 +142,76 @@
             </transition>
           </div>
         </div>
+
+        <!-- Mobile Hamburger Button -->
+        <button
+          type="button"
+          class="alb-mobile-toggle"
+          :aria-expanded="mobileMenuOpen"
+          aria-label="Mở menu điều hướng"
+          @click.stop="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <svg v-if="!mobileMenuOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2">
+            <line x1="4" y1="6" x2="20" y2="6"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+            <line x1="4" y1="18" x2="20" y2="18"/>
+          </svg>
+          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
+        <!-- Mobile Drawer Navigation -->
+        <transition name="sg-mobile-nav">
+          <div v-if="mobileMenuOpen" class="alb-mobile-menu" @click.stop>
+            <div class="alb-mobile-nav-links">
+              <router-link to="/" class="alb-mobile-nav-link" exact-active-class="active-link" @click="mobileMenuOpen = false">Trang chủ</router-link>
+              <router-link to="/venues" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Tìm sân</router-link>
+              <router-link to="/news" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Tin tức</router-link>
+              <router-link to="/community" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Cộng đồng</router-link>
+              <router-link to="/offers" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Ưu đãi</router-link>
+              <router-link to="/about" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Về chúng tôi</router-link>
+              <router-link to="/contact" class="alb-mobile-nav-link" active-class="active-link" @click="mobileMenuOpen = false">Liên hệ</router-link>
+            </div>
+
+            <div class="alb-mobile-actions">
+              <router-link v-if="!isOwner && !isAdmin" to="/become-partner" class="alb-btn-owner sg-w-full" @click="mobileMenuOpen = false">
+                <span>Đăng ký Chủ sân</span>
+              </router-link>
+              <router-link v-else-if="isOwner" to="/owner/dashboard" class="alb-btn-owner sg-w-full" @click="mobileMenuOpen = false">
+                <span>Vào trang chủ sân</span>
+              </router-link>
+
+              <template v-if="!user">
+                <div class="alb-mobile-auth-row">
+                  <router-link to="/login" class="anc-btn-login" @click="mobileMenuOpen = false">Đăng nhập</router-link>
+                  <router-link to="/register" class="anc-btn-register" @click="mobileMenuOpen = false">Đăng ký</router-link>
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="alb-mobile-user-row">
+                  <div class="dd-avatar" :style="!userAvatarUrl ? { backgroundColor: userAvatarBg } : {}">
+                    <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user.fullName" class="nav-avatar-img" @error="onNavAvatarError" />
+                    <span v-else>{{ userInitial }}</span>
+                  </div>
+                  <div class="dd-info">
+                    <div class="dd-name">{{ user.fullName }}</div>
+                    <div class="dd-role">{{ roleLabel }}</div>
+                  </div>
+                </div>
+                <div class="alb-mobile-user-links">
+                  <router-link :to="profileRoute" class="dd-item" @click="mobileMenuOpen = false">Thông tin cá nhân</router-link>
+                  <router-link v-if="isClientUser" to="/bookings" class="dd-item" @click="mobileMenuOpen = false">Lịch đặt sân</router-link>
+                  <router-link v-if="isClientUser" to="/wallet" class="dd-item" @click="mobileMenuOpen = false">Ví SportGo</router-link>
+                  <router-link v-if="isClientUser" to="/notifications" class="dd-item" @click="mobileMenuOpen = false">Thông báo</router-link>
+                  <button type="button" class="dd-item logout" @click="handleLogout">Đăng xuất</button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </transition>
       </div>
     </nav>
 
@@ -171,6 +241,7 @@ export default {
       showDropdown: false,
       showNotifDropdown: false,
       showComplaintModal: false,
+      mobileMenuOpen: false,
       notifications: [],
       unreadCount: 0,
       notifTimer: null,
@@ -228,6 +299,7 @@ export default {
     "$route.fullPath"() {
       this.showDropdown = false;
       this.showNotifDropdown = false;
+      this.mobileMenuOpen = false;
     },
   },
   mounted() {
@@ -257,6 +329,7 @@ export default {
     handleOutside(event) {
       if (!event.target.closest(".sg3-account-menu")) this.showDropdown = false;
       if (!event.target.closest(".sg3-notifications")) this.showNotifDropdown = false;
+      if (!event.target.closest(".alb-navbar")) this.mobileMenuOpen = false;
     },
     toggleNotifDropdown() {
       this.showNotifDropdown = !this.showNotifDropdown;
@@ -675,5 +748,127 @@ export default {
   font-size: 11px;
   color: #94a3b8;
   margin-top: 2px;
+}
+
+/* DESKTOP & MOBILE RESPONSIVE UTILITIES */
+.alb-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.alb-mobile-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.alb-mobile-toggle:hover {
+  background: #f1f5f9;
+}
+
+@media (max-width: 992px) {
+  .alb-desktop-only {
+    display: none !important;
+  }
+
+  .alb-mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.alb-mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-bottom: 1.5px solid #cbd5e1;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+  padding: 18px 20px 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alb-mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alb-mobile-nav-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: #334155;
+  text-decoration: none;
+  padding: 9px 14px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.alb-mobile-nav-link:hover,
+.alb-mobile-nav-link.active-link {
+  background: #f1f5f9;
+  color: #5c7e6e;
+  font-weight: 600;
+}
+
+.alb-mobile-actions {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sg-w-full {
+  width: 100%;
+  justify-content: center;
+}
+
+.alb-mobile-auth-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alb-mobile-auth-row .anc-btn-login,
+.alb-mobile-auth-row .anc-btn-register {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+}
+
+.alb-mobile-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.alb-mobile-user-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg-mobile-nav-enter-active,
+.sg-mobile-nav-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sg-mobile-nav-enter-from,
+.sg-mobile-nav-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
