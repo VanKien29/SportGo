@@ -28,12 +28,23 @@ class SetPasswordController extends Controller
             'password.regex' => 'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt.',
         ]);
 
-        $request->user()->forceFill([
+        $user = $request->user();
+
+        if ($user->password_set_at) {
+            return response()->json([
+                'message' => 'Tài khoản đã có mật khẩu. Vui lòng dùng chức năng đổi mật khẩu.',
+            ], 422);
+        }
+
+        $user->forceFill([
             'password' => Hash::make($data['password']),
+            'password_set_at' => now(),
         ])->save();
+        $user->revokeAllAccess();
 
         return response()->json([
             'message' => 'Mật khẩu đã được thiết lập thành công.',
+            'requires_relogin' => true,
         ]);
     }
 }

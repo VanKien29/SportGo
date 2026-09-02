@@ -54,6 +54,7 @@ use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnsureVenueStaffMenuPermission;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
+use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
 use App\Http\Controllers\Api\Public\SystemPostController as PublicSystemPostController;
 use App\Http\Controllers\Api\Public\UserProfileController as PublicUserProfileController;
@@ -74,7 +75,7 @@ use App\Http\Controllers\Api\Common\ChatController;
 // Broadcasting auth endpoint — must use Sanctum so Bearer token is accepted
 Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
     return app(\Illuminate\Broadcasting\BroadcastManager::class)->auth($request);
-})->middleware('auth:sanctum');
+})->middleware(['auth:sanctum', RejectInactiveUser::class]);
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
@@ -108,12 +109,11 @@ Route::prefix('auth')->group(function (): void {
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', RejectInactiveUser::class])->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp'])->middleware('throttle:auth-otp-send');
         Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp'])->middleware('throttle:auth-otp-verify');
-        Route::post('/profile/phone/request-otp', [AuthController::class, 'requestPhoneChangeOtp'])->middleware('throttle:auth-otp-send');
-        Route::post('/profile/phone/verify-otp', [AuthController::class, 'verifyPhoneChangeOtp'])->middleware('throttle:auth-otp-verify');
+        Route::post('/profile/phone/change', [AuthController::class, 'changePhone']);
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
         Route::post('/profile/cover', [AuthController::class, 'uploadCover']);
@@ -130,13 +130,13 @@ Route::prefix('admin/auth')->group(function (): void {
     Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp'])->middleware('throttle:auth-otp-verify');
     Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset'])->middleware('throttle:auth-otp-verify');
 
-    Route::middleware(['auth:sanctum', EnsureAdminRole::class])->group(function (): void {
+    Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureAdminRole::class])->group(function (): void {
         Route::get('/me', [AdminAuthController::class, 'me']);
         Route::post('/logout', [AdminAuthController::class, 'logout']);
     });
 });
 
-Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission::class])
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureAdminRole::class, EnsureAdminPermission::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
@@ -387,7 +387,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class, EnforceVenueAccessRestrictions::class])
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
@@ -567,7 +567,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class])
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
@@ -577,7 +577,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/cancel', [VenueUnlockRequestController::class, 'cancel']);
     });
 
-Route::middleware('auth:sanctum')
+Route::middleware(['auth:sanctum', RejectInactiveUser::class])
     ->group(function (): void {
         Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
         Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);

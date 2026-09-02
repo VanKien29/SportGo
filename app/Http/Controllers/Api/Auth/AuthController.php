@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,7 @@ class AuthController extends Controller
             'phone' => $data['phone'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'password_set_at' => now(),
             'status' => 'pending_verify',
             'verification_channel' => 'email',
         ]);
@@ -344,74 +346,73 @@ class AuthController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+        $stage = $request->input('stage', 'current');
+
+        if ($stage === 'current') {
+            $data = $request->validate(['current_password' => ['required', 'string']]);
+            $this->assertCurrentPassword($user, $data['current_password']);
+
+            if (! $user->email) {
+                throw ValidationException::withMessages(['email' => 'Tài khoản chưa có email để xác thực.']);
+            }
+
+            $otp = $this->otpService->generate();
+            $this->otpService->create($user, $user->email, 'change_email_current', $otp);
+            Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'change_email', OtpService::EXPIRE_MINUTES));
+
+            return response()->json(['message' => 'Đã gửi OTP đến email hiện tại để xác nhận yêu cầu.']);
+        }
+
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'current_password' => ['required', 'string'],
-        ], [
-            'email.required' => 'Vui lòng nhập email mới.',
-            'email.email' => 'Địa chỉ email không đúng định dạng.',
-            'email.unique' => 'Email đã được sử dụng.',
-            'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại để xác thực thay đổi.',
         ]);
-
-        $this->assertCurrentPassword($user, $data['current_password']);
-
+        $this->ensureContactChallenge($user, 'email');
         $email = strtolower(trim($data['email']));
+
         if (strcasecmp($email, (string) $user->email) === 0) {
-            return response()->json(['message' => 'Email mới trùng với email hiện tại.']);
+            throw ValidationException::withMessages(['email' => 'Email mới trùng với email hiện tại.']);
         }
 
         $otp = $this->otpService->generate();
-        $this->otpService->create($user, $email, 'change_email', $otp);
+        $this->otpService->create($user, $email, 'change_email_new', $otp);
         Mail::to($email)->send(new AuthOtpMail($user, $otp, 'change_email', OtpService::EXPIRE_MINUTES));
+        Cache::put($this->contactChallengeKey($user, 'email'), ['verified' => true, 'new_email' => $email], now()->addMinutes(OtpService::EXPIRE_MINUTES));
 
-        return response()->json([
-            'message' => 'Đã gửi mã OTP đến email mới. Mã có hiệu lực trong '.OtpService::EXPIRE_MINUTES.' phút.',
-            'email' => $email,
-        ]);
+        return response()->json(['message' => 'Đã gửi OTP đến email mới.', 'email' => $email]);
     }
 
-    public function requestPhoneChangeOtp(Request $request): JsonResponse
+    public function changePhone(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
         $data = $request->validate([
-            'phone' => [
-                'required',
-                'string',
-                'max:20',
-                'regex:/^(0\d{9}|\+84\d{9})$/',
-                Rule::unique('users', 'phone')->ignore($user->id),
-            ],
             'current_password' => ['required', 'string'],
-        ], [
-            'phone.required' => 'Vui lòng nhập số điện thoại mới.',
-            'phone.regex' => 'Số điện thoại không đúng định dạng.',
-            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
-            'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại để xác thực thay đổi.',
+            'phone' => ['required', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/', Rule::unique('users', 'phone')->ignore($user->id)],
         ]);
-
         $this->assertCurrentPassword($user, $data['current_password']);
-
         $phone = trim($data['phone']);
         if ($phone === (string) $user->phone) {
-            return response()->json(['message' => 'Số điện thoại mới trùng với số hiện tại.']);
+            throw ValidationException::withMessages(['phone' => 'Số điện thoại mới trùng với số hiện tại.']);
         }
 
-        if (! $user->email) {
-            throw ValidationException::withMessages([
-                'phone' => 'Tài khoản cần có email để nhận mã xác thực đổi số điện thoại.',
-            ]);
-        }
+        $updatedUser = DB::transaction(function () use ($phone, $user): User {
+            if (User::query()->where('phone', $phone)->where('id', '<>', $user->id)->exists()) {
+                throw ValidationException::withMessages(['phone' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.']);
+            }
 
-        $otp = $this->otpService->generate();
-        $this->otpService->create($user, $this->phoneChangeOtpIdentifier($user->email, $phone), 'change_phone', $otp);
-        Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'change_phone', OtpService::EXPIRE_MINUTES));
+            // Số điện thoại chỉ được cập nhật sau khi kiểm tra mật khẩu hiện tại.
+            // Không có OTP SMS nên trạng thái xác thực số mới phải được đặt lại.
+            $user->forceFill(['phone' => $phone, 'phone_verified_at' => null])->save();
+
+            return $user->fresh();
+        });
 
         return response()->json([
-            'message' => 'Đã gửi mã OTP đến email hiện tại để xác nhận đổi số điện thoại. Mã có hiệu lực trong '.OtpService::EXPIRE_MINUTES.' phút.',
-            'phone' => $phone,
-            'delivery_email' => $user->email,
+            'message' => 'Số điện thoại đã được cập nhật. Không yêu cầu xác thực SMS.',
+            'user' => $updatedUser->only([
+                'id', 'username', 'full_name', 'email', 'phone', 'status',
+                'avatar_url', 'cover_image_url', 'email_verified_at', 'phone_verified_at', 'bio', 'preferred_sports',
+            ]),
         ]);
     }
 
@@ -419,91 +420,31 @@ class AuthController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $data = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-            'otp' => ['required', 'digits:6'],
-        ], [
-            'email.required' => 'Vui lòng nhập email cần xác thực.',
-            'otp.required' => 'Vui lòng nhập mã OTP.',
-            'otp.digits' => 'Mã OTP phải gồm đúng 6 chữ số.',
-        ]);
+        $data = $request->validate(['otp' => ['required', 'digits:6']]);
+        if ($request->input('stage', 'current') === 'current') {
+            $this->otpService->verify((string) $user->email, 'change_email_current', $data['otp'], true, (int) $user->id);
+            Cache::put($this->contactChallengeKey($user, 'email'), ['verified' => true], now()->addMinutes(OtpService::EXPIRE_MINUTES));
+            return response()->json(['message' => 'Email hiện tại đã được xác thực. Vui lòng nhập email mới.']);
+        }
 
+        $data = array_merge($data, $request->validate(['email' => ['required', 'email', 'max:255']]));
         $email = strtolower(trim($data['email']));
+        $challenge = $this->ensureContactChallenge($user, 'email');
+        if (($challenge['new_email'] ?? null) !== $email) {
+            throw ValidationException::withMessages(['email' => 'Email xác thực không khớp yêu cầu đã tạo.']);
+        }
         $updatedUser = DB::transaction(function () use ($email, $data, $user): User {
-            if (User::query()
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->where('id', '<>', $user->id)
-                ->exists()) {
-                throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
-            }
-
-            $this->otpService->verify($email, 'change_email', $data['otp'], true, (int) $user->id);
-            $user->forceFill([
-                'email' => $email,
-                'email_verified_at' => now(),
-            ])->save();
-
+            $this->otpService->verify($email, 'change_email_new', $data['otp'], true, (int) $user->id);
+            $user->forceFill(['email' => $email, 'email_verified_at' => now()])->save();
             return $user->fresh();
         });
+        Cache::forget($this->contactChallengeKey($user, 'email'));
 
         return response()->json([
             'message' => 'Email mới đã được xác thực.',
             'user' => $updatedUser->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
                 'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
-            ]),
-        ]);
-    }
-
-    public function verifyPhoneChangeOtp(Request $request): JsonResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-        $data = $request->validate([
-            'phone' => [
-                'required',
-                'string',
-                'max:20',
-                'regex:/^(0\d{9}|\+84\d{9})$/',
-                Rule::unique('users', 'phone')->ignore($user->id),
-            ],
-            'otp' => ['required', 'digits:6'],
-        ], [
-            'phone.required' => 'Vui lòng nhập số điện thoại cần xác thực.',
-            'phone.regex' => 'Số điện thoại không đúng định dạng.',
-            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
-            'otp.required' => 'Vui lòng nhập mã OTP.',
-            'otp.digits' => 'Mã OTP phải gồm đúng 6 chữ số.',
-        ]);
-
-        $phone = trim($data['phone']);
-        $updatedUser = DB::transaction(function () use ($phone, $data, $user): User {
-            if (User::query()->where('phone', $phone)->where('id', '<>', $user->id)->exists()) {
-                throw ValidationException::withMessages(['phone' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.']);
-            }
-
-            $this->otpService->verify(
-                $this->phoneChangeOtpIdentifier((string) $user->email, $phone),
-                'change_phone',
-                $data['otp'],
-                true,
-                (int) $user->id,
-            );
-            $user->forceFill([
-                'phone' => $phone,
-                // The OTP is delivered to the current email. Do not mark the
-                // new phone as SMS-verified until an SMS provider is configured.
-                'phone_verified_at' => null,
-            ])->save();
-
-            return $user->fresh();
-        });
-
-        return response()->json([
-            'message' => 'Số điện thoại mới đã được cập nhật sau khi xác thực OTP qua email hiện tại.',
-            'user' => $updatedUser->only([
-                'id', 'username', 'full_name', 'email', 'phone', 'status',
-                'avatar_url', 'cover_image_url', 'email_verified_at', 'phone_verified_at', 'bio', 'preferred_sports',
             ]),
         ]);
     }
@@ -524,23 +465,42 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed', 'different:current_password'],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'max:50',
+                'confirmed',
+                'different:current_password',
+                'regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,50}$/',
+            ],
         ], [
             'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại.',
             'password.required' => 'Vui lòng nhập mật khẩu mới.',
             'password.min' => 'Mật khẩu mới phải có ít nhất 8 ký tự.',
+            'password.max' => 'Mật khẩu không được vượt quá 50 ký tự.',
             'password.confirmed' => 'Xác nhận mật khẩu mới không trùng khớp.',
             'password.different' => 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+            'password.regex' => 'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt.',
         ]);
+
+        if (! $user->password_set_at) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Tài khoản này chưa có mật khẩu. Vui lòng dùng chức năng thiết lập mật khẩu.',
+            ]);
+        }
 
         $this->assertCurrentPassword($user, $data['current_password']);
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
+            'password_set_at' => now(),
         ])->save();
+        $user->revokeAllAccess();
 
         return response()->json([
             'message' => 'Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho các lần đăng nhập sau.',
+            'requires_relogin' => true,
         ]);
     }
 
@@ -586,6 +546,12 @@ class AuthController extends Controller
 
     private function assertCurrentPassword(User $user, string $currentPassword): void
     {
+        if (! $user->password_set_at) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Tài khoản này chưa có mật khẩu. Vui lòng thiết lập mật khẩu trước.',
+            ]);
+        }
+
         if (! Hash::check($currentPassword, (string) $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => 'Mật khẩu hiện tại không đúng.',
@@ -593,9 +559,23 @@ class AuthController extends Controller
         }
     }
 
-    private function phoneChangeOtpIdentifier(string $email, string $phone): string
+    private function ensureContactChallenge(User $user, string $kind): array
     {
-        return strtolower(trim($email)).'|'.trim($phone);
+        $challenge = Cache::get($this->contactChallengeKey($user, $kind));
+        if (! is_array($challenge) || empty($challenge['verified'])) {
+            throw ValidationException::withMessages([
+                $kind => 'Vui lòng xác thực thông tin hiện tại trước khi nhập thông tin mới.',
+            ]);
+        }
+
+        return $challenge;
+    }
+
+    private function contactChallengeKey(User $user, string $kind): string
+    {
+        $tokenId = $user->currentAccessToken()?->getKey() ?? 'session';
+
+        return "auth.contact-change.{$kind}.{$user->id}.{$tokenId}";
     }
 
     private function registrationVerificationUrl(string $email): string

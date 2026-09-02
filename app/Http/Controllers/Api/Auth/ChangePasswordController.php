@@ -20,12 +20,25 @@ class ChangePasswordController extends Controller
             'password.regex' => 'Mật khẩu mới phải có ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt.',
         ]);
 
-        if (! Hash::check($data['current_password'], (string) $request->user()->password)) {
+        $user = $request->user();
+
+        if (! $user->password_set_at) {
+            throw ValidationException::withMessages(['current_password' => 'Tài khoản này chưa có mật khẩu. Vui lòng thiết lập mật khẩu trước.']);
+        }
+
+        if (! Hash::check($data['current_password'], (string) $user->password)) {
             throw ValidationException::withMessages(['current_password' => 'Mật khẩu hiện tại không đúng.']);
         }
 
-        $request->user()->forceFill(['password' => Hash::make($data['password'])])->save();
+        $user->forceFill([
+            'password' => Hash::make($data['password']),
+            'password_set_at' => now(),
+        ])->save();
+        $user->revokeAllAccess();
 
-        return response()->json(['message' => 'Đã đổi mật khẩu. Vui lòng dùng mật khẩu mới cho lần đăng nhập sau.']);
+        return response()->json([
+            'message' => 'Đã đổi mật khẩu. Vui lòng đăng nhập lại.',
+            'requires_relogin' => true,
+        ]);
     }
 }

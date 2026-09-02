@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -20,6 +22,7 @@ class User extends Authenticatable
         'email_verified_at',
         'phone_verified_at',
         'password',
+        'password_set_at',
         'avatar_url',
         'cover_image_url',
         'bio',
@@ -45,6 +48,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
+            'password_set_at' => 'datetime',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
             'is_locked' => 'boolean',
@@ -120,6 +124,18 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        static::creating(function (User $user): void {
+            if ($user->password_set_at === null && empty($user->google_id) && filled($user->password)) {
+                $user->password_set_at = now();
+            }
+        });
+
+        static::updated(function (User $user): void {
+            if ($user->wasChanged('status') && in_array($user->status, ['locked', 'deactivated'], true)) {
+                $user->revokeAllAccess();
+            }
+        });
+
         static::created(function (User $user) {
             $role = Role::query()->where('name', 'user')->first();
             if ($role) {
@@ -131,5 +147,17 @@ class User extends Authenticatable
                 ]);
             }
         });
+    }
+
+    /**
+     * Revoke every API token and database-backed browser session for this user.
+     */
+    public function revokeAllAccess(): void
+    {
+        $this->tokens()->delete();
+
+        if (Schema::hasTable('sessions') && Schema::hasColumn('sessions', 'user_id')) {
+            DB::table('sessions')->where('user_id', $this->getKey())->delete();
+        }
     }
 }

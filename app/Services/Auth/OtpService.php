@@ -16,14 +16,21 @@ class OtpService
         return (string) random_int(100000, 999999);
     }
 
-    public function create(User $user, string $identifier, string $type, string $otp, int $minutes = self::EXPIRE_MINUTES): VerificationCode
+    public function create(
+        User $user,
+        string $identifier,
+        string $type,
+        string $otp,
+        int $minutes = self::EXPIRE_MINUTES,
+        string $channel = 'email',
+    ): VerificationCode
     {
         $identifier = $this->normalizeIdentifier($identifier);
 
         VerificationCode::query()
             ->where('identifier', $identifier)
             ->where('type', $type)
-            ->where('channel', 'email')
+            ->where('channel', $channel)
             ->where('is_used', false)
             ->update(['is_used' => true]);
 
@@ -31,7 +38,7 @@ class OtpService
             'user_id' => $user->id,
             'identifier' => $identifier,
             'type' => $type,
-            'channel' => 'email',
+            'channel' => $channel,
             'code' => Hash::make($otp),
             'attempt_count' => 0,
             'max_attempts' => 5,
@@ -46,13 +53,14 @@ class OtpService
         string $otp,
         bool $markUsed = false,
         ?int $expectedUserId = null,
+        string $channel = 'email',
     ): VerificationCode
     {
         $identifier = $this->normalizeIdentifier($identifier);
         $code = VerificationCode::query()
             ->where('identifier', $identifier)
             ->where('type', $type)
-            ->where('channel', 'email')
+            ->where('channel', $channel)
             ->latest('created_at')
             ->first();
 

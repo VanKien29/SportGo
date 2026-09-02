@@ -28,8 +28,6 @@ class GoogleAuthController extends Controller
     {
         $googleUser = Socialite::driver('google')->stateless()->user();
         $user = $this->findGoogleUser($googleUser->getId(), $googleUser->getEmail());
-        $isNewUser = false;
-
         if ($user) {
             $user->forceFill([
                 'google_id' => $user->google_id ?: $googleUser->getId(),
@@ -38,7 +36,6 @@ class GoogleAuthController extends Controller
                 'status' => $user->status === 'pending_verify' ? 'active' : $user->status,
             ])->save();
         } else {
-            $isNewUser = true;
             $user = User::query()->create([
                 'username' => $this->uniqueUsername($googleUser->getEmail(), $googleUser->getName()),
                 'full_name' => $googleUser->getName() ?: 'SportGo User',
@@ -81,6 +78,7 @@ class GoogleAuthController extends Controller
         $token = $user->createToken('sportgo-google')->plainTextToken;
         $payload = array_merge([
             'message' => 'Đăng nhập Google thành công',
+            'needs_password_setup' => $user->password_set_at ? '0' : '1',
         ], $this->roleRedirectService->payload($user, $token));
 
         if ($request->expectsJson()) {
@@ -92,7 +90,7 @@ class GoogleAuthController extends Controller
             'token' => $token,
             'role_group' => $payload['role_group'],
             'redirect_to' => $payload['redirect_to'],
-            'needs_password_setup' => $isNewUser ? '1' : '0',
+            'needs_password_setup' => $user->password_set_at ? '0' : '1',
         ], now()->addMinute());
 
         return redirect('/auth/google/callback?' . http_build_query([

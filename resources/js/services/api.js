@@ -7,6 +7,7 @@ const REDIRECT_KEY = 'auth_redirect_to';
 const PERMISSIONS_KEY = 'auth_permissions';
 const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
+const PW_SETUP_KEY = 'sportgo_needs_pw_setup';
 const inFlightGetRequests = new Map();
 
 // Request không bị hủy theo thời gian trên web. Component vẫn có thể truyền
@@ -52,6 +53,7 @@ function clearAuthStorage() {
     PERMISSIONS_KEY,
     VENUE_STAFF_PERMISSIONS_KEY,
     SELECTED_CLUSTER_KEY,
+    PW_SETUP_KEY,
   ].forEach((key) => localStorage.removeItem(key));
 }
 
@@ -98,9 +100,9 @@ async function requestApi(path, options = {}) {
   const response = await fetchRequest(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 423) {
     clearAuthStorage();
-    if (token && (!options.method || options.method.toUpperCase() === 'GET')) {
+    if (response.status === 401 && token && (!options.method || options.method.toUpperCase() === 'GET')) {
       const retryHeaders = { ...headers };
       delete retryHeaders.Authorization;
       const retryResponse = await fetchRequest(path, { ...options, headers: retryHeaders });
@@ -165,7 +167,7 @@ export async function apiFormData(path, formData, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 423) {
     clearAuthStorage();
     throw makeApiError(response, data, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
@@ -209,7 +211,7 @@ export async function apiDownload(path, options = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 423) {
       clearAuthStorage();
     }
     throw makeApiError(response, data, 'Không thể tải file.');
