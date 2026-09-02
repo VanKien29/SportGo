@@ -941,62 +941,6 @@ class BookingController extends Controller
         ];
     }
 
-    public function addServices(Request $request, string $id)
-    {
-        $booking = Booking::query()
-            ->where('customer_id', $request->user()->id)
-            ->with(['bookingServices', 'venueCluster'])
-            ->findOrFail($id);
-
-        $validated = $request->validate([
-            'services' => ['required', 'array', 'min:1'],
-            'services.*.service_id' => ['required', 'string', 'exists:venue_cluster_services,id'],
-            'services.*.quantity' => ['required', 'integer', 'min:1', 'max:50'],
-        ]);
-
-        $addedServices = [];
-        $addedTotal = 0;
-
-        DB::transaction(function () use ($booking, $validated, &$addedServices, &$addedTotal) {
-            foreach ($validated['services'] as $item) {
-                $service = \App\Models\VenueClusterService::query()
-                    ->where('venue_cluster_id', $booking->venue_cluster_id)
-                    ->where('id', $item['service_id'])
-                    ->first();
-
-                if (! $service) {
-                    continue;
-                }
-
-                $itemTotal = round((float) $service->price * (int) $item['quantity'], 2);
-                $addedTotal += $itemTotal;
-
-                $bookingServiceItem = \App\Models\BookingServiceItem::create([
-                    'booking_id' => $booking->id,
-                    'service_id' => $service->id,
-                    'service_name' => $service->name,
-                    'unit' => $service->unit ?? 'lượt',
-                    'unit_price' => (float) $service->price,
-                    'quantity' => (int) $item['quantity'],
-                    'total_price' => $itemTotal,
-                ]);
-
-                $addedServices[] = $bookingServiceItem;
-            }
-
-            $booking->total_price = round((float) $booking->total_price + $addedTotal, 2);
-            $booking->final_amount = round((float) $booking->final_amount + $addedTotal, 2);
-            $booking->required_payment_amount = round((float) $booking->required_payment_amount + $addedTotal, 2);
-            $booking->save();
-        });
-
-        return response()->json([
-            'message' => 'Đã thêm dịch vụ vào đơn đặt sân.',
-            'added_total' => $addedTotal,
-            'booking' => $booking->fresh(['bookingServices', 'venueCluster']),
-        ]);
-    }
-
     /**
      * Payload nhẹ cho danh sách lịch đặt. Chi tiết hoàn tiền, bài giao lưu và
      * loại sân chỉ được tải khi mở trang chi tiết booking.

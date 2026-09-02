@@ -801,7 +801,7 @@
                 @click.self="showServicesModal = false"
             >
                 <div class="bd-modal-content">
-                    <!-- <div class="bd-modal-head">
+                    <div class="bd-modal-head">
                         <h3>🥤 Gọi thêm dịch vụ tại sân</h3>
                         <button
                             type="button"
@@ -810,7 +810,7 @@
                         >
                             ✕
                         </button>
-                    </div> -->
+                    </div>
                     <div class="bd-modal-body">
                         <div
                             v-if="loadingVenueServices"
@@ -896,7 +896,6 @@
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { chatService } from "../../../services/chat.service.js";
-import { venueService } from "../../../services/venues.js";
 import echo from "../../../echo.js";
 import {
     businessDateLabel,
@@ -932,29 +931,9 @@ export default {
             paymentWebhookListening: false,
             qrImageError: false,
             copySuccess: "",
-            showServicesModal: false,
-            loadingVenueServices: false,
-            availableVenueServices: [],
-            extraServicesMap: {},
-            submittingExtra: false,
-            addServicesError: "",
         };
     },
     computed: {
-        canAddInVenueServices() {
-            return [
-                "confirmed",
-                "checked_in",
-                "pending_approval",
-                "pending_payment",
-            ].includes(this.booking?.status);
-        },
-        extraServicesTotal() {
-            return Object.values(this.extraServicesMap).reduce(
-                (sum, item) => sum + item.quantity * item.price,
-                0,
-            );
-        },
         formattedTimer() {
             const totalSeconds = Math.max(
                 0,
@@ -1222,67 +1201,6 @@ export default {
         },
     },
     methods: {
-        extraServiceQty(serviceId) {
-            return this.extraServicesMap[serviceId]?.quantity || 0;
-        },
-        updateExtraQty(srv, delta) {
-            const current = this.extraServicesMap[srv.id]?.quantity || 0;
-            const next = Math.max(0, current + delta);
-            if (next === 0) {
-                const copy = { ...this.extraServicesMap };
-                delete copy[srv.id];
-                this.extraServicesMap = copy;
-            } else {
-                this.extraServicesMap = {
-                    ...this.extraServicesMap,
-                    [srv.id]: {
-                        service_id: srv.id,
-                        name: srv.name,
-                        price: Number(srv.price || 0),
-                        unit: srv.unit || "lượt",
-                        quantity: next,
-                    },
-                };
-            }
-        },
-        async openServicesModal() {
-            this.showServicesModal = true;
-            this.addServicesError = "";
-            if (!this.availableVenueServices.length && this.venueId) {
-                this.loadingVenueServices = true;
-                try {
-                    const res = await venueService.show(this.venueId);
-                    this.availableVenueServices =
-                        res.data?.services || res.services || [];
-                } catch (e) {
-                    this.addServicesError = "Không tải được danh sách dịch vụ.";
-                } finally {
-                    this.loadingVenueServices = false;
-                }
-            }
-        },
-        async submitExtraServices() {
-            if (!this.extraServicesTotal) return;
-            this.submittingExtra = true;
-            this.addServicesError = "";
-            try {
-                const services = Object.values(this.extraServicesMap).map(
-                    (item) => ({
-                        service_id: item.service_id,
-                        quantity: item.quantity,
-                    }),
-                );
-                await bookingService.addServices(this.booking.id, { services });
-                this.showServicesModal = false;
-                this.extraServicesMap = {};
-                await this.loadBooking();
-            } catch (err) {
-                this.addServicesError =
-                    err.message || "Không thể thêm dịch vụ. Vui lòng thử lại.";
-            } finally {
-                this.submittingExtra = false;
-            }
-        },
         async loadBooking() {
             const id = this.$route.params.id;
             if (!id) {
