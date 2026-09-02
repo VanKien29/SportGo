@@ -78,9 +78,14 @@
 
               <!-- Hero Actions Group -->
               <div class="sg-hero-cta-group">
-                <button type="button" class="sg-btn-ghost-action" @click="chatWithVenue">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  <span>Nhắn tin</span>
+                <button
+                  type="button"
+                  class="sg-btn-ghost-action sg-btn-icon-only"
+                  title="Nhắn tin với cụm sân"
+                  aria-label="Nhắn tin với cụm sân"
+                  @click="chatWithVenue"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                 </button>
                 <button type="button" class="sg-btn-ghost-action" title="Chia sẻ sân" @click="copyVenueLink">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
@@ -1935,6 +1940,15 @@ export default {
   background: #f8fafc;
   border-color: #54656f;
   color: #0f172a;
+}
+
+.sg-btn-ghost-action.sg-btn-icon-only {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* NAVIGATION TABS WRAPPER */
