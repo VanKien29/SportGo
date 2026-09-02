@@ -1520,6 +1520,7 @@ class UserController extends Controller
 
             if (!empty($data['password'])) {
                 $updateData['password'] = Hash::make($data['password']);
+                $updateData['password_set_at'] = now();
             }
 
             $user->update($updateData);
@@ -1536,6 +1537,10 @@ class UserController extends Controller
                 }
             }
         });
+
+        if (! empty($data['password'])) {
+            $user->revokeAllAccess();
+        }
 
         $freshUser = $user->fresh('roles');
         $newValues = $this->payload($freshUser);

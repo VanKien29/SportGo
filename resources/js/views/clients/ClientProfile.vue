@@ -219,11 +219,13 @@
                 <div class="cp-flat-item cp-flat-item--action">
                   <div>
                     <span class="cp-flat-label">Mật khẩu đăng nhập</span>
-                    <p class="cp-flat-sub">Đổi mật khẩu định kỳ để an toàn</p>
+                    <p class="cp-flat-sub">
+                      {{ hasPassword ? "Đổi mật khẩu định kỳ để an toàn" : "Tài khoản Google chưa có mật khẩu đăng nhập" }}
+                    </p>
                   </div>
                   <button type="button" class="w2-btn w2-btn--outline w2-btn--sm" @click="openPasswordModal">
                     <AppIcon name="lock" :size="13" />
-                    <span>Đổi mật khẩu</span>
+                    <span>{{ hasPassword ? "Đổi mật khẩu" : "Thiết lập mật khẩu" }}</span>
                   </button>
                 </div>
 
@@ -260,13 +262,15 @@
       <div v-if="showEmailOtpModal" class="w2-modal-backdrop" @click.self="closeEmailOtpModal">
         <div class="w2-modal">
           <div class="w2-modal-head">
-            <h3>Xác minh địa chỉ Email mới</h3>
+            <h3>{{ emailOtpStage === "current" ? "Xác minh Email hiện tại" : "Xác minh địa chỉ Email mới" }}</h3>
             <button type="button" class="w2-modal-close" @click="closeEmailOtpModal">✕</button>
           </div>
 
           <div class="w2-modal-body">
             <p class="w2-modal-desc">
-              Hệ thống đã gửi mã OTP 6 chữ số đến địa chỉ Email mới: <strong>{{ pendingNewEmail }}</strong>.
+              Hệ thống đã gửi mã OTP 6 chữ số đến
+              <strong>{{ emailOtpStage === "current" ? user?.email : pendingNewEmail }}</strong>.
+              {{ emailOtpStage === "current" ? "Xác thực thành công bước này để tiếp tục nhập email mới." : "Sau khi xác thực, email tài khoản sẽ được cập nhật." }}
             </p>
 
             <div class="w2-otp-badge">
@@ -311,57 +315,7 @@
               :disabled="emailOtpInput.length !== 6 || emailOtpVerifying"
               @click="verifyEmailOtp"
             >
-              <span>{{ emailOtpVerifying ? "Đang xác thực..." : "Xác nhận & Cập nhật Email" }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- PHONE OTP VERIFICATION MODAL -->
-    <Teleport to="body">
-      <div v-if="showPhoneOtpModal" class="w2-modal-backdrop" @click.self="closePhoneOtpModal">
-        <div class="w2-modal">
-          <div class="w2-modal-head">
-            <h3>Xác minh số điện thoại mới</h3>
-            <button type="button" class="w2-modal-close" @click="closePhoneOtpModal">✕</button>
-          </div>
-
-          <div class="w2-modal-body">
-            <p class="w2-modal-desc">
-              Mã OTP đã được gửi đến email hiện tại của tài khoản để xác nhận yêu cầu đổi sang số
-              <strong>{{ pendingNewPhone }}</strong>.
-            </p>
-            <div class="cp-field">
-              <label for="phoneOtpInput">Nhập mã OTP (6 chữ số)</label>
-              <input
-                id="phoneOtpInput"
-                v-model.trim="phoneOtpInput"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                autocomplete="one-time-code"
-                placeholder="Ví dụ: 123456"
-                class="w2-input cp-otp-field"
-                @input="phoneOtpError = ''"
-              />
-            </div>
-            <div v-if="phoneOtpError" class="cp-alert-banner is-error">{{ phoneOtpError }}</div>
-            <div class="cp-resend-row">
-              <span v-if="phoneOtpCountdown > 0">Gửi lại mã sau {{ phoneOtpCountdown }}s</span>
-              <button v-else type="button" class="cp-link-btn" @click="sendPhoneOtp">Gửi lại mã OTP</button>
-            </div>
-          </div>
-
-          <div class="w2-modal-foot">
-            <button type="button" class="w2-btn w2-btn--outline" @click="closePhoneOtpModal">Hủy bỏ</button>
-            <button
-              type="button"
-              class="w2-btn w2-btn--primary"
-              :disabled="phoneOtpInput.length !== 6 || phoneOtpVerifying"
-              @click="verifyPhoneOtp"
-            >
-              <span>{{ phoneOtpVerifying ? "Đang xác thực..." : "Xác nhận & cập nhật SĐT" }}</span>
+              <span>{{ emailOtpVerifying ? "Đang xác thực..." : (emailOtpStage === "current" ? "Xác nhận Email hiện tại" : "Xác nhận & Cập nhật Email") }}</span>
             </button>
           </div>
         </div>
@@ -373,17 +327,19 @@
       <div v-if="showPasswordModal" class="w2-modal-backdrop" @click.self="closePasswordModal">
         <div class="w2-modal">
           <div class="w2-modal-head">
-            <h3>Đổi mật khẩu tài khoản</h3>
+            <h3>{{ hasPassword ? "Đổi mật khẩu tài khoản" : "Thiết lập mật khẩu tài khoản" }}</h3>
             <button type="button" class="w2-modal-close" @click="closePasswordModal">✕</button>
           </div>
 
           <form @submit.prevent="submitPasswordChange">
             <div class="w2-modal-body">
               <p class="w2-modal-desc">
-                Nhập mật khẩu hiện tại và mật khẩu mới để bảo vệ an toàn cho tài khoản của bạn.
+                {{ hasPassword
+                  ? "Nhập mật khẩu hiện tại và mật khẩu mới để bảo vệ an toàn cho tài khoản của bạn."
+                  : "Tài khoản Google chưa có mật khẩu. Hãy thiết lập mật khẩu để có thể đăng nhập bằng username, email hoặc số điện thoại." }}
               </p>
 
-              <div class="cp-field">
+              <div v-if="hasPassword" class="cp-field">
                 <label for="currentPassword">Mật khẩu hiện tại <span class="cp-req">*</span></label>
                 <input
                   id="currentPassword"
@@ -392,7 +348,7 @@
                   placeholder="Nhập mật khẩu đang dùng"
                   class="w2-input"
                   autocomplete="current-password"
-                  required
+                  :required="hasPassword"
                   @input="pwdFieldErrors.current_password = ''"
                 />
                 <p v-if="pwdFieldErrors.current_password" class="cp-field-error">{{ pwdFieldErrors.current_password }}</p>
@@ -448,7 +404,7 @@
                 :disabled="pwdSaving"
               >
                 <AppIcon v-if="pwdSaving" name="loader" :size="15" class="spin" />
-                <span>{{ pwdSaving ? "Đang xử lý..." : "Lưu mật khẩu mới" }}</span>
+                <span>{{ pwdSaving ? "Đang xử lý..." : (hasPassword ? "Lưu mật khẩu mới" : "Thiết lập mật khẩu") }}</span>
               </button>
             </div>
           </form>
@@ -462,7 +418,7 @@ import ClientAuthorBadges from "../../components/ClientAuthorBadges.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import { authService } from "../../services/authService.js";
 import { bookingService } from "../../services/bookingService.js";
-import { getAuth, saveAuth } from "../../stores/auth.js";
+import { clearAuth, getAuth, saveAuth } from "../../stores/auth.js";
 
 export default {
   name: "ClientProfile",
@@ -488,6 +444,7 @@ export default {
       // EMAIL OTP VERIFICATION STATE
       showEmailOtpModal: false,
       pendingNewEmail: "",
+      emailOtpStage: "current",
       emailOtpInput: "",
       emailOtpVerifying: false,
       emailOtpError: "",
@@ -496,13 +453,7 @@ export default {
       // CONTACT CHANGE VERIFICATION STATE
       contactPassword: "",
       contactPasswordError: "",
-      showPhoneOtpModal: false,
       pendingNewPhone: "",
-      phoneOtpInput: "",
-      phoneOtpVerifying: false,
-      phoneOtpError: "",
-      phoneOtpCountdown: 0,
-      phoneOtpTimer: null,
       profileMutationVersion: 0,
       // PASSWORD CHANGE MODAL STATE
       showPasswordModal: false,
@@ -522,6 +473,9 @@ export default {
     };
   },
   computed: {
+    hasPassword() {
+      return Boolean(this.user?.password_set_at || this.user?.has_password);
+    },
     avatarSrc() {
       const path = this.user?.avatar_url || this.user?.avatar;
       if (!path) return "";
@@ -600,7 +554,6 @@ export default {
   },
   beforeUnmount() {
     if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
-    if (this.phoneOtpTimer) clearInterval(this.phoneOtpTimer);
   },
   methods: {
     async refreshAccountData() {
@@ -661,10 +614,11 @@ export default {
       if (isEmailChanged) {
         this.pendingNewEmail = normalizedEmail;
         this.pendingNewPhone = isPhoneChanged ? normalizedPhone : "";
+        this.emailOtpStage = "current";
         await this.sendEmailOtp();
       } else if (isPhoneChanged) {
         this.pendingNewPhone = normalizedPhone;
-        await this.sendPhoneOtp();
+        await this.changePhoneDirect();
       } else {
         await this.executeSaveProfile(this.user?.email || "", currentPhone);
       }
@@ -674,7 +628,11 @@ export default {
       this.emailOtpInput = "";
       this.emailOtpError = "";
       try {
-        await authService.requestEmailChangeOtp(this.pendingNewEmail, this.contactPassword);
+        await authService.requestEmailChangeOtp({
+          stage: this.emailOtpStage,
+          email: this.emailOtpStage === "new" ? this.pendingNewEmail : "",
+          current_password: this.emailOtpStage === "current" ? this.contactPassword : "",
+        });
         this.showEmailOtpModal = true;
         this.startEmailOtpCountdown();
       } catch (error) {
@@ -698,7 +656,16 @@ export default {
       this.emailOtpVerifying = true;
       this.emailOtpError = "";
       try {
-        const response = await authService.verifyEmailChangeOtp(this.pendingNewEmail, this.emailOtpInput);
+        const response = await authService.verifyEmailChangeOtp({
+          stage: this.emailOtpStage,
+          email: this.emailOtpStage === "new" ? this.pendingNewEmail : "",
+          otp: this.emailOtpInput,
+        });
+        if (this.emailOtpStage === "current") {
+          this.emailOtpStage = "new";
+          await this.sendEmailOtp();
+          return;
+        }
         this.profileMutationVersion++;
         const currentAuth = getAuth() || {};
         const mergedUser = {
@@ -710,7 +677,7 @@ export default {
         this.showEmailOtpModal = false;
         if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
         if (this.pendingNewPhone) {
-          await this.sendPhoneOtp();
+          await this.changePhoneDirect();
         } else {
           await this.executeSaveProfile(this.formData.email, this.user?.phone || "");
         }
@@ -722,38 +689,13 @@ export default {
     },
     closeEmailOtpModal() {
       this.showEmailOtpModal = false;
+      this.emailOtpStage = "current";
       this.formData.email = this.user?.email || "";
       if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
     },
-    startPhoneOtpCountdown() {
-      this.phoneOtpCountdown = 60;
-      if (this.phoneOtpTimer) clearInterval(this.phoneOtpTimer);
-      this.phoneOtpTimer = setInterval(() => {
-        if (this.phoneOtpCountdown > 0) {
-          this.phoneOtpCountdown--;
-        } else {
-          clearInterval(this.phoneOtpTimer);
-        }
-      }, 1000);
-    },
-    async sendPhoneOtp() {
-      this.phoneOtpInput = "";
-      this.phoneOtpError = "";
+    async changePhoneDirect() {
       try {
-        await authService.requestPhoneChangeOtp(this.pendingNewPhone, this.contactPassword);
-        this.showPhoneOtpModal = true;
-        this.startPhoneOtpCountdown();
-      } catch (error) {
-        this.contactPasswordError = error.data?.errors?.current_password?.[0] || "";
-        this.saveStatusClass = "is-error";
-        this.saveMessage = error.message || "Không thể gửi OTP xác nhận số điện thoại.";
-      }
-    },
-    async verifyPhoneOtp() {
-      this.phoneOtpVerifying = true;
-      this.phoneOtpError = "";
-      try {
-        const response = await authService.verifyPhoneChangeOtp(this.pendingNewPhone, this.phoneOtpInput);
+        const response = await authService.changePhone(this.pendingNewPhone, this.contactPassword);
         this.profileMutationVersion++;
         const currentAuth = getAuth() || {};
         const mergedUser = {
@@ -762,19 +704,12 @@ export default {
         };
         this.user = saveAuth({ ...currentAuth, user: mergedUser });
         this.formData.phone = this.user?.phone || this.pendingNewPhone;
-        this.showPhoneOtpModal = false;
-        if (this.phoneOtpTimer) clearInterval(this.phoneOtpTimer);
-        await this.executeSaveProfile(this.user?.email || "", this.formData.phone);
+        await this.executeSaveProfile(this.formData.email || this.user?.email || "", this.formData.phone);
       } catch (error) {
-        this.phoneOtpError = error.message || "Mã xác thực không hợp lệ. Vui lòng thử lại.";
-      } finally {
-        this.phoneOtpVerifying = false;
+        this.contactPasswordError = error.data?.errors?.current_password?.[0] || error.data?.errors?.phone?.[0] || "";
+        this.saveStatusClass = "is-error";
+        this.saveMessage = error.message || "Không thể cập nhật số điện thoại.";
       }
-    },
-    closePhoneOtpModal() {
-      this.showPhoneOtpModal = false;
-      this.formData.phone = this.user?.phone || "";
-      if (this.phoneOtpTimer) clearInterval(this.phoneOtpTimer);
     },
     // EXECUTE SAVE PROFILE
     async executeSaveProfile(finalEmail, finalPhone) {
@@ -830,14 +765,18 @@ export default {
     },
     async submitPasswordChange() {
       this.pwdFieldErrors = { current_password: "", password: "", password_confirmation: "" };
-      if (!this.pwdData.current_password.trim()) {
+      if (this.hasPassword && !this.pwdData.current_password.trim()) {
         this.pwdFieldErrors.current_password = "Vui lòng nhập mật khẩu hiện tại.";
       }
       if (!this.pwdData.password) {
         this.pwdFieldErrors.password = "Vui lòng nhập mật khẩu mới.";
       } else if (this.pwdData.password.length < 8) {
         this.pwdFieldErrors.password = "Mật khẩu mới phải có ít nhất 8 ký tự.";
-      } else if (this.pwdData.password === this.pwdData.current_password) {
+      } else if (this.pwdData.password.length > 50) {
+        this.pwdFieldErrors.password = "Mật khẩu không được vượt quá 50 ký tự.";
+      } else if (!/(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,50}/.test(this.pwdData.password)) {
+        this.pwdFieldErrors.password = "Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt.";
+      } else if (this.hasPassword && this.pwdData.password === this.pwdData.current_password) {
         this.pwdFieldErrors.password = "Mật khẩu mới phải khác mật khẩu hiện tại.";
       }
       if (this.pwdData.password !== this.pwdData.password_confirmation) {
@@ -850,13 +789,18 @@ export default {
       this.pwdError = "";
       this.pwdSuccess = "";
       try {
-        const res = await authService.changePassword(this.pwdData);
+        const res = this.hasPassword
+          ? await authService.changePassword(this.pwdData)
+          : await authService.setPassword(this.pwdData.password, this.pwdData.password_confirmation);
         this.pwdSuccess = res.message || "Đổi mật khẩu thành công!";
-        setTimeout(() => {
-          this.closePasswordModal();
-        }, 1500);
+        if (res?.requires_relogin) {
+          clearAuth();
+          window.location.assign('/login?password_updated=1');
+          return;
+        }
+        setTimeout(() => this.closePasswordModal(), 1500);
       } catch (err) {
-        this.pwdError = err.message || "Mật khẩu hiện tại không đúng hoặc mật khẩu không đủ độ dài.";
+        this.pwdError = err.message || "Không thể cập nhật mật khẩu. Vui lòng thử lại.";
       } finally {
         this.pwdSaving = false;
       }

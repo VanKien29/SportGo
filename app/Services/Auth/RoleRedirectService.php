@@ -106,6 +106,8 @@ class RoleRedirectService
             'email' => $user->email,
             'phone' => $user->phone,
             'email_verified_at' => $user->email_verified_at,
+            'password_set_at' => $user->password_set_at,
+            'has_password' => filled($user->password_set_at),
             'status' => $user->status,
             'avatar_url' => $user->avatar_url,
             'bio' => $user->bio,

@@ -67,7 +67,7 @@
 </template>
 
 <script>
-import { setPassword, clearPasswordSetupFlag } from '../stores/auth.js';
+import { setPassword, clearAuth, clearPasswordSetupFlag } from '../stores/auth.js';
 import { systemName } from '../stores/systemProfile.js';
 
 export default {
@@ -120,8 +120,15 @@ export default {
       this.isLoading = true;
 
       try {
-        await setPassword(this.password, this.confirm);
+        const response = await setPassword(this.password, this.confirm);
         clearPasswordSetupFlag();
+        // Backend thu hồi token hiện tại và mọi phiên khác sau khi đặt mật khẩu.
+        // Xóa auth local rồi đưa người dùng về login để không giữ giao diện giả đã đăng nhập.
+        if (response?.requires_relogin) {
+          clearAuth();
+          window.location.assign('/login?password_updated=1');
+          return;
+        }
         this.show = false;
         this.$emit('done');
       } catch (error) {

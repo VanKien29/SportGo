@@ -90,9 +90,10 @@ class AdminForgotPasswordController extends Controller
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
+            'password_set_at' => now(),
         ])->save();
 
-        $user->tokens()->delete();
+        $user->revokeAllAccess();
 
         return response()->json([
             'message' => 'Đặt lại mật khẩu quản trị thành công. Vui lòng đăng nhập lại.',

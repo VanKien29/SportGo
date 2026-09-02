@@ -59,31 +59,24 @@ export const authService = {
     return apiFormData('/api/auth/profile', formData);
   },
 
-  requestEmailChangeOtp(email, current_password) {
+  requestEmailChangeOtp({ stage = 'current', email = '', current_password = '' } = {}) {
     return api('/api/auth/profile/email/request-otp', {
       method: 'POST',
-      body: JSON.stringify({ email, current_password }),
+      body: JSON.stringify({ stage, ...(email ? { email } : {}), ...(current_password ? { current_password } : {}) }),
     });
   },
 
-  verifyEmailChangeOtp(email, otp) {
+  verifyEmailChangeOtp({ stage = 'current', email = '', otp } = {}) {
     return api('/api/auth/profile/email/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ email, otp }),
+      body: JSON.stringify({ stage, ...(email ? { email } : {}), otp }),
     });
   },
 
-  requestPhoneChangeOtp(phone, current_password) {
-    return api('/api/auth/profile/phone/request-otp', {
+  changePhone(phone, current_password) {
+    return api('/api/auth/profile/phone/change', {
       method: 'POST',
       body: JSON.stringify({ phone, current_password }),
-    });
-  },
-
-  verifyPhoneChangeOtp(phone, otp) {
-    return api('/api/auth/profile/phone/verify-otp', {
-      method: 'POST',
-      body: JSON.stringify({ phone, otp }),
     });
   },
 
