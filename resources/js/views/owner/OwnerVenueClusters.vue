@@ -150,30 +150,28 @@
                             />
                         </div>
 
-                        <div class="form-group" style="margin-top: 16px;">
-                            <label for="court-edit-status">Trạng thái</label>
-                            <select
-                                id="court-edit-status"
-                                v-model="editCourtForm.status"
-                                class="form-control"
-                                required
-                            >
-                                <option value="active">Đang hoạt động</option>
-                                <option value="inactive">Tạm ngưng</option>
-                                <option value="maintenance">Bảo trì</option>
-                            </select>
-                        </div>
+                        <div class="form-row-2col" style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="court-edit-status">Trạng thái</label>
+                                <BaseCombobox
+                                    id="court-edit-status"
+                                    v-model="editCourtForm.status"
+                                    :options="courtStatusOptions"
+                                    placeholder="Chọn trạng thái"
+                                />
+                            </div>
 
-                        <div class="form-group" style="margin-top: 16px;">
-                            <label for="court-edit-sort-order">Thứ tự hiển thị</label>
-                            <input
-                                id="court-edit-sort-order"
-                                v-model.number="editCourtForm.sort_order"
-                                type="number"
-                                class="form-control"
-                                min="0"
-                                step="1"
-                            />
+                            <div class="form-group" style="margin: 0;">
+                                <label for="court-edit-sort-order">Thứ tự hiển thị</label>
+                                <input
+                                    id="court-edit-sort-order"
+                                    v-model.number="editCourtForm.sort_order"
+                                    type="number"
+                                    class="form-control"
+                                    min="0"
+                                    step="1"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -1538,6 +1536,13 @@ export default {
     },
 
     computed: {
+        courtStatusOptions() {
+            return [
+                { value: 'active', label: 'Đang hoạt động' },
+                { value: 'inactive', label: 'Tạm ngưng' },
+                { value: 'maintenance', label: 'Bảo trì' },
+            ];
+        },
         isModerationLocked() {
             return this.selectedCluster?.status === "locked";
         },

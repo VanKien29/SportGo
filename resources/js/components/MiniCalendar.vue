@@ -506,13 +506,13 @@ export default {
 
 .mini-cal-day-btn.today:not(.selected) .mini-cal-day-num {
     font-weight: 700;
-    color: var(--admin-accent, #10b981);
+    color: var(--admin-primary, #5c7e6e);
 }
 
 .mini-cal-day-btn.selected,
 .mini-cal-day-btn.range-start,
 .mini-cal-day-btn.range-end {
-    background: var(--admin-accent, #10b981) !important;
+    background: var(--admin-primary, #5c7e6e) !important;
     color: #ffffff !important;
     font-weight: 600;
 }

@@ -233,34 +233,30 @@
                             </div>
                         </div>
 
-                        <div v-if="editingId" class="form-group">
-                            <label for="court-status"
-                                >Trạng thái sân
-                                <span class="required">*</span></label
-                            >
-                            <select
-                                id="court-status"
-                                v-model="form.status"
-                                class="form-control"
-                                required
-                            >
-                                <option value="active">Đang hoạt động</option>
-                                <option value="inactive">
-                                    Tạm ngưng hoạt động
-                                </option>
-                                <option value="maintenance">Bảo trì</option>
-                            </select>
-                        </div>
+                        <div class="form-row-2col" style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div v-if="editingId" class="form-group" style="margin: 0;">
+                                <label for="court-status"
+                                    >Trạng thái sân
+                                    <span class="required">*</span></label
+                                >
+                                <BaseCombobox
+                                    id="court-status"
+                                    v-model="form.status"
+                                    :options="courtStatusOptions"
+                                    placeholder="Chọn trạng thái"
+                                />
+                            </div>
 
-                        <div class="form-group">
-                            <label for="sort-order">Thứ tự hiển thị</label>
-                            <input
-                                id="sort-order"
-                                v-model.number="form.sort_order"
-                                type="number"
-                                min="0"
-                                class="form-control"
-                            />
+                            <div class="form-group" style="margin: 0;">
+                                <label for="sort-order">Thứ tự hiển thị</label>
+                                <input
+                                    id="sort-order"
+                                    v-model.number="form.sort_order"
+                                    type="number"
+                                    min="0"
+                                    class="form-control"
+                                />
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -288,6 +284,7 @@
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import BaseCombobox from "../../components/BaseCombobox.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { courtTypeService } from "../../services/courtTypes";
@@ -295,7 +292,7 @@ import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, SaaSTable },
+    components: { ActionIconButton, AppIcon, SaaSTable, BaseCombobox },
     data() {
         return {
             clusterId:
@@ -336,6 +333,13 @@ export default {
         };
     },
     computed: {
+        courtStatusOptions() {
+            return [
+                { value: 'active', label: 'Đang hoạt động' },
+                { value: 'inactive', label: 'Tạm ngưng hoạt động' },
+                { value: 'maintenance', label: 'Bảo trì' },
+            ];
+        },
         groupedCourts() {
             const filtered = this.courts.filter((c) => {
                 if (!this.searchQuery) return true;

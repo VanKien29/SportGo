@@ -92,14 +92,15 @@ export default {
 <style scoped>
 .cluster-action-floating {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
+  bottom: 24px;
+  right: 24px;
   z-index: 9998;
-  transition: right 0.25s ease, transform 0.25s ease;
+  transition: bottom 0.25s ease;
 }
 
 .cluster-action-floating.has-scroll-top {
-  right: 86px;
+  bottom: 78px;
+  right: 24px;
 }
 
 .btn-floating {
@@ -109,37 +110,37 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-floating-bg, #1f2937);
+  background-color: var(--admin-floating-bg, #1e293b);
   color: var(--admin-floating-fg, #ffffff);
-  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
-  box-shadow: none !important;
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
   cursor: pointer;
-  transition: background-color 120ms ease-out, transform 80ms ease-out;
+  transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out;
 }
 
-.btn-floating.never-hover-class-placeholder,
+.btn-floating:hover,
 .btn-floating.is-open {
   transform: translateY(-2px);
-  background-color: var(--admin-floating-hover, #111827);
-  box-shadow: none !important;
+  background-color: #0f172a;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .btn-floating:active {
-  transform: translateY(0) scale(0.97);
-  background-color: var(--admin-floating-active, #0f172a);
+  transform: translateY(0) scale(0.96);
+  background-color: #020617;
 }
 
 .btn-floating:focus-visible {
-  outline: 2px solid var(--admin-primary, #18181b);
-  outline-offset: 3px;
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
 }
 
 .floating-dropdown {
   position: absolute;
   bottom: calc(100% + 10px);
   right: 0;
-  background: var(--admin-floating-panel-bg, #18181b);
-  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
+  background: var(--admin-floating-panel-bg, #1e293b);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.15));
   border-radius: 8px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   z-index: 9999;
@@ -165,26 +166,27 @@ export default {
   transition: background-color 120ms ease-out;
 }
 
-.floating-dropdown button.never-hover-class-placeholder {
-  background: var(--admin-floating-hover, rgba(255, 255, 255, 0.08));
+.floating-dropdown button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .floating-dropdown button:focus-visible {
-  outline: 2px solid var(--admin-primary, #18181b);
+  outline: 2px solid #22c55e;
   outline-offset: -2px;
 }
 
 @media (max-width: 768px) {
   .cluster-action-floating {
     bottom: 20px;
-    right: 20px;
+    right: 16px;
   }
   .cluster-action-floating.has-scroll-top {
-    right: 72px;
+    bottom: 70px;
+    right: 16px;
   }
   .btn-floating {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
   }
 }
 </style>

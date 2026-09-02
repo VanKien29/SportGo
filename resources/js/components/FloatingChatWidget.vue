@@ -1,5 +1,5 @@
 <template>
-  <div v-if="showWidget" class="sg-floating-chat-wrap">
+  <div v-if="showWidget" class="sg-floating-chat-wrap" :class="{ 'is-portal': isPortal }">
     <!-- Mini Chat Popup Window -->
     <div v-if="isOpen" class="sg-mini-chat-panel">
       <!-- Panel Header -->
@@ -240,6 +240,10 @@ export default {
       const path = this.$route?.path || "";
       if (path.includes("/chat") || path === "/messages" || path.includes("/venues/map")) return false;
       return true;
+    },
+    isPortal() {
+      const path = this.$route?.path || "";
+      return /^\/(?:admin|owner|staff)(?:\/|$)/.test(path);
     },
     headerTitle() {
       if (!this.user) return "Hỗ trợ trực tuyến";
@@ -607,6 +611,11 @@ export default {
   bottom: 78px;
   right: 24px;
   z-index: 9998;
+  transition: bottom 0.25s ease;
+}
+
+.sg-floating-chat-wrap.is-portal {
+  bottom: 132px;
 }
 
 /* MINI CHAT PANEL WINDOW */
@@ -1003,6 +1012,10 @@ export default {
 @media (max-width: 640px) {
   .sg-floating-chat-wrap {
     bottom: 70px;
+    right: 16px;
+  }
+  .sg-floating-chat-wrap.is-portal {
+    bottom: 120px;
     right: 16px;
   }
   .sg-mini-chat-panel {

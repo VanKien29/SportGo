@@ -2511,9 +2511,9 @@ export default {
 }
 
 .period-tabs button.active {
-    background: var(--admin-accent, #10b981);
+    background: var(--admin-primary, #5c7e6e);
     color: #ffffff;
-    border-color: var(--admin-accent, #10b981);
+    border-color: var(--admin-primary, #5c7e6e);
     font-weight: 500;
 }
 
