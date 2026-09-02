@@ -141,6 +141,8 @@ class BookingService
             $startTime = $data['start_time'];
             $endTime = $data['end_time'];
             $paymentOption = $data['payment_option'];
+            $requiresApproval = in_array($paymentOption, ['no_prepay', 'deposit'], true);
+            $approvalCreatedAt = now();
 
             $court = VenueCourt::query()->with('venueCluster')->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
             $venueClusterId = $court->venue_cluster_id;
@@ -154,7 +156,11 @@ class BookingService
             }
 
             $this->assertWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime);
-            $this->assertMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime);
+            if ($requiresApproval) {
+                $this->bookingApprovals->assertApprovalWindowAvailable($bookingDate, $startTime, $approvalCreatedAt);
+            } else {
+                $this->assertMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime);
+            }
 
             // 1. Kiểm tra tính trống của sân
             if (! $this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
@@ -268,10 +274,10 @@ class BookingService
                     ? $this->bookingApprovals->approvalDeadlineForValues(
                         $bookingDate,
                         $startTime,
-                        now(),
-                        $this->configuredSlotHoldMinutes($venueClusterId),
+                        $approvalCreatedAt,
                     )
                     : null,
+                'created_at' => $approvalCreatedAt,
                 'created_by' => $customerId,
             ]);
 
@@ -300,6 +306,16 @@ class BookingService
             $this->validateTimeRanges($timeRanges);
             $this->ensureRangesAreNotInPast($data['booking_date'], $timeRanges, 'start_time');
             $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+            $requiresApproval = in_array($data['payment_option'], ['no_prepay', 'deposit'], true);
+            $approvalCreatedAt = now();
+
+            if ($requiresApproval) {
+                $this->bookingApprovals->assertApprovalWindowAvailable(
+                    $data['booking_date'],
+                    $timeRanges[0]['start_time'],
+                    $approvalCreatedAt,
+                );
+            }
 
             foreach ($timeRanges as $range) {
                 $this->assertWithinOperatingHours(
@@ -308,7 +324,9 @@ class BookingService
                     $range['start_time'],
                     $range['end_time'],
                 );
-                $this->assertMinimumAdvanceNotice($court->venue_cluster_id, $data['booking_date'], $range['start_time']);
+                if (! $requiresApproval) {
+                    $this->assertMinimumAdvanceNotice($court->venue_cluster_id, $data['booking_date'], $range['start_time']);
+                }
 
                 if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
                     throw ValidationException::withMessages([
@@ -329,6 +347,7 @@ class BookingService
                     'initial_status' => in_array($data['payment_option'], ['no_prepay', 'deposit'], true)
                         ? 'pending_approval'
                         : 'pending_payment',
+                    'approval_created_at' => $approvalCreatedAt,
                     'create_counter_payment' => false,
                 ]),
                 $actor,
@@ -964,6 +983,8 @@ class BookingService
             return collect();
         }
 
+        $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
+
         $existingLocks = SlotLock::query()
             ->where('booking_id', $booking->id)
             ->where('lock_type', 'auto')
@@ -981,10 +1002,14 @@ class BookingService
                 $deadline = $this->storageDateTime(
                     Carbon::parse($deadline)->setTimezone($this->businessTimezone()),
                 );
+                $lockUpdate = ['expires_at' => $deadline];
+                if ($booking->status === 'pending_approval') {
+                    $lockUpdate['reason'] = $this->temporaryHoldReason($booking, $slotHoldMinutes);
+                }
                 SlotLock::query()
                     ->where('booking_id', $booking->id)
                     ->where('lock_type', 'auto')
-                    ->update(['expires_at' => $deadline]);
+                    ->update($lockUpdate);
             }
 
             if ($booking->status === 'pending_payment' && $deadline) {
@@ -997,7 +1022,6 @@ class BookingService
         }
 
         $booking->loadMissing('items');
-        $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
         $expiresAt = $booking->status === 'pending_approval'
             ? $this->bookingApprovals->approvalDeadline($booking)
             : ($booking->payment_deadline_at
@@ -1069,7 +1093,12 @@ class BookingService
     private function temporaryHoldReason(Booking $booking, int $minutes): string
     {
         if ($booking->status === 'pending_approval') {
-            return "Giữ chỗ chờ chủ sân duyệt trong {$minutes} phút.";
+            $deadline = $this->bookingApprovals->approvalDeadline($booking)->setTimezone($this->businessTimezone());
+            $remainingMinutes = max(0, (int) ceil(
+                $this->businessNow()->diffInSeconds($deadline, false) / 60,
+            ));
+
+            return 'Giữ chỗ chờ chủ sân duyệt đến '.$deadline->format('H:i').' (còn tối đa '.$remainingMinutes.' phút).';
         }
 
         return "Giữ chỗ chờ thanh toán trong {$minutes} phút.";
@@ -1409,6 +1438,14 @@ class BookingService
         $status = $data['initial_status'] ?? $this->initialCounterStatus($data['payment_option'], $isPaid);
         $startTime = $timeRanges[0]['start_time'];
         $endTime = $timeRanges[array_key_last($timeRanges)]['end_time'];
+        $approvalCreatedAt = $data['approval_created_at'] ?? now();
+        if (! $approvalCreatedAt instanceof Carbon) {
+            $approvalCreatedAt = Carbon::parse($approvalCreatedAt);
+        }
+
+        if ($status === 'pending_approval') {
+            $this->bookingApprovals->assertApprovalWindowAvailable($bookingDate, $startTime, $approvalCreatedAt);
+        }
 
         $booking = Booking::query()->create([
             'booking_code' => $this->uniqueBookingCode(),
@@ -1451,10 +1488,10 @@ class BookingService
                 ? $this->bookingApprovals->approvalDeadlineForValues(
                     $bookingDate,
                     $startTime,
-                    now(),
-                    $this->configuredSlotHoldMinutes($court->venue_cluster_id),
+                    $approvalCreatedAt,
                 )
                 : null,
+            'created_at' => $approvalCreatedAt,
             'walk_in_name' => $data['walk_in_name'] ?? null,
             'walk_in_phone' => $data['walk_in_phone'] ?? null,
             'created_by' => $actor->id,

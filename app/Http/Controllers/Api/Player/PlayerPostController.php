@@ -184,6 +184,80 @@ class PlayerPostController extends Controller
     }
 
     /**
+     * Return every matchmaking post created by the authenticated player.
+     *
+     * Unlike the public feed, this includes closed and expired posts so the
+     * account page can be used as a reliable history/management view.
+     */
+    public function myPosts(Request $request): JsonResponse
+    {
+        $posts = PlayerPost::query()
+            ->with([
+                'booking.venueCluster:id,name,address',
+                'booking.venueCourt.courtType.parent',
+            ])
+            ->withCount([
+                'participants as approved_players_count' => fn ($query) => $query
+                    ->where('player_post_participants.status', 'approved'),
+                'participants as pending_requests_count' => fn ($query) => $query
+                    ->where('player_post_participants.status', 'pending'),
+            ])
+            ->where('author_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->paginate(min(max((int) $request->input('per_page', 15), 5), 50));
+
+        // Keep the displayed status in sync when the deadline has passed,
+        // including for posts that are no longer visible in the public feed.
+        $posts->getCollection()->each(fn (PlayerPost $post) => $this->synchronizeLifecycle($post));
+
+        $data = $posts->getCollection()->map(function (PlayerPost $post) {
+            $booking = $post->booking;
+            $court = $booking?->venueCourt;
+            $courtInfo = $this->resolveCourtTypeInfo($court);
+
+            return [
+                'id' => $post->id,
+                'title' => $post->title,
+                'description' => $post->description,
+                'image_url' => $post->image_url,
+                'needed_players' => (int) $post->needed_players,
+                'approved_players' => (int) ($post->approved_players_count ?? 0),
+                'pending_requests' => (int) ($post->pending_requests_count ?? 0),
+                'total_players' => (int) ($post->approved_players_count ?? 0) + (int) $post->needed_players,
+                'skill_level' => $post->skill_level ?? 'all',
+                'cost_type' => $post->cost_type ?? 'free',
+                'cost_per_player' => (float) ($post->cost_per_player ?? 0),
+                'status' => $post->status,
+                'status_reason' => $post->status_reason,
+                'created_at' => $post->created_at,
+                'booking' => [
+                    'id' => $booking?->id,
+                    'date' => $booking?->booking_date?->format('Y-m-d'),
+                    'start_time' => $booking?->start_time ? substr((string) $booking->start_time, 0, 5) : null,
+                    'end_time' => $booking?->end_time ? substr((string) $booking->end_time, 0, 5) : null,
+                    'time' => $booking
+                        ? substr((string) $booking->start_time, 0, 5) . ' - ' . substr((string) $booking->end_time, 0, 5)
+                        : null,
+                    'venue_name' => $booking?->venueCluster?->name ?? 'Cụm sân thể thao',
+                    'venue_address' => $booking?->venueCluster?->address ?? '',
+                    'court_name' => $court?->name ?? '',
+                    'sport_name' => $courtInfo['sport_name'],
+                    'court_type_name' => $courtInfo['court_type_name'],
+                    'sport_icon' => $courtInfo['sport_icon'],
+                ],
+            ];
+        })->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+            'current_page' => $posts->currentPage(),
+            'last_page' => $posts->lastPage(),
+            'total' => $posts->total(),
+        ]);
+    }
+
+    /**
      * Participation history for the authenticated user. This is intentionally
      * separate from the public feed so ended posts remain visible privately.
      */

@@ -189,10 +189,40 @@
               <h2>Kèo sắp tới</h2>
               <button v-if="isPlayer" type="button" class="icon-button" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true"><AppIcon name="plus" /></button>
             </header>
+            <div v-if="!matchmakingLoading && !matchmakingError" class="matchmaking-filters">
+              <form class="matchmaking-search" @submit.prevent>
+                <AppIcon name="search" />
+                <input v-model.trim="matchmakingSearch" type="search" placeholder="Tìm theo sân, môn, nội dung..." aria-label="Tìm kèo sắp tới" />
+              </form>
+              <div class="matchmaking-filter-grid">
+                <select v-model="matchmakingSport" aria-label="Lọc theo môn thể thao">
+                  <option value="">Tất cả môn thể thao</option>
+                  <option v-for="sport in matchmakingSports" :key="sport" :value="sport">{{ sport }}</option>
+                </select>
+                <select v-model="matchmakingDateRange" aria-label="Lọc theo ngày chơi">
+                  <option value="all">Mọi ngày</option>
+                  <option value="today">Hôm nay</option>
+                  <option value="tomorrow">Ngày mai</option>
+                  <option value="week">7 ngày tới</option>
+                </select>
+                <select v-model="matchmakingSkill" aria-label="Lọc theo trình độ">
+                  <option value="">Mọi trình độ</option>
+                  <option value="beginner">Mới chơi</option>
+                  <option value="intermediate">Trung bình</option>
+                  <option value="advanced">Nâng cao</option>
+                </select>
+                <select v-model="matchmakingCost" aria-label="Lọc theo chi phí">
+                  <option value="">Mọi chi phí</option>
+                  <option value="free">Miễn phí</option>
+                  <option value="paid">Có chia phí</option>
+                </select>
+              </div>
+              <button v-if="hasMatchmakingFilters" type="button" class="matchmaking-clear" @click="clearMatchmakingFilters">Xóa bộ lọc</button>
+            </div>
             <div v-if="matchmakingLoading" class="rail-state"><span class="loader loader-small"></span>Đang tải kèo...</div>
             <div v-else-if="matchmakingError" class="rail-state rail-state--error" role="alert"><AppIcon name="alert" /><p>{{ matchmakingError }}</p><button type="button" class="text-link" @click="fetchMatchmakingPosts">Tải lại</button></div>
-            <div v-else-if="matchmakingPosts.length" class="meetup-list">
-              <article v-for="post in matchmakingPosts" :key="post.id" class="meetup-item">
+            <div v-else-if="filteredMatchmakingPosts.length" class="meetup-list">
+              <article v-for="post in visibleMatchmakingPosts" :key="post.id" class="meetup-item">
                 <header>
                   <button type="button" class="meetup-author" @click="goToUser(post.author?.id)">
                     <span class="avatar avatar-comment"><img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" /><span v-else>{{ initial(post.author?.name) }}</span></span>
@@ -225,7 +255,7 @@
                 <router-link v-else class="button button-secondary meetup-action" :to="'/matchmaking-posts/' + post.id + '/manage'">Quản lý yêu cầu</router-link>
               </article>
             </div>
-            <div v-else class="rail-state"><AppIcon name="users" /><p>Chưa có kèo công khai sắp tới.</p><button v-if="isPlayer" type="button" class="text-link" @click="showMeetupModal = true">Tạo kèo đầu tiên</button></div>
+            <div v-else class="rail-state"><AppIcon name="users" /><p>{{ hasMatchmakingFilters ? 'Không tìm thấy kèo phù hợp với bộ lọc.' : 'Chưa có kèo công khai sắp tới.' }}</p><button v-if="hasMatchmakingFilters" type="button" class="text-link" @click="clearMatchmakingFilters">Xóa bộ lọc</button><button v-else-if="isPlayer" type="button" class="text-link" @click="showMeetupModal = true">Tạo kèo đầu tiên</button></div>
           </section>
           <section class="surface rail-note"><AppIcon name="shield" /><div><strong>Không gian chơi lành mạnh</strong><p>Chia sẻ lịch sự, tôn trọng thông tin cá nhân và chỉ đăng nội dung liên quan thể thao.</p></div></section>
         </aside>
@@ -312,9 +342,53 @@ const replyingTo = reactive({});
 const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
 const matchmakingError = ref('');
+const matchmakingSearch = ref('');
+const matchmakingSport = ref('');
+const matchmakingDateRange = ref('all');
+const matchmakingSkill = ref('');
+const matchmakingCost = ref('');
 const joiningPostId = ref(null);
 let matchmakingRequestController = null;
 let matchmakingRequestId = 0;
+
+const matchmakingSports = computed(() => Array.from(new Set(
+  matchmakingPosts.value
+    .map((post) => post.booking?.sport_name)
+    .filter(Boolean),
+)).sort((left, right) => left.localeCompare(right, 'vi')));
+
+const hasMatchmakingFilters = computed(() => Boolean(
+  matchmakingSearch.value ||
+  matchmakingSport.value ||
+  matchmakingSkill.value ||
+  matchmakingCost.value ||
+  matchmakingDateRange.value !== 'all',
+));
+
+const filteredMatchmakingPosts = computed(() => {
+  const keyword = matchmakingSearch.value.toLocaleLowerCase('vi-VN');
+  return matchmakingPosts.value.filter((post) => {
+    const searchableText = [
+      post.title,
+      post.description,
+      post.author?.name,
+      post.booking?.venue_name,
+      post.booking?.venue_address,
+      post.booking?.court_name,
+      post.booking?.sport_name,
+      post.booking?.court_type_name,
+    ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
+
+    if (keyword && !searchableText.includes(keyword)) return false;
+    if (matchmakingSport.value && post.booking?.sport_name !== matchmakingSport.value) return false;
+    if (matchmakingSkill.value && (post.skill_level || 'all') !== matchmakingSkill.value) return false;
+    if (matchmakingCost.value === 'free' && post.cost_type !== 'free') return false;
+    if (matchmakingCost.value === 'paid' && post.cost_type === 'free') return false;
+    return matchesMatchmakingDate(post.booking?.date, matchmakingDateRange.value);
+  });
+});
+
+const visibleMatchmakingPosts = computed(() => filteredMatchmakingPosts.value.slice(0, 5));
 
 async function loadCurrentFeed({ page = 1, append = false } = {}) {
   if (feedTab.value === 'my_posts') {
@@ -410,14 +484,14 @@ async function fetchMatchmakingPosts() {
   matchmakingLoading.value = true;
   matchmakingError.value = '';
   try {
-    const response = await api('/api/matchmaking-posts', {
+    const response = await api('/api/matchmaking-posts?per_page=50', {
       signal: controller.signal,
       dedupe: false,
     });
     if (requestId !== matchmakingRequestId) return;
     const payload = response?.data;
     const items = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
-    matchmakingPosts.value = items.slice(0, 5);
+    matchmakingPosts.value = items;
   } catch (requestError) {
     if (controller.signal.aborted || requestId !== matchmakingRequestId) return;
     matchmakingPosts.value = [];
@@ -428,6 +502,29 @@ async function fetchMatchmakingPosts() {
       matchmakingRequestController = null;
     }
   }
+}
+
+function matchesMatchmakingDate(value, range) {
+  if (!value || range === 'all') return true;
+  const target = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffInDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+
+  if (range === 'today') return diffInDays === 0;
+  if (range === 'tomorrow') return diffInDays === 1;
+  if (range === 'week') return diffInDays >= 0 && diffInDays <= 7;
+  return true;
+}
+
+function clearMatchmakingFilters() {
+  matchmakingSearch.value = '';
+  matchmakingSport.value = '';
+  matchmakingDateRange.value = 'all';
+  matchmakingSkill.value = '';
+  matchmakingCost.value = '';
 }
 
 function applyFilters() {
@@ -1070,6 +1167,14 @@ onBeforeUnmount(() => {
 .end-of-feed { margin: 0; color: var(--community-muted); font-size: 12px; text-align: center; }
 .rail-panel { padding: 22px; }
 .rail-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.matchmaking-filters { display: grid; gap: 8px; margin: 0 0 4px; padding-bottom: 12px; border-bottom: 1px solid var(--community-line); }
+.matchmaking-search { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 10px; border: 1px solid var(--community-line); border-radius: 7px; color: var(--community-muted); background: #fbfdfb; }
+.matchmaking-search:focus-within { border-color: var(--community-accent); box-shadow: 0 0 0 3px rgba(20, 122, 70, .08); }
+.matchmaking-search input { min-width: 0; flex: 1; height: 32px; border: 0; outline: 0; color: var(--community-ink); background: transparent; font: inherit; font-size: 12px; }
+.matchmaking-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.matchmaking-filter-grid select { width: 100%; min-width: 0; height: 34px; padding: 0 7px; border: 1px solid var(--community-line); border-radius: 6px; color: var(--community-ink); background: #fff; font: inherit; font-size: 11px; }
+.matchmaking-filter-grid select:focus { outline: 0; border-color: var(--community-accent); box-shadow: 0 0 0 3px rgba(20, 122, 70, .08); }
+.matchmaking-clear { justify-self: end; padding: 0; border: 0; color: var(--community-accent-dark); background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
 .meetup-list { display: flex; flex-direction: column; }
 .meetup-item { padding: 18px 0; border-bottom: 1px solid var(--community-line); }
 .meetup-item:last-child { border-bottom: none; }

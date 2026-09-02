@@ -2428,6 +2428,9 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px 28px 32px;
 }
 
 /* ── Detail header ── */
@@ -3528,6 +3531,10 @@ export default {
     }
 }
 @media (max-width: 600px) {
+    .admin-page {
+        padding: 16px;
+    }
+
     .meta-grid {
         grid-template-columns: 1fr;
     }

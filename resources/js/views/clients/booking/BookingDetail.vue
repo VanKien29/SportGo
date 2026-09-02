@@ -409,6 +409,14 @@
                                 >
                                     Hiện mã QR
                                 </button>
+                                <button
+                                    v-if="depositApproval && !paymentLoading"
+                                    type="button"
+                                    class="bd-btn bd-btn--outline bd-payment-retry"
+                                    @click="loadPaymentInfo(true)"
+                                >
+                                    Thanh toán đủ 100% để xác nhận ngay
+                                </button>
                             </div>
 
                             <div
@@ -664,8 +672,14 @@
                         </p>
 
                         <div class="bd-refund-preview">
-                            <span>Chính sách hoàn tiền:</span>
-                            <strong>{{ cancelDescription }}</strong>
+                            <div class="bd-refund-preview__row">
+                                <span>Số tiền dự kiến hoàn:</span>
+                                <strong>{{ cancelRefundAmountLabel }}</strong>
+                            </div>
+                            <div class="bd-refund-preview__reason">
+                                <span>Lý do áp dụng:</span>
+                                <p>{{ cancelRefundReason }}</p>
+                            </div>
                             <small v-if="cancelPreview?.refund_amount > 0">
                                 Yêu cầu hoàn sẽ được chuyển cho chủ sân xác nhận trước khi cộng vào Ví SportGo.
                             </small>
@@ -708,7 +722,12 @@
                         <button
                             type="button"
                             class="bd-btn bd-btn--danger"
-                            :disabled="cancellingBooking || cancelPreviewLoading || !cancelPreview"
+                            :disabled="
+                                cancellingBooking ||
+                                cancelPreviewLoading ||
+                                !cancelPreview ||
+                                cancelPreview.allow_cancel === false
+                            "
                             @click="cancelBooking"
                         >
                             <span>{{
@@ -1097,6 +1116,14 @@ export default {
                     : this.timeLeft > 0)
             );
         },
+        depositApproval() {
+            return (
+                this.booking?.status === "pending_approval" &&
+                this.booking?.payment_option === "deposit" &&
+                (this.booking?.effective_payment_option ||
+                    this.booking?.payment_option) === "deposit"
+            );
+        },
         paymentAccount() {
             return (
                 this.paymentInfo?.payment_account ||
@@ -1113,22 +1140,39 @@ export default {
                 0
             );
         },
-        cancelDescription() {
-            if (this.cancelPreviewLoading) return "Đang tải chính sách hoàn tiền...";
-            if (!this.cancelPreview) return "Không tải được chính sách hoàn tiền.";
+        cancelRefundAmountLabel() {
+            if (this.cancelPreviewLoading) return "Đang tính...";
+            if (!this.cancelPreview) return "Chưa có dữ liệu";
 
+            const amount = Number(this.cancelPreview.refund_amount || 0);
             const percent = Number(
                 this.cancelPreview.refund_percent ??
                     this.cancelPreview.refund_percentage ??
                     0,
             );
-            const amount = Number(this.cancelPreview.refund_amount || 0);
 
-            if (amount <= 0) {
-                return `Bạn vẫn có thể hủy booking nhưng không được hoàn tiền theo mốc hiện tại (${percent}%).`;
+            return amount > 0
+                ? `${this.formatCurrency(amount)} (${percent}%)`
+                : "0 đ (không hoàn tiền)";
+        },
+        cancelRefundReason() {
+            if (this.cancelPreviewLoading) return "Đang tải lý do áp dụng...";
+            if (!this.cancelPreview) return "Không tải được lý do hoàn tiền.";
+
+            const message = String(
+                this.cancelPreview.customer_message || "",
+            ).trim();
+            const summary = String(this.cancelPreview.summary || "").trim();
+
+            if (message && summary && message !== summary) {
+                return `${message} ${summary}`;
             }
 
-            return `Dự kiến hoàn ${percent}% (${this.formatCurrency(amount)}) vào Ví SportGo.`;
+            return (
+                message ||
+                summary ||
+                "Số tiền hoàn được tính theo mốc thời gian hủy và chính sách hiện tại."
+            );
         },
         refundStatusDescription() {
             const refunds = this.booking?.refunds || [];
@@ -1269,7 +1313,7 @@ export default {
                 }
             }
         },
-        async loadPaymentInfo() {
+        async loadPaymentInfo(payFull = false) {
             if (!this.booking?.id || !this.canPayOnline || this.paymentLoading)
                 return;
 
@@ -1279,6 +1323,7 @@ export default {
             try {
                 this.paymentInfo = await bookingService.createSepayPayment(
                     this.booking.id,
+                    payFull,
                 );
             } catch (err) {
                 this.paymentInfo = null;
@@ -2200,6 +2245,36 @@ export default {
     flex-direction: column;
     gap: 4px;
     font-size: 13px;
+}
+
+.bd-refund-preview__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bd-refund-preview__row strong {
+    color: #047857;
+    text-align: right;
+}
+
+.bd-refund-preview__reason {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 4px;
+}
+
+.bd-refund-preview__reason span {
+    color: #475569;
+    font-weight: 600;
+}
+
+.bd-refund-preview__reason p {
+    margin: 0;
+    color: #334155;
+    line-height: 1.45;
 }
 
 .bd-refund-status-row > div {

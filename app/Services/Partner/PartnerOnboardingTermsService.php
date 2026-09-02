@@ -4,20 +4,24 @@ namespace App\Services\Partner;
 
 use App\Models\PlatformFeeTier;
 use App\Models\SystemPolicy;
+use App\Services\Payments\PlatformFeePricingService;
 use App\Services\Policies\PolicyConfigurationService;
+use Carbon\CarbonImmutable;
 
 class PartnerOnboardingTermsService
 {
     public function payload(): array
     {
-        $tiers = PlatformFeeTier::query()
+        // Tiers belong to a plan version. Reading the whole table here makes
+        // every active/retired copy of a plan appear on the public page.
+        $currentPlan = app(PlatformFeePricingService::class)->planFor(
+            CarbonImmutable::today(config('platform_fee.timezone', 'Asia/Ho_Chi_Minh')),
+        );
+        $tiers = $currentPlan?->tiers
             ->where('is_active', true)
-            ->where(function ($query): void {
-                $query->whereNull('effective_from')
-                    ->orWhere('effective_from', '<=', now());
-            })
-            ->orderBy('min_courts')
-            ->get();
+            ->filter(fn (PlatformFeeTier $tier): bool => ! $tier->effective_from || $tier->effective_from->lte(now()))
+            ->sortBy('min_courts')
+            ->values() ?? collect();
 
         $policies = SystemPolicy::query()
             ->whereIn('key', ['terms', 'platform_fee', 'partner_contract'])

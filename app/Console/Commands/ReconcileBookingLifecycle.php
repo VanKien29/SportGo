@@ -65,7 +65,7 @@ class ReconcileBookingLifecycle extends Command
         if ($booking->status === 'pending_payment') {
             $deadline = $booking->payment_deadline_at
                 ? $booking->payment_deadline_at->copy()->setTimezone($timezone)
-                : $this->approvalOrPaymentDeadline($booking, $config, $start);
+                : $this->paymentDeadline($booking, $config, $start);
             if ($now->greaterThan($deadline)) {
                 $summary['expired']++;
                 if (! $dryRun) $this->expireBooking($booking, $lifecycle);
@@ -103,13 +103,17 @@ class ReconcileBookingLifecycle extends Command
         }
     }
 
-    private function approvalOrPaymentDeadline(Booking $booking, ?BookingConfig $config, Carbon $start): Carbon
+    private function paymentDeadline(Booking $booking, ?BookingConfig $config, Carbon $start): Carbon
     {
+        $timezone = config('app.business_timezone', 'Asia/Ho_Chi_Minh');
         $lockDeadline = $booking->slotLocks->where('lock_type', 'auto')->sortBy('expires_at')->first()?->expires_at;
-        if ($booking->status === 'pending_payment' && $lockDeadline) return Carbon::parse($lockDeadline);
+        if ($booking->status === 'pending_payment' && $lockDeadline) {
+            return Carbon::parse($lockDeadline)->setTimezone($timezone);
+        }
 
         $minutes = (int) ($config?->slot_hold_minutes ?? 20);
-        $createdDeadline = Carbon::parse($booking->created_at)->addMinutes($minutes);
+        $createdDeadline = Carbon::parse($booking->created_at)->setTimezone($timezone)->addMinutes($minutes);
+        $start = $start->copy()->setTimezone($timezone);
 
         return $createdDeadline->lessThan($start) ? $createdDeadline : $start;
     }

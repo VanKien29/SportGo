@@ -471,6 +471,7 @@ const avatarFileInput = ref(null);
 const coverFileInput = ref(null);
 const uploadingAvatar = ref(false);
 const uploadingCover = ref(false);
+let profileRequestSequence = 0;
 
 const isOwnProfile = computed(() => {
   return String(viewer?.id || '') !== '' && String(viewer?.id || '') === String(profileData.value?.user?.id || '');
@@ -664,16 +665,30 @@ async function onCoverFileChange(event) {
 }
 
 async function loadProfile() {
+  const requestId = ++profileRequestSequence;
+  const profileId = String(route.params.id || '');
   profileLoading.value = true;
   profileError.value = '';
-  try {
-    const response = await api(`/api/users/${route.params.id}/profile`);
-    profileData.value = response.data;
-  } catch (error) {
-    profileData.value = null;
-    profileError.value = error.message || 'Không thể tải thông tin người dùng.';
-  } finally {
-    profileLoading.value = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await api(`/api/users/${profileId}/profile`);
+      if (requestId !== profileRequestSequence || String(route.params.id || '') !== profileId) return;
+      profileData.value = response.data;
+      profileLoading.value = false;
+      return;
+    } catch (error) {
+      // A transient 5xx should not expose a false error state when a quick
+      // retry can recover the public profile request.
+      if (attempt === 0 && Number(error?.status || 0) >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+      if (requestId !== profileRequestSequence || String(route.params.id || '') !== profileId) return;
+      profileData.value = null;
+      profileError.value = error.message || 'Không thể tải thông tin người dùng.';
+      profileLoading.value = false;
+      return;
+    }
   }
 }
 

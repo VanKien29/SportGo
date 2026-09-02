@@ -430,7 +430,11 @@
                         </thead>
                         <tbody>
                           <template v-for="(group, gIdx) in card.daysGroups" :key="`g-${gIdx}`">
-                            <tr v-for="(slot, sIdx) in group.slots" :key="slot.id || `s-${sIdx}`">
+                            <tr
+                              v-for="(slot, sIdx) in group.slots"
+                              :key="slot.id || `s-${sIdx}`"
+                              :class="{ 'is-base-price': slot.isBase }"
+                            >
                               <!-- Gộp ô cột Thứ -->
                               <td
                                 v-if="sIdx === 0"
@@ -451,30 +455,33 @@
                       </table>
                     </div>
 
-                    <!-- Bảng giá ngày đặc biệt / ngày lễ (nếu có) -->
-                    <div v-if="card.holidays.length" class="sg-pricing-sub-section">
-                      <div class="sg-pricing-sub-header">
-                        <h4>Ngày đặc biệt &amp; Ngày lễ</h4>
-                      </div>
-                      <div class="sg-pricing-table-container">
-                        <table class="sg-clean-pricing-table">
-                          <thead>
-                            <tr>
-                              <th class="col-day">Ngày áp dụng</th>
-                              <th class="col-time">Khung giờ</th>
-                              <th class="col-price">Giá</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="holiday in card.holidays" :key="holiday.id">
-                              <td class="cell-day">{{ holiday.dateLabel }}</td>
-                              <td class="cell-time">{{ holiday.timeLabel }}</td>
-                              <td class="cell-price">{{ formatPriceBadge(holiday.price) }}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                  </div>
+                </div>
+
+                <!-- Tất cả ngày đặc biệt/ngày lễ được gom vào một bảng chung. -->
+                <div v-if="specialPricingRows.length" class="sg-pricing-sub-section">
+                  <div class="sg-pricing-sub-header">
+                    <h4>Ngày đặc biệt &amp; Ngày lễ</h4>
+                  </div>
+                  <div class="sg-pricing-table-container">
+                    <table class="sg-clean-pricing-table sg-special-pricing-table">
+                      <thead>
+                        <tr>
+                          <th class="col-court">Loại sân</th>
+                          <th class="col-day">Ngày áp dụng</th>
+                          <th class="col-time">Khung giờ</th>
+                          <th class="col-price">Giá</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="holiday in specialPricingRows" :key="holiday.id">
+                          <td class="cell-court">{{ holiday.courtTypeName }}</td>
+                          <td class="cell-day">{{ holiday.dateLabel }}</td>
+                          <td class="cell-time">{{ holiday.timeLabel }}</td>
+                          <td class="cell-price">{{ formatPriceBadge(holiday.price) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -895,18 +902,18 @@ export default {
       courtTypesList.forEach((courtType) => {
         const isGeneral = courtType.id === 'all';
         const typeSlots = (this.priceSlots || []).filter(
-          (ps) => isGeneral || !ps.court_type_id || ps.court_type_id === courtType.id
+          (ps) => isGeneral || !ps.court_type_id || Number(ps.court_type_id) === Number(courtType.id)
         );
 
         const typeBase = (this.basePrices || []).find(
-          (bp) => isGeneral || !bp.court_type_id || bp.court_type_id === courtType.id
-        );
-
-        const typeHolidays = (this.holidayPrices || []).filter(
-          (hp) => isGeneral || !hp.court_type_id || hp.court_type_id === courtType.id
+          (bp) => isGeneral || !bp.court_type_id || Number(bp.court_type_id) === Number(courtType.id)
         );
 
         const daysGroups = [];
+        const fallbackPrice = Number(
+          typeBase?.price ?? this.venue?.system_default_price ?? 10000,
+        );
+
         if (typeSlots.length) {
           const sortedSlots = [...typeSlots].sort((a, b) =>
             (a.start_time || '').localeCompare(b.start_time || '')
@@ -923,37 +930,41 @@ export default {
               id: slot.id,
               timeLabel: this.formatTimeRange(slot.start_time, slot.end_time),
               price: Number(slot.price || 0),
+              isBase: false,
             });
           });
-        } else if (typeBase) {
+        } else {
+          // Chỉ hiển thị giá mặc định khi loại sân chưa có cấu hình khung giờ.
           daysGroups.push({
-            daysLabel: 'T2 - CN',
+            daysLabel: typeBase ? 'Giá chung · Mọi ngày' : 'Mặc định hệ thống · Mọi ngày',
             slots: [
               {
-                id: `base-${typeBase.id}`,
+                id: `base-${isGeneral ? 'all' : courtType.id}-${typeBase?.id || 'system'}`,
                 timeLabel: 'Mọi khung giờ',
-                price: Number(typeBase.price || 0),
+                price: fallbackPrice,
+                isBase: true,
               },
             ],
           });
         }
 
-        if (daysGroups.length || typeHolidays.length) {
-          cards.push({
-            courtTypeId: courtType.id,
-            courtTypeName: courtType.name,
-            daysGroups,
-            holidays: typeHolidays.map((hp) => ({
-              id: hp.id,
-              dateLabel: `${hp.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ'} (${this.formatDate(hp.holiday_date)})`,
-              timeLabel: this.formatTimeRange(hp.start_time, hp.end_time),
-              price: Number(hp.price || 0),
-            })),
-          });
-        }
+        cards.push({
+          courtTypeId: courtType.id,
+          courtTypeName: courtType.name,
+          daysGroups,
+        });
       });
 
       return cards;
+    },
+    specialPricingRows() {
+      return (this.holidayPrices || []).map((holiday) => ({
+        id: holiday.id,
+        courtTypeName: holiday.court_type?.name || 'Tất cả loại sân',
+        dateLabel: `${holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ'} (${this.formatDate(holiday.holiday_date)})`,
+        timeLabel: this.formatTimeRange(holiday.start_time, holiday.end_time),
+        price: Number(holiday.price || 0),
+      }));
     },
     pricingRows() {
       const baseRows = this.basePrices.map((price) => ({
@@ -2374,23 +2385,24 @@ export default {
 
 /* Clean Pricing Cards by Court Type */
 .sg-pricing-cards-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   width: 100%;
 }
 
 .sg-pricing-card {
+  min-width: 0;
   background: #ffffff;
-  border: 1.5px solid #15803d;
-  border-radius: 8px;
+  border: 1px solid #d8e7dd;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(21, 128, 61, 0.06);
+  box-shadow: 0 3px 12px rgba(15, 61, 36, 0.05);
 }
 
 .sg-pricing-card-header {
-  background: #ffffff;
-  border-bottom: 1.5px solid #15803d;
+  background: #f3faf5;
+  border-bottom: 1px solid #d8e7dd;
   padding: 11px 16px;
   text-align: center;
 }
@@ -2405,12 +2417,14 @@ export default {
 
 .sg-pricing-table-container {
   width: 100%;
-  overflow-x: auto;
+  min-width: 0;
+  overflow: visible;
 }
 
 .sg-clean-pricing-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
   font-size: 13.5px;
 }
@@ -2418,16 +2432,27 @@ export default {
 .sg-clean-pricing-table th,
 .sg-clean-pricing-table td {
   padding: 11px 14px;
-  border: 1px solid #15803d;
+  border: 0;
   text-align: center;
   vertical-align: middle;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .sg-clean-pricing-table th {
-  background: #ffffff;
-  color: #15803d;
+  background: #f8fbf9;
+  color: #35664b;
   font-size: 13.5px;
   font-weight: 700;
+  border-bottom: 1px solid #d8e7dd;
+}
+
+.sg-clean-pricing-table tbody tr:nth-child(even) td {
+  background: #fbfdfc;
+}
+
+.sg-clean-pricing-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid #e7efe9;
 }
 
 .sg-clean-pricing-table .col-day {
@@ -2442,11 +2467,31 @@ export default {
   width: 32%;
 }
 
+.sg-special-pricing-table .col-court {
+  width: 22%;
+}
+
+.sg-special-pricing-table .col-day {
+  width: 28%;
+}
+
+.sg-special-pricing-table .col-time {
+  width: 28%;
+}
+
+.sg-special-pricing-table .col-price {
+  width: 22%;
+}
+
 .sg-clean-pricing-table .cell-day {
   font-weight: 600;
   color: #1e293b;
-  background: #ffffff;
   font-size: 13.5px;
+}
+
+.sg-clean-pricing-table .cell-court {
+  color: #355b46;
+  font-weight: 600;
 }
 
 .sg-clean-pricing-table .cell-time {
@@ -2462,15 +2507,28 @@ export default {
   letter-spacing: 0.2px;
 }
 
+.sg-clean-pricing-table tr.is-base-price td {
+  background: #f0fdf4;
+}
+
+.sg-clean-pricing-table tr.is-base-price .cell-day,
+.sg-clean-pricing-table tr.is-base-price .cell-price {
+  color: #166534;
+}
+
 .sg-pricing-sub-section {
-  border-top: 1.5px solid #15803d;
+  margin-top: 14px;
+  border: 1px solid #d8e7dd;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
 }
 
 .sg-pricing-sub-header {
-  background: #f8fafc;
+  background: #f3faf5;
   padding: 8px 16px;
   text-align: center;
-  border-bottom: 1px solid #15803d;
+  border-bottom: 1px solid #d8e7dd;
 }
 
 .sg-pricing-sub-header h4 {
@@ -2488,13 +2546,33 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .sg-pricing-cards-list {
+    grid-template-columns: 1fr;
+  }
+
   .sg-clean-pricing-table th,
   .sg-clean-pricing-table td {
-    padding: 9px 6px;
-    font-size: 12px;
+    padding: 9px 5px;
+    font-size: 11.5px;
   }
   .sg-clean-pricing-table .cell-price {
-    font-size: 12.5px;
+    font-size: 12px;
+  }
+
+  .sg-special-pricing-table .col-court {
+    width: 23%;
+  }
+
+  .sg-special-pricing-table .col-day {
+    width: 29%;
+  }
+
+  .sg-special-pricing-table .col-time {
+    width: 27%;
+  }
+
+  .sg-special-pricing-table .col-price {
+    width: 21%;
   }
 }
 

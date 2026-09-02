@@ -57,13 +57,40 @@ class ReleaseExpiredSlotLocks extends Command
                 if ($lock->booking_id) {
                     $booking = Booking::find($lock->booking_id);
 
-                    if ($booking && ! in_array($booking->id, $handledBookingIds, true)) {
+                    if ($booking && ($booking->status === 'pending_approval'
+                        || ! in_array($booking->id, $handledBookingIds, true))) {
                         $handledBookingIds[] = $booking->id;
+                        $deleteLock = true;
 
                         if ($booking->status === 'pending_payment') {
                             $this->expirePendingPaymentBooking($booking);
                         } elseif ($booking->status === 'pending_approval') {
-                            $bookingApprovals->expireIfDue($booking);
+                            if (! $bookingApprovals->expireIfDue($booking)) {
+                                // An old lock may still carry the payment-hold
+                                // deadline. Keep it until the independent
+                                // owner-approval deadline instead of releasing
+                                // the slot early.
+                                $deadline = $bookingApprovals->approvalDeadline($booking)
+                                    ->setTimezone(config('app.timezone', 'UTC'));
+                                $deadlineBusiness = $deadline->copy()
+                                    ->setTimezone(config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+                                $remainingMinutes = max(0, (int) ceil(
+                                    Carbon::now(config('app.business_timezone', 'Asia/Ho_Chi_Minh'))
+                                        ->diffInSeconds($deadlineBusiness, false) / 60,
+                                ));
+                                SlotLock::query()
+                                    ->where('booking_id', $booking->id)
+                                    ->where('lock_type', 'auto')
+                                    ->update([
+                                        'expires_at' => $deadline,
+                                        'reason' => 'Giữ chỗ chờ chủ sân duyệt đến '.$deadlineBusiness->format('H:i').' (còn tối đa '.$remainingMinutes.' phút).',
+                                    ]);
+                                $deleteLock = false;
+                            }
+                        }
+
+                        if (! $deleteLock) {
+                            return;
                         }
                     }
                 }

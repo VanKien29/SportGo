@@ -49,6 +49,11 @@ const items = [
     to: { name: 'vip-membership' },
   },
   {
+    key: 'matchmaking',
+    label: 'Giao lưu của tôi',
+    to: { name: 'client-matchmaking-management' },
+  },
+  {
     key: 'notifications',
     label: 'Thông báo',
     to: { name: 'client-notifications' },
@@ -70,6 +75,14 @@ function isActive(key) {
   if (key === 'refunds') return route.name === 'client-refunds' || route.name === 'client-refund-detail';
   if (key === 'wallet') return route.name === 'client-wallet';
   if (key === 'vip') return route.name === 'vip-membership';
+  if (key === 'matchmaking') {
+    return [
+      'client-matchmaking-management',
+      'ClientMatchmakingRequests',
+      'ClientMatchmakingRequestDetail',
+      'ClientMatchmakingManage',
+    ].includes(route.name);
+  }
   if (key === 'notifications') return route.name === 'client-notifications';
   if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail' || route.name === 'client-complaint-create';
   if (key === 'policies') return route.name === 'policies';

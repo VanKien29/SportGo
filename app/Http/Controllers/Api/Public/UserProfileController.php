@@ -20,13 +20,35 @@ class UserProfileController extends Controller
     {
         $user = User::select('id', 'full_name', 'username', 'avatar_url', 'cover_image_url', 'created_at')
             ->findOrFail($id);
-        $user->setAttribute(
-            'author_badges',
-            $this->authorBadges->lookup([$user->id])[(string) $user->id] ?? []
-        );
 
-        $totalMatchmakingPosts = PlayerPost::where('author_id', $id)->count();
-        $totalCommunityPosts = CommunityPost::where('author_id', $id)->where('status', 'published')->count();
+        // Badges and counters are optional profile decorations. A missing or
+        // temporarily unavailable auxiliary table must not turn the whole
+        // public profile into a 500 response.
+        try {
+            $user->setAttribute(
+                'author_badges',
+                $this->authorBadges->lookup([$user->id])[(string) $user->id] ?? []
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            $user->setAttribute('author_badges', []);
+        }
+
+        $totalMatchmakingPosts = 0;
+        try {
+            $totalMatchmakingPosts = PlayerPost::where('author_id', $id)->count();
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        $totalCommunityPosts = 0;
+        try {
+            $totalCommunityPosts = CommunityPost::where('author_id', $id)
+                ->where('status', 'published')
+                ->count();
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         return response()->json([
             'status' => 'success',

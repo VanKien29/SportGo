@@ -4021,6 +4021,9 @@ dd {
     max-width: none;
     gap: 18px;
     color: var(--admin-text, #17231d);
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px 28px 32px;
 }
 
 .partner-detail-page,
@@ -4226,6 +4229,10 @@ dd {
 }
 
 @media (max-width: 640px) {
+    .partner-detail-page {
+        padding: 16px;
+    }
+
     .partner-detail-page .page-head {
         grid-template-columns: 1fr;
         align-items: start;

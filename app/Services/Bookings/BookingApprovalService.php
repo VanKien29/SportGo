@@ -3,7 +3,6 @@
 namespace App\Services\Bookings;
 
 use App\Models\Booking;
-use App\Models\BookingConfig;
 use App\Models\Notification;
 use App\Models\Payment;
 use App\Models\PaymentLog;
@@ -18,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 class BookingApprovalService
 {
     public const APPROVAL_WINDOW_MINUTES = 30;
+
+    public const APPROVAL_MINIMUM_LEAD_MINUTES = 15;
 
     public function __construct(
         private readonly AdminRefundService $refunds,
@@ -38,48 +39,69 @@ class BookingApprovalService
                 ->first();
 
         $sessionStart = $this->sessionStart($booking);
-        $deadline = $booking->approval_deadline_at
-            ? $booking->approval_deadline_at->copy()->setTimezone($timezone)
-            : ($lock?->expires_at
-                ? Carbon::parse($lock->expires_at)->setTimezone($timezone)
-                : $booking->created_at->copy()->setTimezone($timezone)->addMinutes($this->approvalWindowMinutes($booking)));
+        // The owner approval SLA is independent from the temporary payment
+        // hold. Recalculate it from creation time so old records that stored
+        // slot_hold_minutes cannot extend the approval window accidentally.
+        $deadline = $this->deadlineFromCreation($booking, $sessionStart)
+            ?? ($booking->approval_deadline_at
+                ? $booking->approval_deadline_at->copy()->setTimezone($timezone)
+                : ($lock?->expires_at
+                    ? Carbon::parse($lock->expires_at)->setTimezone($timezone)
+                    : $this->businessNow()));
 
-        // Before timestamps were normalized to UTC, a business-time Carbon
-        // instance could be stored as a UTC wall-clock value. That makes an
-        // approval window appear seven hours longer in Vietnam. Recognize
-        // that legacy shape while keeping the persisted deadline authoritative
-        // for correctly stored records.
-        $expectedDeadline = $this->deadlineFromCreation($booking, $sessionStart);
-        if ($expectedDeadline && $this->isLegacyBusinessTimestamp($deadline, $expectedDeadline)) {
-            $deadline = $expectedDeadline;
+        if ($sessionStart) {
+            $sessionDeadline = $sessionStart->copy()->subMinutes(self::APPROVAL_MINIMUM_LEAD_MINUTES);
+            $deadline = $sessionDeadline->lessThan($deadline) ? $sessionDeadline : $deadline;
         }
 
-        return $sessionStart && $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
+        return $deadline;
     }
 
     public function approvalDeadlineForValues(
         string $bookingDate,
         string $startTime,
         Carbon $createdAt,
-        ?int $windowMinutes = null,
     ): Carbon
     {
         $timezone = $this->businessTimezone();
-        $deadline = $createdAt->copy()->setTimezone($timezone)->addMinutes(
-            max(1, $windowMinutes ?? self::APPROVAL_WINDOW_MINUTES),
-        );
+        $deadline = $createdAt->copy()->setTimezone($timezone)->addMinutes(self::APPROVAL_WINDOW_MINUTES);
         $sessionStart = Carbon::createFromFormat(
             'Y-m-d H:i:s',
             $bookingDate.' '.substr($startTime, 0, 8),
             $timezone,
         );
 
-        $deadline = $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
+        $sessionDeadline = $sessionStart->copy()->subMinutes(self::APPROVAL_MINIMUM_LEAD_MINUTES);
+        $deadline = $sessionDeadline->lessThan($deadline) ? $sessionDeadline : $deadline;
 
         // Eloquent stores timestamp columns using the application's storage
         // timezone. Return UTC (the default in this app) so the value is not
         // written as a Vietnam local wall-clock time and shifted on read.
         return $deadline->copy()->setTimezone($this->storageTimezone());
+    }
+
+    public function assertApprovalWindowAvailable(
+        string $bookingDate,
+        string $startTime,
+        Carbon $createdAt,
+    ): void {
+        $timezone = $this->businessTimezone();
+        $createdAt = $createdAt->copy()->setTimezone($timezone);
+        $sessionStart = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $bookingDate.' '.substr($startTime, 0, 8),
+            $timezone,
+        );
+        $secondsUntilStart = $createdAt->diffInSeconds($sessionStart, false);
+
+        if ($secondsUntilStart >= self::APPROVAL_MINIMUM_LEAD_MINUTES * 60) {
+            return;
+        }
+
+        $remainingMinutes = max(0, (int) ceil($secondsUntilStart / 60));
+        throw ValidationException::withMessages([
+            'start_time' => "Booking đặt cọc/trả sau không thể tạo khi giờ bắt đầu còn dưới ".self::APPROVAL_MINIMUM_LEAD_MINUTES." phút (hiện còn khoảng {$remainingMinutes} phút). Vui lòng chọn thanh toán đủ hoặc khung giờ khác.",
+        ]);
     }
 
     public function approvalSecondsLeft(Booking $booking): int
@@ -121,7 +143,7 @@ class BookingApprovalService
             }
 
             if (Carbon::now($this->businessTimezone())->greaterThanOrEqualTo($this->approvalDeadline($locked))) {
-                $this->expireLocked($locked, 'Chủ sân không duyệt booking trong 30 phút. Slot đã được giải phóng.');
+                $this->expireLocked($locked, $this->approvalTimeoutReason($locked));
 
                 return [
                     'expired' => true,
@@ -201,7 +223,7 @@ class BookingApprovalService
                 return false;
             }
 
-            $this->expireLocked($locked, 'Chủ sân không duyệt booking trong 30 phút. Slot đã được giải phóng.');
+            $this->expireLocked($locked, $this->approvalTimeoutReason($locked));
 
             return true;
         });
@@ -256,14 +278,18 @@ class BookingApprovalService
 
         foreach ($booking->payments
             ->where('status', 'paid')
-            ->filter(fn (Payment $payment): bool => $payment->payment_kind === 'deposit'
-                || $booking->payment_option === 'no_prepay') as $payment) {
+            ->filter(fn (Payment $payment): bool => in_array($booking->payment_option, ['deposit', 'no_prepay'], true)) as $payment) {
             $this->refundPayment($booking, $payment, $reason);
         }
     }
 
     private function refundPayment(Booking $booking, Payment $payment, string $reason): ?Refund
     {
+        $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->first();
+        if (! $payment || $payment->status !== 'paid') {
+            return null;
+        }
+
         $alreadyRefunded = (float) Refund::query()
             ->where('payment_id', $payment->id)
             ->whereIn('status', ['completed', 'completed_cash'])
@@ -397,22 +423,21 @@ class BookingApprovalService
         $deadline = $booking->created_at
             ->copy()
             ->setTimezone($this->businessTimezone())
-            ->addMinutes($this->approvalWindowMinutes($booking));
+            ->addMinutes(self::APPROVAL_WINDOW_MINUTES);
 
-        return $sessionStart && $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
-    }
-
-    private function isLegacyBusinessTimestamp(Carbon $candidate, Carbon $expected): bool
-    {
-        $storageOffset = $expected->copy()->setTimezone($this->storageTimezone())->getOffset();
-        $businessOffset = $expected->copy()->setTimezone($this->businessTimezone())->getOffset();
-        $legacyShift = $businessOffset - $storageOffset;
-
-        if ($legacyShift === 0) {
-            return false;
+        if ($sessionStart) {
+            $sessionDeadline = $sessionStart->copy()->subMinutes(self::APPROVAL_MINIMUM_LEAD_MINUTES);
+            $deadline = $sessionDeadline->lessThan($deadline) ? $sessionDeadline : $deadline;
         }
 
-        return abs(($candidate->getTimestamp() - $expected->getTimestamp()) - $legacyShift) <= 1;
+        return $deadline;
+    }
+
+    private function approvalTimeoutReason(Booking $booking): string
+    {
+        $deadline = $this->approvalDeadline($booking)->copy()->setTimezone($this->businessTimezone());
+
+        return 'Chủ sân không duyệt booking trước hạn '.$deadline->format('H:i').' ngày '.$deadline->format('d/m/Y').'. Slot đã được giải phóng.';
     }
 
     private function businessTimezone(): string
@@ -425,14 +450,4 @@ class BookingApprovalService
         return (string) config('app.timezone', 'UTC');
     }
 
-    private function approvalWindowMinutes(Booking $booking): int
-    {
-        $configured = $booking->venue_cluster_id
-            ? BookingConfig::query()
-                ->where('venue_cluster_id', $booking->venue_cluster_id)
-                ->value('slot_hold_minutes')
-            : null;
-
-        return max(1, (int) ($configured ?? self::APPROVAL_WINDOW_MINUTES));
-    }
 }

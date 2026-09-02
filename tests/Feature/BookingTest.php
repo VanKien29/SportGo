@@ -6,6 +6,8 @@ use App\Models\Booking;
 use App\Models\BookingConfig;
 use App\Models\CourtMembershipTier;
 use App\Models\CourtType;
+use App\Models\Payment;
+use App\Models\Refund;
 use App\Models\Role;
 use App\Models\SlotLock;
 use App\Models\User;
@@ -13,6 +15,7 @@ use App\Models\UserWallet;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Services\Bookings\BookingApprovalService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -383,8 +386,9 @@ class BookingTest extends TestCase
         $lock = SlotLock::query()->where('booking_id', $booking->id)->firstOrFail();
         $this->assertSame('auto', $lock->lock_type);
         $this->assertEquals($booking->id, $lock->booking_id);
-        $this->assertSame('Giữ chỗ chờ chủ sân duyệt trong 20 phút.', $lock->reason);
-        $this->assertEqualsWithDelta(20 * 60, now()->diffInSeconds($lock->expires_at), 2);
+        $this->assertStringContainsString('Giữ chỗ chờ chủ sân duyệt đến ', $lock->reason);
+        $this->assertStringContainsString('(còn tối đa 30 phút).', $lock->reason);
+        $this->assertEqualsWithDelta(30 * 60, now()->diffInSeconds($lock->expires_at), 2);
     }
 
     public function test_multi_court_booking_uses_one_configured_hold_deadline(): void
@@ -424,7 +428,7 @@ class BookingTest extends TestCase
 
         $this->assertCount(2, $locks);
         $this->assertCount(1, $locks->map(fn (SlotLock $lock) => $lock->expires_at->toDateTimeString())->unique());
-        $this->assertEqualsWithDelta(20 * 60, now()->diffInSeconds($locks->first()->expires_at), 2);
+        $this->assertEqualsWithDelta(30 * 60, now()->diffInSeconds($locks->first()->expires_at), 2);
     }
 
     public function test_owner_can_confirm_pay_later_booking_and_release_temporary_hold(): void
@@ -519,7 +523,7 @@ class BookingTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'payment_option' => 'deposit',
-                'status' => 'pending_payment',
+                'status' => 'pending_approval',
             ]);
 
         // Cần đảm bảo Required Payment Amount = 30% của tổng tiền
@@ -527,7 +531,7 @@ class BookingTest extends TestCase
         $expectedAmount = $booking->total_price * 0.30;
         $this->assertEquals($expectedAmount, $booking->required_payment_amount);
 
-        // Đơn trả trước/cọc phải tự động sinh slot lock giữ sân 20 phút
+        // Booking cọc phải giữ slot theo deadline chờ chủ sân duyệt.
         $this->assertDatabaseHas('slot_locks', [
             'booking_id' => $booking->id,
             'lock_scope' => 'court',
@@ -637,6 +641,9 @@ class BookingTest extends TestCase
             'booking_type' => 'single',
             'status' => 'pending_approval',
         ]);
+        $booking->forceFill([
+            'created_at' => Carbon::now()->subMinutes(31),
+        ])->save();
 
         SlotLock::create([
             'venue_cluster_id' => $this->cluster->id,
@@ -648,7 +655,7 @@ class BookingTest extends TestCase
             'locked_by' => $this->player->id,
             'booking_id' => $booking->id,
             'lock_type' => 'auto',
-            'reason' => 'Giữ chỗ chờ chủ sân duyệt trong 15 phút.',
+            'reason' => 'Giữ chỗ chờ chủ sân duyệt.',
             'expires_at' => Carbon::now()->subMinute(),
         ]);
 
@@ -661,14 +668,74 @@ class BookingTest extends TestCase
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
             'status' => 'expired',
-            'status_reason' => 'Chủ sân không duyệt booking thu sau trong 15 phút. Slot đã được giải phóng.',
         ]);
+        $this->assertStringContainsString(
+            'Slot đã được giải phóng.',
+            (string) Booking::query()->findOrFail($booking->id)->status_reason,
+        );
 
         $this->assertDatabaseHas('violation_records', [
             'target_type' => 'user',
             'target_id' => $this->player->id,
             'last_action_type' => 'booking_approval_timeout',
         ]);
+    }
+
+    public function test_expired_deposit_booking_releases_slot_and_refunds_only_once(): void
+    {
+        $booking = Booking::create([
+            'booking_code' => 'BKDEPOSITEXPIRED',
+            'customer_id' => $this->player->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => $this->bookingDate,
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 100000.00,
+            'payment_option' => 'deposit',
+            'effective_payment_option' => 'deposit',
+            'required_payment_amount' => 30000.00,
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_approval',
+        ]);
+        $booking->forceFill(['created_at' => Carbon::now()->subMinutes(31)])->save();
+
+        $payment = Payment::create([
+            'payment_code' => 'PMDEPOSITEXPIRED',
+            'booking_id' => $booking->id,
+            'amount' => 30000.00,
+            'wallet_amount' => 0,
+            'gateway_amount' => 30000.00,
+            'payment_kind' => 'deposit',
+            'method' => 'sepay',
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        SlotLock::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'venue_court_id' => $this->court->id,
+            'lock_scope' => 'court',
+            'booking_date' => $this->bookingDate,
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'locked_by' => $this->player->id,
+            'booking_id' => $booking->id,
+            'lock_type' => 'auto',
+            'expires_at' => Carbon::now()->addHour(),
+        ]);
+
+        $approvals = app(BookingApprovalService::class);
+        $this->assertTrue($approvals->expireIfDue($booking));
+        $this->assertFalse($approvals->expireIfDue($booking->fresh()));
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'expired']);
+        $this->assertDatabaseMissing('slot_locks', ['booking_id' => $booking->id]);
+        $this->assertSame(1, Refund::query()->where('payment_id', $payment->id)->count());
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded']);
     }
 
     /**

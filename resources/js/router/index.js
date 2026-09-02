@@ -120,6 +120,12 @@ const routes = [
                 component: () => import("../views/clients/VipMembership.vue"),
                 meta: { requiresAuth: true, title: "Gói VIP - SportGo" },
             },
+            {
+                path: "matchmaking",
+                name: "client-matchmaking-management",
+                component: () => import("../views/clients/community/MatchmakingManagement.vue"),
+                meta: { requiresAuth: true, title: "Giao lưu của tôi - SportGo" },
+            },
         ],
     },
     {

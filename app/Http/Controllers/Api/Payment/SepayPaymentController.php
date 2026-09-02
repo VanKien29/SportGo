@@ -42,9 +42,16 @@ class SepayPaymentController extends Controller
             ], 422);
         }
 
-        $paymentAmount = $isPayLaterPayment
-            ? (float) $booking->total_price
-            : (float) $booking->required_payment_amount;
+        $payFull = $request->boolean('pay_full')
+            && in_array($booking->payment_option, ['deposit', 'no_prepay'], true);
+        $paidAmount = (float) $booking->payments()
+            ->where('status', 'paid')
+            ->sum('amount');
+        $paymentAmount = $payFull
+            ? max((float) $booking->total_price - $paidAmount, 0)
+            : ($isPayLaterPayment
+                ? (float) $booking->total_price
+                : (float) $booking->required_payment_amount);
 
         if ($paymentAmount <= 0) {
             return response()->json([
@@ -52,10 +59,7 @@ class SepayPaymentController extends Controller
             ], 422);
         }
 
-        $paidAmount = (float) $booking->payments()
-            ->where('status', 'paid')
-            ->sum('amount');
-        if ($booking->payment_option === 'deposit'
+        if ($booking->payment_option === 'deposit' && ! $payFull
             && $paidAmount + 0.01 >= (float) $booking->required_payment_amount) {
             return response()->json([
                 'message' => 'Khoản cọc đã được ghi nhận. Vui lòng chờ chủ sân duyệt booking.',
@@ -64,10 +68,12 @@ class SepayPaymentController extends Controller
 
         $lock = $booking->status === 'confirmed'
             ? true
-            : SlotLock::query()
+            : ($booking->status === 'pending_approval'
+                ? now()->lt(app(\App\Services\Bookings\BookingApprovalService::class)->approvalDeadline($booking))
+                : SlotLock::query()
                 ->where('booking_id', $booking->id)
                 ->where('expires_at', '>', now())
-                ->exists();
+                ->exists());
 
         if (! $lock) {
             return response()->json([
@@ -76,7 +82,7 @@ class SepayPaymentController extends Controller
         }
 
         try {
-            $result = $this->sepayPaymentService->createPayment($booking);
+            $result = $this->sepayPaymentService->createPayment($booking, $payFull);
         } catch (RuntimeException $e) {
             return response()->json([
                 'message' => $e->getMessage(),

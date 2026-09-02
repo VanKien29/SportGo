@@ -30,8 +30,9 @@ class SepayPaymentService
         private readonly BookingLifecycleService $bookingLifecycle,
     ) {}
 
-    public function createPayment(Booking $booking): array
+    public function createPayment(Booking $booking, bool $payFull = false): array
     {
+        $payFull = $payFull && in_array($booking->payment_option, ['deposit', 'no_prepay'], true);
         $effectivePaymentOption = $booking->effective_payment_option ?: $booking->payment_option;
         $isPayLaterPayment = $booking->payment_option === 'no_prepay'
             && $effectivePaymentOption === 'no_prepay'
@@ -40,7 +41,7 @@ class SepayPaymentService
             ->where('status', 'paid')
             ->sum('amount');
 
-        if ($booking->payment_option === 'deposit') {
+        if ($booking->payment_option === 'deposit' && ! $payFull) {
             if ($paidAmount + 0.01 >= (float) $booking->required_payment_amount) {
                 throw new RuntimeException('Khoản cọc đã được ghi nhận. Vui lòng chờ chủ sân duyệt booking.');
             }
@@ -54,9 +55,15 @@ class SepayPaymentService
             throw new RuntimeException('Booking trả sau đã phát sinh khoản thanh toán một phần. Vui lòng liên hệ sân để đối soát trước khi thanh toán tiếp.');
         }
 
-        $paymentAmount = $isPayLaterPayment
+        $paymentAmount = $payFull
+            ? max((float) $booking->total_price - $paidAmount, 0)
+            : ($isPayLaterPayment
             ? (float) $booking->total_price
-            : (float) $booking->required_payment_amount;
+            : (float) $booking->required_payment_amount);
+
+        if ($paymentAmount <= 0) {
+            throw new RuntimeException('Booking này đã được thanh toán đủ.');
+        }
 
         $account = $this->resolveSystemBankAccount();
 
@@ -75,7 +82,7 @@ class SepayPaymentService
                 'amount' => $paymentAmount,
                 'wallet_amount' => 0,
                 'gateway_amount' => $paymentAmount,
-                'payment_kind' => $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
+                'payment_kind' => $payFull || $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
                 'method' => 'sepay',
                 'status' => 'pending',
             ]);
@@ -85,7 +92,7 @@ class SepayPaymentService
                 'amount' => $paymentAmount,
                 'wallet_amount' => 0,
                 'gateway_amount' => $paymentAmount,
-                'payment_kind' => $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
+                'payment_kind' => $payFull || $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
             ]);
         }
 
@@ -344,38 +351,62 @@ class SepayPaymentService
                         ];
                     }
 
-                    if (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
-                        // Booking cọc đã chờ duyệt từ lúc tạo. Thanh toán cọc
-                        // chỉ ghi nhận tiền; chủ sân vẫn phải duyệt trong SLA.
-                        $nextStatus = in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
-                            ? 'pending_approval'
-                            : 'confirmed';
-                        $bookingStatusBefore = $booking?->status;
-                        $payment->booking()->update([
-                            'status' => $nextStatus,
-                            'effective_payment_option' => $booking?->payment_option ?: 'no_prepay',
-                            'payment_deadline_at' => null,
-                        ]);
+                    $bookingStatus = $booking?->status;
+                    $bookingFullyPaid = $booking
+                        && (float) Payment::query()
+                            ->where('booking_id', $booking->id)
+                            ->where('status', 'paid')
+                            ->sum('amount') + 0.01 >= (float) $booking->total_price;
+
+                    if (in_array($bookingStatus, ['pending_approval', 'pending_payment'], true)) {
+                        $nextStatus = $bookingFullyPaid
+                            ? 'confirmed'
+                            : (in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
+                                ? 'pending_approval'
+                                : 'confirmed');
+                        $confirmedBooking = $booking->fresh();
+
                         if ($nextStatus === 'confirmed') {
-                            $confirmedBooking = $booking->fresh(['customer', 'venueCluster']);
+                            $confirmedBooking->forceFill([
+                                'status' => 'confirmed',
+                                'effective_payment_option' => $bookingFullyPaid
+                                    ? 'full_payment'
+                                    : ($booking->payment_option ?: 'no_prepay'),
+                                'payment_deadline_at' => null,
+                                'approval_deadline_at' => null,
+                                'status_reason' => $bookingFullyPaid
+                                    ? 'Đã nhận đủ thanh toán trực tuyến; booking được xác nhận tự động.'
+                                    : null,
+                            ])->save();
+                            $confirmedBooking = $confirmedBooking->fresh(['customer', 'venueCluster']);
                             $this->bookingLifecycle->recordHistory(
                                 $confirmedBooking,
-                                $bookingStatusBefore,
+                                $bookingStatus,
                                 'confirmed',
                                 'payment_received',
-                                'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
+                                $bookingFullyPaid
+                                    ? 'Đã nhận đủ thanh toán trực tuyến và tự động xác nhận booking.'
+                                    : 'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
                             );
                             $this->bookingLifecycle->notifyStatusChanged(
                                 $confirmedBooking,
                                 'confirmed',
                                 'payment_received',
-                                'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
+                                $bookingFullyPaid
+                                    ? 'Đã nhận đủ thanh toán trực tuyến và tự động xác nhận booking.'
+                                    : 'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
                             );
                             $this->bookingService->syncVenueMembershipForSuccessfulBooking($confirmedBooking);
+                        } else {
+                            $booking->forceFill([
+                                'status' => 'pending_approval',
+                                'effective_payment_option' => $booking->payment_option ?: 'no_prepay',
+                                'payment_deadline_at' => null,
+                            ])->save();
                         }
                     }
 
-                    if (! in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
+                    if ($bookingFullyPaid || ! in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
                         || $booking?->status !== 'pending_approval') {
                         SlotLock::query()
                             ->where('booking_id', $payment->booking_id)

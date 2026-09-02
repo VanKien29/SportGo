@@ -70,14 +70,14 @@
 
     <!-- Modal Form Thêm/Sửa Danh mục -->
     <div v-if="showFormModal" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeFormModal)">
-      <form class="modal card" @submit.prevent="saveForm" @mousedown.stop style="max-width: 500px; width: 100%;">
+      <form class="modal card service-category-modal" @submit.prevent="saveForm" @mousedown.stop>
         <div class="modal-header">
           <h3>{{ form.id ? 'Sửa danh mục dịch vụ hệ thống' : 'Thêm danh mục dịch vụ hệ thống' }}</h3>
           <button class="btn-close" type="button" @click="closeFormModal">
             <AppIcon name="x" size="18" />
           </button>
         </div>
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="modal-body service-category-modal-body">
           
           <div class="form-group">
             <label class="form-label">Tên danh mục</label>
@@ -132,7 +132,7 @@
           </div>
 
         </div>
-        <div class="modal-footer" style="margin-top: 12px;">
+        <div class="modal-footer service-category-modal-footer">
           <button class="btn secondary" type="button" @click="closeFormModal">Hủy</button>
           <button class="btn primary" type="submit" :disabled="saving">
             {{ saving ? 'Đang lưu...' : 'Lưu' }}
@@ -600,5 +600,72 @@ export default {
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+
+/* Keep this small form independent from the many generic admin modal rules. */
+.service-category-modal {
+  width: min(500px, calc(100vw - 32px)) !important;
+  max-width: 500px !important;
+  margin: 0;
+  padding: 0 !important;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.service-category-modal .modal-header {
+  min-height: 58px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--admin-border, #cbd5e1);
+}
+
+.service-category-modal .modal-header h3 {
+  margin: 0;
+  color: var(--admin-text, #17251d);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.service-category-modal-body {
+  display: grid !important;
+  gap: 16px !important;
+  padding: 18px 16px !important;
+  box-sizing: border-box;
+}
+
+.service-category-modal .form-group {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.service-category-modal .form-label {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.service-category-modal .form-control,
+.service-category-modal .custom-select-trigger {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.service-category-modal textarea.form-control {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.service-category-modal-footer {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px;
+  margin: 0 !important;
+  padding: 0 16px 16px !important;
+  box-sizing: border-box;
+}
+
+.service-category-modal .custom-select-container {
+  z-index: 2;
 }
 </style>

@@ -109,9 +109,10 @@ export const bookingService = {
   },
 
   // Tạo thông tin thanh toán SePay cho đơn đặt sân
-  createSepayPayment(id) {
+  createSepayPayment(id, payFull = false) {
     return api(`/api/bookings/${id}/payments/sepay`, {
       method: 'POST',
+      ...(payFull ? { body: JSON.stringify({ pay_full: true }) } : {}),
     });
   },
 

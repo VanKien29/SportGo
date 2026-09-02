@@ -383,6 +383,7 @@ class VenueController extends Controller
                 'operating_hours' => $this->operatingHoursPayload($cluster),
                 'policies' => $this->policyPayload($cluster),
                 'venue_courts' => $cluster->venueCourts,
+                'system_default_price' => 10000,
                 'price_slots' => PriceSlot::query()
                     ->with([
                         'courtType:id,name,parent_id,icon_key',

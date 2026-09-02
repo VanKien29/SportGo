@@ -360,14 +360,25 @@ export default {
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
-.matrix-search input {
+.matrix-search > input[type="search"] {
   width: 100%;
   min-height: 42px;
-  border: 0;
-  outline: 0;
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
   color: #0f172a;
   font: inherit;
-  background: transparent;
+  background: transparent !important;
+  padding: 0 !important;
+  appearance: none;
+}
+
+.matrix-search > input[type="search"]:focus {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
 }
 
 .matrix-text-action {

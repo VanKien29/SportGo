@@ -631,6 +631,7 @@ Route::middleware('auth:sanctum')
         Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
+        Route::get('/matchmaking-posts/mine', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myPosts']);
         Route::get('/matchmaking-requests', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequests']);
         Route::get('/matchmaking-requests/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequest']);
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
