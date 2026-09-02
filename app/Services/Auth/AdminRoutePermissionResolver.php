@@ -226,6 +226,10 @@ class AdminRoutePermissionResolver
         }
 
         if (Str::startsWith($relative, 'system-posts')) {
+            if ($relative === 'system-posts/upload-editor-image') {
+                return $this->any(['system_post.create', 'system_post.update']);
+            }
+
             return $this->resourcePermission($method, 'system_post');
         }
 

@@ -138,7 +138,12 @@
                 <div class="field editor-field">
                   <span class="field-label">Nội dung chi tiết <span class="required-mark">*</span></span>
                   <div class="rich-editor-frame">
-                    <RichTextEditor v-model="form.content" placeholder="Viết nội dung bài viết..." class="post-editor" />
+                    <RichTextEditor
+                      v-model="form.content"
+                      placeholder="Viết nội dung bài viết..."
+                      upload-endpoint="/api/admin/system-posts/upload-editor-image"
+                      class="post-editor"
+                    />
                   </div>
                 </div>
               </div>
@@ -177,6 +182,7 @@
           </div>
 
           <div class="modal-footer">
+            <p v-if="saveError" class="save-error" role="alert">{{ saveError }}</p>
             <button class="btn ghost" type="button" @click="closeModal">Hủy bỏ</button>
             <button class="btn primary" type="submit" :disabled="saving">
               <AppIcon v-if="!saving" name="send" size="16" class="btn-icon" />
@@ -241,6 +247,7 @@ export default {
       },
       imageFile: null,
       imagePreview: null,
+      saveError: '',
       categoryOptions: [
         { value: 'announcement', label: 'Thông báo' },
         { value: 'guide', label: 'Hướng dẫn' },
@@ -316,6 +323,7 @@ export default {
       };
       this.imageFile = null;
       this.imagePreview = null;
+      this.saveError = '';
       this.modal.open = true;
     },
     openEditModal(post) {
@@ -330,10 +338,12 @@ export default {
       };
       this.imageFile = null;
       this.imagePreview = post.thumbnail_path || null;
+      this.saveError = '';
       this.modal.open = true;
     },
     closeModal() {
       this.modal.open = false;
+      this.saveError = '';
     },
     onImageSelected(e) {
       const file = e.target.files[0];
@@ -378,9 +388,9 @@ export default {
         }
         
         this.closeModal();
-        this.loadPosts(this.pagination.current_page);
+        await this.loadPosts(this.pagination.current_page);
       } catch (err) {
-        alert('Có lỗi xảy ra: ' + (err.message || 'Vui lòng thử lại.'));
+        this.saveError = err.message || 'Vui lòng thử lại.';
       } finally {
         this.saving = false;
       }
@@ -857,6 +867,12 @@ tbody tr.never-hover-class-placeholder {
   gap: 12px;
   border-top: 1px solid var(--admin-border);
   border-bottom: 0;
+}
+
+.save-error {
+  margin: 0 auto 0 0;
+  color: var(--admin-danger-text);
+  font-size: 13px;
 }
 
 .btn {

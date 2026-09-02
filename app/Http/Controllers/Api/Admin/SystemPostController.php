@@ -39,7 +39,7 @@ class SystemPostController extends Controller
             'category' => 'required|string|in:news,announcement,guide,event',
             'content' => 'required|string',
             'status' => 'required|string|in:draft,published,hidden',
-            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp',
         ]);
 
         $post = new SystemPost();
@@ -80,7 +80,7 @@ class SystemPostController extends Controller
             'category' => 'required|string|in:news,announcement,guide,event',
             'content' => 'required|string',
             'status' => 'required|string|in:draft,published,hidden',
-            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp',
         ]);
 
         $oldStatus = $post->status;
@@ -123,7 +123,7 @@ class SystemPostController extends Controller
     public function uploadEditorImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp',
         ]);
 
         if ($request->hasFile('image')) {

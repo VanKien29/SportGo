@@ -34,6 +34,10 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false
+  },
+  uploadEndpoint: {
+    type: String,
+    default: '/api/owner/venue-posts/upload-editor-image'
   }
 });
 
@@ -52,7 +56,7 @@ function CustomUploadAdapterPlugin(editorInstance) {
           return new Promise((resolve, reject) => {
             const formData = new FormData();
             formData.append('image', file);
-            apiFormData('/api/owner/venue-posts/upload-editor-image', formData).then(response => {
+            apiFormData(props.uploadEndpoint, formData).then(response => {
               resolve({
                 default: response.data?.url || response.url
               });
