@@ -55,48 +55,43 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-floating-bg, #1f2937);
+  background-color: var(--admin-floating-bg, #1e293b);
   color: var(--admin-floating-fg, #ffffff);
-  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
   cursor: pointer;
-  transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
+  transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out;
 }
 
-.action-btn.never-hover-class-placeholder {
+.action-btn:hover {
   transform: translateY(-2px);
-  background-color: var(--admin-floating-hover, #111827);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  background-color: #0f172a;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn:active {
-  transform: translateY(0) scale(0.97);
-  background-color: var(--admin-floating-active, #0f172a);
+  transform: translateY(0) scale(0.96);
+  background-color: #020617;
 }
 
 .action-btn:focus-visible {
-  outline: 2px solid var(--admin-primary, #22c55e);
-  outline-offset: 3px;
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
 }
 
 .back-btn {
-  background-color: var(--admin-floating-bg, #1f2937);
-  color: var(--admin-floating-fg, #ffffff);
-}
-
-.back-btn.never-hover-class-placeholder {
-  background-color: var(--admin-floating-hover, #111827);
+  background-color: var(--admin-floating-bg, #1e293b);
   color: var(--admin-floating-fg, #ffffff);
 }
 
 .is-floating {
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
 
 @media (max-width: 768px) {
   .action-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
   }
 }
 </style>

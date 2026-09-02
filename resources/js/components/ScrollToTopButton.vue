@@ -51,34 +51,34 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-floating-bg, #1f2937);
+  background-color: var(--admin-floating-bg, #1e293b);
   color: var(--admin-floating-fg, #ffffff);
-  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
-  box-shadow: none !important;
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
   cursor: pointer;
-  transition: background-color 120ms ease-out, transform 80ms ease-out;
+  transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out;
 }
 
-.scroll-to-top-btn.never-hover-class-placeholder {
+.scroll-to-top-btn:hover {
   transform: translateY(-2px);
-  background-color: var(--admin-floating-hover, #111827);
-  box-shadow: none !important;
+  background-color: #0f172a;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .scroll-to-top-btn:active {
-  transform: translateY(0) scale(0.97);
-  background-color: var(--admin-floating-active, #0f172a);
+  transform: translateY(0) scale(0.96);
+  background-color: #020617;
 }
 
 .scroll-to-top-btn:focus-visible {
-  outline: 2px solid var(--admin-primary, #22c55e);
-  outline-offset: 3px;
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
 }
 
 @media (max-width: 768px) {
   .scroll-to-top-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
   }
 }
 </style>

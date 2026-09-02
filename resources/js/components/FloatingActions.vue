@@ -49,18 +49,18 @@ export default {
 <style scoped>
 .floating-actions {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
+  bottom: 24px;
+  right: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  z-index: 9999;
+  gap: 10px;
+  z-index: 9997;
 }
 
 @media (max-width: 768px) {
   .floating-actions {
     bottom: 20px;
-    right: 20px;
+    right: 16px;
   }
 }
 </style>
