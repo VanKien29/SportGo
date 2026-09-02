@@ -159,6 +159,7 @@ import AppIcon from '../AppIcon.vue';
 import QrScanner from 'qr-scanner';
 import { playSuccessChime, playWarningChime } from '../../utils/audioChime.js';
 import { ownerBookingService } from '../../services/ownerBookings.js';
+import { businessDateLabel } from '../../utils/businessTime.js';
 
 export default {
   name: 'StaffQrScannerModal',
@@ -389,6 +390,7 @@ export default {
         await ownerBookingService.updateStatus(this.matchedBooking.id, { action: 'check_in' });
         this.matchedBooking.status = 'checked_in';
         playSuccessChime();
+        this.onClose();
         this.$emit('checked-in', this.matchedBooking);
       } catch (err) {
         this.error = err.message || 'Không thể thực hiện check-in.';
@@ -434,13 +436,7 @@ export default {
       return String(timeStr).slice(0, 5);
     },
     formatDate(dateStr) {
-      if (!dateStr) return '';
-      try {
-        const [y, m, d] = dateStr.split('-');
-        return `${d}/${m}/${y}`;
-      } catch {
-        return dateStr;
-      }
+      return businessDateLabel(dateStr) || String(dateStr || '');
     },
   },
 };

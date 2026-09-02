@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\VenueCluster;
 use App\Models\VenueClusterService;
+use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -12,6 +13,10 @@ use Illuminate\Validation\Rule;
 
 class OwnerVenueServiceController extends Controller
 {
+    public function __construct(
+        private readonly VenueStaffAccessService $venueStaffAccess,
+    ) {}
+
     /**
      * Lấy danh sách dịch vụ/sản phẩm tại sân của cụm sân.
      */
@@ -19,9 +24,9 @@ class OwnerVenueServiceController extends Controller
     {
         $cluster = VenueCluster::query()->findOrFail($clusterId);
 
-        if ($cluster->owner_id !== $request->user()->id) {
-            return response()->json(['message' => 'Bạn không có quyền xem thông tin của cụm sân này.'], 403);
-        }
+        // Chủ sân và nhân viên được phân công đều cần đọc catalogue F&B.
+        // Các endpoint ghi/sửa/xóa bên dưới vẫn kiểm tra owner_id riêng.
+        $this->venueStaffAccess->assertClusterAccess($request->user(), (string) $cluster->id);
 
         $services = VenueClusterService::query()
             ->with('category')
