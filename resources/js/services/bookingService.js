@@ -151,7 +151,10 @@ export const bookingService = {
       if (value !== undefined && value !== null && value !== '') query.append(key, value);
     });
     const suffix = query.toString();
-    return api(`/api/refunds${suffix ? `?${suffix}` : ''}`);
+    return api(`/api/refunds${suffix ? `?${suffix}` : ''}`, {
+      cache: 'no-store',
+      dedupe: false,
+    });
   },
 
   requestRefund(data) {

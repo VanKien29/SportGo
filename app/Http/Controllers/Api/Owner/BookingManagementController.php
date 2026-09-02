@@ -683,6 +683,24 @@ class BookingManagementController extends Controller
             isset($validated['amount']) ? (float) $validated['amount'] : null,
         );
 
+        $collectedPayment = $updated->payments
+            ->where('status', 'paid')
+            ->sortByDesc('paid_at')
+            ->first();
+        if ($updated->customer_id && $collectedPayment) {
+            try {
+                broadcast(new \App\Events\BookingPaymentUpdated(
+                    $updated->id,
+                    $updated->customer_id,
+                    $collectedPayment->id,
+                    (string) $collectedPayment->status,
+                    (string) $updated->status,
+                ));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
         return response()->json([
             'message' => 'Đã ghi nhận thanh toán.',
             'data' => $this->attachSettlementSummary($updated),

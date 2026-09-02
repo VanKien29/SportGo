@@ -109,6 +109,7 @@ class BookingApprovalService
                 && ($locked->required_payment_amount <= 0 || $paidAmount + 0.01 >= (float) $locked->required_payment_amount);
             $fallback = $locked->payment_option === 'deposit' && ! $depositPaid;
 
+            $payLaterApproved = $locked->payment_option === 'no_prepay' && ! $fallback;
             $locked->forceFill([
                 'status' => 'confirmed',
                 'effective_payment_option' => $fallback ? 'no_prepay' : ($locked->payment_option ?: 'no_prepay'),
@@ -121,12 +122,16 @@ class BookingApprovalService
                     : null,
                 'status_reason' => $fallback
                     ? 'Đã duyệt. Booking được chuyển sang thanh toán tại sân vì chưa nhận cọc.'
-                    : null,
+                    : ($payLaterApproved
+                        ? 'Đã duyệt. Bạn có thể chuyển khoản đủ 100% hoặc thanh toán đủ bằng tiền mặt tại sân.'
+                        : null),
             ])->save();
 
             $approvalReason = $fallback
                 ? 'Chủ sân đã duyệt booking; do khách chưa thanh toán cọc nên booking chuyển sang trả sau.'
-                : 'Chủ sân đã duyệt booking và xác nhận lịch chơi.';
+                : ($payLaterApproved
+                    ? 'Chủ sân đã duyệt booking. Khách có thể chuyển khoản đủ 100% hoặc thanh toán đủ bằng tiền mặt tại sân.'
+                    : 'Chủ sân đã duyệt booking và xác nhận lịch chơi.');
             $this->lifecycle->recordHistory(
                 $locked,
                 'pending_approval',
@@ -177,13 +182,19 @@ class BookingApprovalService
         });
     }
 
-    public function refundLateDepositPayment(Booking $booking, Payment $payment, string $reason): ?Refund
+    public function refundLatePayment(Booking $booking, Payment $payment, string $reason): ?Refund
     {
-        if ($payment->status !== 'paid' || $booking->payment_option !== 'deposit') {
+        if ($payment->status !== 'paid'
+            || ! in_array($booking->payment_option, ['deposit', 'no_prepay'], true)) {
             return null;
         }
 
         return $this->refundPayment($booking, $payment, $reason);
+    }
+
+    public function refundLateDepositPayment(Booking $booking, Payment $payment, string $reason): ?Refund
+    {
+        return $this->refundLatePayment($booking, $payment, $reason);
     }
 
     private function expireLocked(Booking $booking, string $reason): void
@@ -218,7 +229,10 @@ class BookingApprovalService
     {
         $booking->loadMissing('payments');
 
-        foreach ($booking->payments->where('status', 'paid')->where('payment_kind', 'deposit') as $payment) {
+        foreach ($booking->payments
+            ->where('status', 'paid')
+            ->filter(fn (Payment $payment): bool => $payment->payment_kind === 'deposit'
+                || $booking->payment_option === 'no_prepay') as $payment) {
             $this->refundPayment($booking, $payment, $reason);
         }
     }
@@ -235,33 +249,38 @@ class BookingApprovalService
             return null;
         }
 
+        $isPayLater = $booking->payment_option === 'no_prepay';
         $refund = Refund::query()->create([
             'payment_id' => $payment->id,
             'booking_id' => $booking->id,
             'customer_id' => $booking->customer_id,
             'amount' => $amount,
-            'reason' => 'Chủ sân hủy booking do quá hạn duyệt. '.$reason,
-            'status_reason' => 'Tự động hoàn tiền cọc vào ví SportGo.',
+            'reason' => ($isPayLater ? 'Chủ sân hủy booking trả sau, hoàn khoản thanh toán đủ. ' : 'Chủ sân hủy booking do quá hạn duyệt. ').$reason,
+            'status_reason' => $isPayLater
+                ? 'Tự động hoàn khoản thanh toán đủ vào ví SportGo.'
+                : 'Tự động hoàn tiền cọc vào ví SportGo.',
             'refund_destination' => 'user_wallet',
             'status' => 'pending_owner_confirmation',
         ]);
 
         $completed = $this->refunds->updateStatus($refund, 'completed', [
             'source' => 'booking_approval_auto_refund',
-            'reason' => 'Chủ sân hủy booking do quá hạn duyệt. '.$reason,
+            'reason' => ($isPayLater ? 'Chủ sân hủy booking trả sau, hoàn khoản thanh toán đủ. ' : 'Chủ sân hủy booking do quá hạn duyệt. ').$reason,
         ]);
 
         if ($booking->customer_id) {
             Notification::query()->firstOrCreate(
                 [
                     'user_id' => $booking->customer_id,
-                    'type' => 'booking_deposit_refunded',
+                    'type' => $isPayLater ? 'booking_payment_refunded' : 'booking_deposit_refunded',
                     'reference_type' => 'booking',
                     'reference_id' => (string) $booking->id,
                 ],
                 [
-                    'title' => 'Đã hoàn tiền cọc vào ví',
-                    'body' => 'Khoản cọc của booking '.$booking->booking_code.' đã được hoàn vào Ví SportGo vì booking hết hiệu lực.',
+                    'title' => $isPayLater ? 'Đã hoàn tiền booking trả sau' : 'Đã hoàn tiền cọc vào ví',
+                    'body' => $isPayLater
+                        ? 'Khoản thanh toán booking '.$booking->booking_code.' đã được hoàn vào Ví SportGo vì booking không còn hiệu lực.'
+                        : 'Khoản cọc của booking '.$booking->booking_code.' đã được hoàn vào Ví SportGo vì booking hết hiệu lực.',
                     'data' => [
                         'booking_id' => $booking->id,
                         'booking_code' => $booking->booking_code,

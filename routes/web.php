@@ -12,5 +12,10 @@ Route::get('/invoices/{receipt}', [ReceiptController::class, 'show'])
     ->middleware('signed');
 
 Route::get('/{any?}', function () {
-    return view('welcome');
-})->where('any', '.*');
+    return response()->view('welcome')
+        // The HTML contains the current Vite manifest. Keeping an old HTML
+        // document after a deploy can point the browser at deleted chunks.
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
+})->where('any', '.*')->name('login');

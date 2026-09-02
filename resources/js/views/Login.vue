@@ -182,6 +182,12 @@ export default {
         const auth = await login(this.loginValue.trim(), this.password);
         await this.$router.push(this.safeRequestedRedirect(auth));
       } catch (requestError) {
+        const requestMessage = String(requestError?.message || '');
+        if (/failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk/i.test(requestMessage)) {
+          this.setFieldError('login', 'Giao diện vừa được cập nhật. Vui lòng thử đăng nhập lại sau giây lát.');
+          return;
+        }
+
         const details = requestError.data || {};
 
         if (details.lock_type) {
@@ -205,4 +211,3 @@ export default {
   },
 };
 </script>
-

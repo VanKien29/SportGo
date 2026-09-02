@@ -191,7 +191,7 @@
                                         }}</small>
                                     </td>
                                     <td class="money positive">
-                                        <strong>{{ formatCurrency(wallet.available_balance) }}</strong>
+                                        <strong>{{ formatCurrency(walletWithdrawableBalance(wallet)) }}</strong>
                                     </td>
                                     <td class="money pending">
                                         {{ formatCurrency(wallet.pending_withdrawal_balance) }}
@@ -215,7 +215,7 @@
                                                 variant="primary"
                                                 :disabled="
                                                     Number(
-                                                        wallet.available_balance,
+                                                        walletWithdrawableBalance(wallet),
                                                     ) < minimumWithdrawal ||
                                                     bankAccounts.length === 0
                                                 "
@@ -478,6 +478,17 @@
                 </footer>
             </form>
         </div>
+
+        <ConfirmModal
+            v-model="withdrawalCancelConfirm.open"
+            title="Xác nhận hủy yêu cầu rút tiền"
+            :message="withdrawalCancelConfirm.message"
+            consequence="Số tiền đang tạm giữ sẽ được hoàn lại vào số dư ví."
+            confirm-text="Hủy yêu cầu"
+            cancel-text="Quay lại"
+            type="danger"
+            @confirm="confirmCancelWithdrawal"
+        />
     </div>
 </template>
 
@@ -485,13 +496,21 @@
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import AppTabs from "../../components/common/AppTabs.vue";
+import ConfirmModal from "../../components/ConfirmModal.vue";
 import PaginationBar from "../../components/PaginationBar.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
 import { api } from "../../services/api.js";
 
 export default {
     name: "OwnerFinance",
-    components: { ActionIconButton, AppIcon, AppTabs, TableActionGroup, PaginationBar },
+    components: {
+        ActionIconButton,
+        AppIcon,
+        AppTabs,
+        ConfirmModal,
+        TableActionGroup,
+        PaginationBar,
+    },
     data() {
         return {
             activeTab: "wallets",
@@ -519,6 +538,11 @@ export default {
             error: "",
             notice: "",
             modalError: "",
+            withdrawalCancelConfirm: {
+                open: false,
+                item: null,
+                message: "",
+            },
             showWithdrawModal: false,
             withdrawForm: {
                 wallet_id: "",
@@ -554,15 +578,16 @@ export default {
             ];
         },
         withdrawableWallets() {
+            const minimum = Number(this.minimumWithdrawal || 0);
             return this.wallets.filter(
-                (w) => Number(w.available_balance || 0) > 0,
+                (w) => this.walletWithdrawableBalance(w) >= minimum,
             );
         },
         selectedWalletBalance() {
             const w = this.wallets.find(
                 (item) => String(item.id) === String(this.withdrawForm.wallet_id),
             );
-            return w ? Number(w.available_balance || 0) : 0;
+            return w ? this.walletWithdrawableBalance(w) : 0;
         },
     },
     async mounted() {
@@ -675,17 +700,14 @@ export default {
             const defaultBank =
                 this.bankAccounts.find((a) => a.is_default) ||
                 this.bankAccounts[0];
+            const withdrawableBalance = this.walletWithdrawableBalance(
+                targetWallet,
+            );
             this.modalError = "";
             this.withdrawForm = {
                 wallet_id: targetWallet.id,
                 bank_account_id: defaultBank.id,
-                amount: Math.max(
-                    this.minimumWithdrawal,
-                    Math.min(
-                        Number(targetWallet.available_balance || 0),
-                        5000000,
-                    ),
-                ),
+                amount: Math.min(withdrawableBalance, 5000000),
                 owner_note: "",
             };
             this.showWithdrawModal = true;
@@ -703,9 +725,27 @@ export default {
             this.submitting = true;
             this.modalError = "";
             try {
+                const amount = Number(this.withdrawForm.amount);
+                if (
+                    !Number.isFinite(amount) ||
+                    amount < Number(this.minimumWithdrawal) ||
+                    amount > this.selectedWalletBalance
+                ) {
+                    this.modalError =
+                        "Số tiền rút không hợp lệ hoặc vượt quá số dư khả dụng.";
+                    return;
+                }
+
                 const response = await api("/api/owner/finance/withdrawals", {
                     method: "POST",
-                    body: JSON.stringify(this.withdrawForm),
+                    body: JSON.stringify({
+                        owner_wallet_id: Number(this.withdrawForm.wallet_id),
+                        owner_bank_account_id: Number(
+                            this.withdrawForm.bank_account_id,
+                        ),
+                        amount,
+                        owner_note: this.withdrawForm.owner_note,
+                    }),
                 });
                 this.notice = response.message;
                 this.showWithdrawModal = false;
@@ -720,11 +760,32 @@ export default {
                 this.submitting = false;
             }
         },
+        walletWithdrawableBalance(wallet) {
+            return Number(
+                wallet?.withdrawable_balance ?? wallet?.available_balance ?? 0,
+            );
+        },
         canCancelWithdrawal(item) {
             return item.status === "pending";
         },
-        async cancelWithdrawal(item) {
-            if (!confirm(`Bạn chắc chắn muốn hủy yêu cầu rút ${this.formatCurrency(item.amount)}?`)) {
+        cancelWithdrawal(item) {
+            if (!this.canCancelWithdrawal(item) || this.cancellingId === item.id) {
+                return;
+            }
+            this.withdrawalCancelConfirm = {
+                open: true,
+                item,
+                message: `Bạn chắc chắn muốn hủy yêu cầu rút ${this.formatCurrency(item.amount)}?`,
+            };
+        },
+        async confirmCancelWithdrawal() {
+            const item = this.withdrawalCancelConfirm.item;
+            this.withdrawalCancelConfirm = {
+                open: false,
+                item: null,
+                message: "",
+            };
+            if (!item || !this.canCancelWithdrawal(item)) {
                 return;
             }
             this.cancellingId = item.id;
@@ -732,7 +793,7 @@ export default {
             try {
                 const response = await api(
                     `/api/owner/finance/withdrawals/${item.id}/cancel`,
-                    { method: "POST" },
+                    { method: "PATCH" },
                 );
                 this.notice = response.message;
                 await this.loadInitialData();

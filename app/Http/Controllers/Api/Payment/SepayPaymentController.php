@@ -30,13 +30,23 @@ class SepayPaymentController extends Controller
             ], 403);
         }
 
-        if ($booking->status !== 'pending_payment' && ! ($booking->status === 'pending_approval' && $booking->payment_option === 'deposit')) {
+        $isPayLaterPayment = in_array($booking->status, ['pending_approval', 'confirmed'], true)
+            && $booking->payment_option === 'no_prepay'
+            && ($booking->effective_payment_option ?: $booking->payment_option) === 'no_prepay';
+        $isDepositPayment = $booking->status === 'pending_payment'
+            || ($booking->status === 'pending_approval' && $booking->payment_option === 'deposit');
+
+        if (! $isDepositPayment && ! $isPayLaterPayment) {
             return response()->json([
-                'message' => 'Đơn đặt sân này không còn ở trạng thái có thể thanh toán cọc.',
+                'message' => 'Đơn đặt sân này chưa ở trạng thái có thể thanh toán chuyển khoản.',
             ], 422);
         }
 
-        if ((float) $booking->required_payment_amount <= 0) {
+        $paymentAmount = $isPayLaterPayment
+            ? (float) $booking->total_price
+            : (float) $booking->required_payment_amount;
+
+        if ($paymentAmount <= 0) {
             return response()->json([
                 'message' => 'Đây là đơn đặt sân thanh toán trực tiếp tại sân.',
             ], 422);
@@ -52,10 +62,12 @@ class SepayPaymentController extends Controller
             ], 422);
         }
 
-        $lock = SlotLock::query()
-            ->where('booking_id', $booking->id)
-            ->where('expires_at', '>', now())
-            ->first();
+        $lock = $booking->status === 'confirmed'
+            ? true
+            : SlotLock::query()
+                ->where('booking_id', $booking->id)
+                ->where('expires_at', '>', now())
+                ->exists();
 
         if (! $lock) {
             return response()->json([

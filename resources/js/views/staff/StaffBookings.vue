@@ -316,7 +316,23 @@
               </td>
               <td class="td-actions" @click.stop>
                 <button
-                  v-if="['pending_approval', 'confirmed'].includes(b.status)"
+                  v-if="b.status === 'pending_approval'"
+                  type="button"
+                  class="btn-table-action is-checkin"
+                  @click="runBookingAction(b, 'confirm')"
+                >
+                  Duyệt
+                </button>
+                <button
+                  v-if="b.status === 'pending_approval'"
+                  type="button"
+                  class="btn-table-action is-danger"
+                  @click="openStatusAction(b, 'reject')"
+                >
+                  Từ chối
+                </button>
+                <button
+                  v-if="b.status === 'confirmed'"
                   type="button"
                   class="btn-table-action is-checkin"
                   @click="quickCheckIn(b)"
@@ -324,7 +340,7 @@
                   Check-in
                 </button>
                 <button
-                  v-if="outstandingAmount(b) > 0"
+                  v-if="canCollectPayment(b)"
                   type="button"
                   class="btn-table-action is-collect"
                   @click="openCollectPayment(b)"
@@ -830,10 +846,14 @@
                 class="pos-input"
                 min="1000"
                 step="1000"
+                :readonly="isPayLaterBooking(collectBooking)"
                 :disabled="collectForm.payment_method === 'sepay' && !!pendingTransfer(collectBooking)"
                 required
               />
             </label>
+            <p v-if="isPayLaterBooking(collectBooking)" class="pos-collect-hint">
+              Booking trả sau chỉ được xác nhận một lần với đủ toàn bộ số tiền còn phải thu.
+            </p>
 
             <div class="pos-field">
               <span class="pos-field-label">Phương thức thu</span>
@@ -1862,9 +1882,16 @@ export default {
 
     canCollectPayment(booking) {
       return (
+        booking.status !== 'pending_approval' &&
+        !(booking.status === 'pending_payment' && (booking.effective_payment_option || booking.payment_option) === 'no_prepay') &&
         !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status) &&
         this.outstandingAmount(booking) > 0
       );
+    },
+
+    isPayLaterBooking(booking) {
+      return booking?.status === 'confirmed'
+        && (booking?.effective_payment_option || booking?.payment_option) === 'no_prepay';
     },
 
     canChangeCourt(booking) {
@@ -1930,6 +1957,9 @@ export default {
 
     async submitCollectPayment() {
       if (!this.collectBooking || this.collectingPayment) return;
+      if (this.isPayLaterBooking(this.collectBooking)) {
+        this.collectForm.amount = this.outstandingAmount(this.collectBooking);
+      }
       this.collectingPayment = true;
       this.error = '';
       try {
@@ -1983,6 +2013,9 @@ export default {
     },
 
     collectSubmitLabel() {
+      if (this.collectForm.payment_method !== 'sepay' && this.isPayLaterBooking(this.collectBooking)) {
+        return 'Xác nhận đã nhận đủ tiền mặt';
+      }
       if (this.collectForm.payment_method !== 'sepay') return 'Xác nhận thu tiền mặt';
       return this.pendingTransfer(this.collectBooking) ? 'Xem lại mã VietQR' : 'Tạo mã VietQR SePay';
     },
@@ -4110,6 +4143,17 @@ export default {
 
 .btn-table-action.is-checkin:hover {
   background: #065f35;
+}
+
+.btn-table-action.is-danger {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.btn-table-action.is-danger:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
 }
 
 .btn-table-action.is-collect {

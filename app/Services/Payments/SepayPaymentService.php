@@ -32,14 +32,31 @@ class SepayPaymentService
 
     public function createPayment(Booking $booking): array
     {
+        $effectivePaymentOption = $booking->effective_payment_option ?: $booking->payment_option;
+        $isPayLaterPayment = $booking->payment_option === 'no_prepay'
+            && $effectivePaymentOption === 'no_prepay'
+            && in_array($booking->status, ['pending_approval', 'confirmed'], true);
+        $paidAmount = (float) $booking->payments()
+            ->where('status', 'paid')
+            ->sum('amount');
+
         if ($booking->payment_option === 'deposit') {
-            $paidAmount = (float) $booking->payments()
-                ->where('status', 'paid')
-                ->sum('amount');
             if ($paidAmount + 0.01 >= (float) $booking->required_payment_amount) {
                 throw new RuntimeException('Khoản cọc đã được ghi nhận. Vui lòng chờ chủ sân duyệt booking.');
             }
         }
+
+        if ($isPayLaterPayment && $paidAmount + 0.01 >= (float) $booking->total_price) {
+            throw new RuntimeException('Booking này đã được thanh toán đủ.');
+        }
+
+        if ($isPayLaterPayment && $paidAmount > 0.009) {
+            throw new RuntimeException('Booking trả sau đã phát sinh khoản thanh toán một phần. Vui lòng liên hệ sân để đối soát trước khi thanh toán tiếp.');
+        }
+
+        $paymentAmount = $isPayLaterPayment
+            ? (float) $booking->total_price
+            : (float) $booking->required_payment_amount;
 
         $account = $this->resolveSystemBankAccount();
 
@@ -55,18 +72,20 @@ class SepayPaymentService
                 'payment_code' => 'PM'.Str::upper(Str::random(10)),
                 'booking_id' => $booking->id,
                 'system_bank_account_id' => $account->id,
-                'amount' => $booking->required_payment_amount,
+                'amount' => $paymentAmount,
                 'wallet_amount' => 0,
-                'gateway_amount' => $booking->required_payment_amount,
-                'payment_kind' => $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
+                'gateway_amount' => $paymentAmount,
+                'payment_kind' => $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
                 'method' => 'sepay',
                 'status' => 'pending',
             ]);
         } else {
             $payment->update([
                 'system_bank_account_id' => $payment->system_bank_account_id ?: $account->id,
+                'amount' => $paymentAmount,
                 'wallet_amount' => 0,
-                'gateway_amount' => $payment->amount,
+                'gateway_amount' => $paymentAmount,
+                'payment_kind' => $isPayLaterPayment || $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
             ]);
         }
 
@@ -104,8 +123,18 @@ class SepayPaymentService
                 throw new RuntimeException('Booking này không còn ở trạng thái có thể thu tiền.');
             }
 
+            if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)
+                && ($booking->effective_payment_option ?: $booking->payment_option) === 'no_prepay') {
+                throw new RuntimeException('Vui lòng duyệt booking trước khi tạo QR thu tiền trả sau.');
+            }
+
             $outstandingAmount = $this->outstandingAmount($booking);
             $collectionAmount = round((float) ($amount ?: $outstandingAmount), 2);
+
+            $isPayLater = ($booking->effective_payment_option ?: $booking->payment_option) === 'no_prepay';
+            if ($isPayLater && abs($collectionAmount - $outstandingAmount) > 0.009) {
+                throw new RuntimeException('Booking trả sau chỉ được thu đủ một lần, không hỗ trợ thanh toán từng phần.');
+            }
 
             if ($collectionAmount <= 0 || $collectionAmount > $outstandingAmount) {
                 throw new RuntimeException('Số tiền thu không hợp lệ so với số còn phải thu.');
@@ -227,18 +256,24 @@ class SepayPaymentService
                 ];
             }
 
-            // A deposit callback may arrive after the 30-minute approval window.
-            // Expiry invalidates the pending payment, but a valid late transfer
-            // must still be accepted and immediately refunded to the customer.
-            $lateDepositPayment = $payment->status === 'failed'
-                && $payment->booking
-                && $payment->booking->payment_option === 'deposit'
+            // A transfer callback may arrive after the approval window or after
+            // an owner collected cash. The failed payment is still a valid
+            // reference for SePay, but the money must be refunded immediately.
+            $booking = $payment->booking;
+            $paymentGatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+            $latePayment = $payment->status === 'failed'
+                && $booking
+                && in_array($booking->payment_option, ['deposit', 'no_prepay'], true)
                 && (
-                    in_array($payment->booking->status, ['expired', 'cancelled', 'rejected'], true)
-                    || ($payment->booking->status === 'confirmed' && $payment->booking->effective_payment_option === 'no_prepay')
+                    in_array($booking->status, ['expired', 'cancelled', 'rejected'], true)
+                    || ($booking->status === 'confirmed'
+                        && (
+                            ($booking->payment_option === 'deposit' && $booking->effective_payment_option === 'no_prepay')
+                            || data_get($paymentGatewayResponse, 'replaced_by_counter_collection') !== null
+                        ))
                 );
 
-            if ($payment->status !== 'pending' && ! $lateDepositPayment) {
+            if ($payment->status !== 'pending' && ! $latePayment) {
                 $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_ignored', $gatewayTxnId, 'payment_not_pending', 'Payment không còn ở trạng thái chờ thanh toán.');
 
                 return [
@@ -269,30 +304,30 @@ class SepayPaymentService
                     $this->systemVipService->activateSubscriptionFromPayment($payment);
                 } else {
                     $booking = $payment->booking;
-                    $paidAmount = $booking
-                        ? (float) $booking->payments()->where('status', 'paid')->sum('amount')
-                        : 0.0;
-
-                    $lateDeposit = $booking
-                        && $booking->payment_option === 'deposit'
+                    $latePayment = $booking
+                        && in_array($booking->payment_option, ['deposit', 'no_prepay'], true)
                         && (
                             in_array($booking->status, ['expired', 'cancelled', 'rejected'], true)
-                            || ($booking->status === 'confirmed' && $booking->effective_payment_option === 'no_prepay')
+                            || ($booking->status === 'confirmed'
+                                && (
+                                    ($booking->payment_option === 'deposit' && $booking->effective_payment_option === 'no_prepay')
+                                    || data_get($paymentGatewayResponse, 'replaced_by_counter_collection') !== null
+                                ))
                         );
 
-                    if ($lateDeposit) {
+                    if ($latePayment) {
                         $payment->save();
-                        $this->bookingApprovals->refundLateDepositPayment(
+                        $this->bookingApprovals->refundLatePayment(
                             $booking,
                             $payment,
-                            'Khoản cọc được nhận sau khi booking đã hết hiệu lực hoặc đã chuyển sang trả sau.',
+                            'Khoản chuyển khoản đến sau khi booking đã hết hiệu lực hoặc đã được thu tiền mặt.',
                         );
-                        $this->logIpn($payment->fresh(), $payload, $statusBefore, 'sepay_late_deposit_refunded', $gatewayTxnId, 'late_deposit_refunded', 'Khoản cọc đến sau hạn đã được hoàn vào ví khách hàng.');
+                        $this->logIpn($payment->fresh(), $payload, $statusBefore, 'sepay_late_payment_refunded', $gatewayTxnId, 'late_payment_refunded', 'Khoản chuyển khoản đến muộn đã được hoàn vào ví khách hàng.');
 
                         return [
                             'success' => true,
-                            'error_code' => 'late_deposit_refunded',
-                            'message' => 'Khoản cọc đến sau hạn đã được hoàn vào ví khách hàng.',
+                            'error_code' => 'late_payment_refunded',
+                            'message' => 'Khoản chuyển khoản đến muộn đã được hoàn vào ví khách hàng.',
                             'payment' => $payment->fresh(),
                         ];
                     }
@@ -300,7 +335,7 @@ class SepayPaymentService
                     if (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
                         // Booking cọc đã chờ duyệt từ lúc tạo. Thanh toán cọc
                         // chỉ ghi nhận tiền; chủ sân vẫn phải duyệt trong SLA.
-                        $nextStatus = $booking?->payment_option === 'deposit'
+                        $nextStatus = in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
                             ? 'pending_approval'
                             : 'confirmed';
                         $bookingStatusBefore = $booking?->status;
@@ -328,7 +363,8 @@ class SepayPaymentService
                         }
                     }
 
-                    if ($booking?->payment_option !== 'deposit' || $booking?->status !== 'pending_approval') {
+                    if (! in_array($booking?->payment_option, ['deposit', 'no_prepay'], true)
+                        || $booking?->status !== 'pending_approval') {
                         SlotLock::query()
                             ->where('booking_id', $payment->booking_id)
                             ->delete();

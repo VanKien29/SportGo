@@ -219,6 +219,7 @@ class BookingController extends Controller
                 'payments' => fn ($query) => $query
                     ->select(['id', 'booking_id', 'amount', 'status', 'created_at'])
                     ->latest('created_at'),
+                'refunds',
             ])
             ->where('customer_id', auth()->id());
 
@@ -596,6 +597,7 @@ class BookingController extends Controller
             'items.venueCourt',
             'payments',
             'bookingServices',
+            'refunds',
         ]);
 
         // Keep the detail page consistent even when the minute-by-minute
@@ -610,6 +612,7 @@ class BookingController extends Controller
                 'items.venueCourt',
                 'payments',
                 'bookingServices',
+                'refunds',
             ]);
         }
 
@@ -660,8 +663,13 @@ class BookingController extends Controller
                 $validated['reason'] ?? null
             );
 
+            $refundAmount = (float) ($result['policy_result']['refund_amount'] ?? 0);
+            $refundMessage = $refundAmount > 0 && ! empty($result['refunds'])
+                ? 'Đã hủy booking và tạo yêu cầu hoàn tiền chờ chủ sân xác nhận. Tiền sẽ vào Ví SportGo sau khi được duyệt.'
+                : 'Đã hủy booking. Theo chính sách hiện tại, booking không phát sinh khoản hoàn tiền.';
+
             return response()->json([
-                'message' => 'Đã hủy booking theo chính sách.',
+                'message' => $refundMessage,
                 ...$result,
             ]);
         } catch (ValidationException $exception) {
@@ -883,6 +891,8 @@ class BookingController extends Controller
         $latestPayment = $payments->first();
         $paidAmount = (float) $payments->where('status', 'paid')->sum('amount');
         $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $refunds = $booking->refunds;
+        $latestRefund = $refunds->sortByDesc('created_at')->first();
         $bookingDate = $booking->booking_date instanceof Carbon
             ? $booking->booking_date->toDateString()
             : $booking->booking_date;
@@ -908,6 +918,9 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'refund_status' => $latestRefund?->status,
+            'refund_amount' => (float) $refunds->sum('amount'),
+            'refunds' => $refunds->values(),
             ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,
@@ -993,6 +1006,8 @@ class BookingController extends Controller
         $payments = $booking->payments;
         $latestPayment = $payments->first();
         $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $refunds = $booking->refunds;
+        $latestRefund = $refunds->sortByDesc('created_at')->first();
         $bookingDate = $booking->booking_date instanceof Carbon
             ? $booking->booking_date->toDateString()
             : $booking->booking_date;
@@ -1017,6 +1032,9 @@ class BookingController extends Controller
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'refund_status' => $latestRefund?->status,
+            'refund_amount' => (float) $refunds->sum('amount'),
+            'refunds' => $refunds->values(),
             ...$this->settlementPayload($booking),
             'status' => $booking->status,
             'status_reason' => $booking->status_reason,

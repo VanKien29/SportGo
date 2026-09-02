@@ -374,7 +374,7 @@ class SepayPaymentTest extends TestCase
         ]);
     }
 
-    public function test_direct_payment_booking_does_not_create_system_payment_or_owner_balance(): void
+    public function test_pay_later_booking_can_create_one_full_sepay_payment_before_owner_approval(): void
     {
         $booking = Booking::create([
             'booking_code' => 'BKDIRECT',
@@ -394,13 +394,30 @@ class SepayPaymentTest extends TestCase
             'status' => 'pending_approval',
         ]);
 
+        SlotLock::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'venue_court_id' => $this->court->id,
+            'lock_scope' => 'court',
+            'booking_date' => '2026-06-01',
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'locked_by' => $this->player->id,
+            'booking_id' => $booking->id,
+            'lock_type' => 'auto',
+            'expires_at' => Carbon::now()->addMinutes(20),
+        ]);
+
         $this->actingAs($this->player, 'sanctum')
             ->postJson("/api/bookings/{$booking->id}/payments/sepay")
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'Đơn đặt sân này không ở trạng thái chờ thanh toán.');
+            ->assertOk()
+            ->assertJsonPath('payment.amount', '100000.00')
+            ->assertJsonPath('payment.payment_kind', 'full');
 
-        $this->assertDatabaseMissing('payments', [
+        $this->assertDatabaseHas('payments', [
             'booking_id' => $booking->id,
+            'amount' => 100000.00,
+            'payment_kind' => 'full',
+            'status' => 'pending',
         ]);
 
         $this->assertDatabaseMissing('owner_wallets', [
