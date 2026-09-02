@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -36,6 +37,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json([
                     'message' => 'Tổng dung lượng ảnh tải lên vượt quá giới hạn cho phép của máy chủ.',
                 ], 413);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $exception, $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                $retryAfter = $exception->getHeaders()['Retry-After'] ?? null;
+                $message = $retryAfter
+                    ? "Bạn đang thao tác quá nhanh. Vui lòng thử lại sau {$retryAfter} giây."
+                    : 'Bạn đang thao tác quá nhanh. Vui lòng thử lại sau giây lát.';
+
+                return response()->json([
+                    'message' => $message,
+                ], 429, $exception->getHeaders());
             }
 
             return null;

@@ -64,12 +64,21 @@ function isTechnicalErrorMessage(message) {
 function extractError(data, fallback) {
   const first = data?.errors ? Object.values(data.errors)[0] : null;
   const candidate = Array.isArray(first) && first[0] ? first[0] : data?.message;
+  if (candidate && /too many attempts/i.test(candidate)) {
+    return 'Bạn đang thao tác quá nhanh. Vui lòng thử lại sau giây lát.';
+  }
   if (candidate && !isTechnicalErrorMessage(candidate)) return candidate;
   return fallback;
 }
 
 function makeApiError(response, data, fallback) {
-  const error = new Error(extractError(data, fallback));
+  let message = extractError(data, fallback);
+  if (response?.status === 429) {
+    if (!message || /too many attempts/i.test(message) || message === fallback) {
+      message = 'Bạn đang thao tác quá nhanh. Vui lòng thử lại sau giây lát.';
+    }
+  }
+  const error = new Error(message);
   error.status = response.status;
   error.data = data;
   error.response = { status: response.status, data };

@@ -154,70 +154,43 @@ class VenueClusterController extends Controller
 
     public function resolveMapUrl(Request $request): JsonResponse
     {
-        $request->validate([
-            'url' => ['required', 'url'],
+        $data = $request->validate([
+            'url' => ['required', 'url', 'max:1000'],
+        ], [
+            'url.required' => 'Vui lòng nhập đường link Google Maps.',
+            'url.url' => 'Đường dẫn Google Maps không đúng định dạng.',
         ]);
 
-        $url = $request->input('url');
+        $url = $data['url'];
 
-        try {
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_exec($ch);
-            $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-            curl_close($ch);
-
-            // Tìm tọa độ từ URL sau khi redirect
-            // 1. Dạng @lat,lng
-            if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
-                return response()->json([
-                    'data' => [
-                        'latitude' => (float)$matches[1],
-                        'longitude' => (float)$matches[2],
-                        'final_url' => $finalUrl,
-                    ]
-                ]);
-            }
-
-            // 2. Dạng !3dlat!4dlng
-            if (preg_match('/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $finalUrl, $matches)) {
-                return response()->json([
-                    'data' => [
-                        'latitude' => (float)$matches[1],
-                        'longitude' => (float)$matches[2],
-                        'final_url' => $finalUrl,
-                    ]
-                ]);
-            }
-
-            // 3. Dạng q=lat,lng
-            if (preg_match('/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
-                return response()->json([
-                    'data' => [
-                        'latitude' => (float)$matches[1],
-                        'longitude' => (float)$matches[2],
-                        'final_url' => $finalUrl,
-                    ]
-                ]);
-            }
-
-            // Trả về final_url để client-side tự parse tiếp
+        if (! $this->isGoogleMapUrl($url)) {
             return response()->json([
-                'data' => [
-                    'latitude' => null,
-                    'longitude' => null,
-                    'final_url' => $finalUrl,
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Lỗi kết nối khi phân giải link map: ' . $e->getMessage()], 500);
+                'status' => 'error',
+                'message' => 'Vui lòng nhập link Google Maps hợp lệ của vị trí cụm sân.',
+            ], 422);
         }
+
+        $resolved = $this->maps->resolve($url);
+        if (! ($resolved['latitude'] ?? null) || ! ($resolved['longitude'] ?? null)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không lấy được tọa độ từ link Google Maps này. Vui lòng dùng link chia sẻ vị trí có tọa độ.',
+            ], 422);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $resolved,
+        ]);
+    }
+
+    private function isGoogleMapUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST) ?: '';
+
+        return str_contains($host, 'google.')
+            || str_contains($host, 'goo.gl')
+            || str_contains($host, 'maps.app.goo.gl');
     }
 
     public function reverseMap(Request $request): JsonResponse
@@ -228,6 +201,7 @@ class VenueClusterController extends Controller
         ]);
 
         return response()->json([
+            'status' => 'success',
             'data' => $this->maps->reverse((float) $data['latitude'], (float) $data['longitude']),
         ]);
     }

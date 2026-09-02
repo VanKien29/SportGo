@@ -424,6 +424,18 @@ class PlayerPostController extends Controller
             'image.max' => 'Ảnh đính kèm không được vượt quá 15MB.',
         ]);
 
+        $latestPlayerPost = PlayerPost::where('author_id', $userId)->latest('created_at')->first();
+        if ($latestPlayerPost && $latestPlayerPost->created_at) {
+            $secondsSince = (int) now()->diffInSeconds($latestPlayerPost->created_at);
+            if ($secondsSince < 30) {
+                $wait = 30 - $secondsSince;
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Bạn vừa tạo bài giao lưu cách đây ít giây. Vui lòng đợi thêm {$wait} giây trước khi đăng bài tiếp theo.",
+                ], 429);
+            }
+        }
+
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('player_posts', 'public');

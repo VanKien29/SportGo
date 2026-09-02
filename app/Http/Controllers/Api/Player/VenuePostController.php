@@ -333,6 +333,63 @@ class VenuePostController extends Controller
         $content = trim(strip_tags($validated['content']));
         $tags = $validated['tags'] ?? [];
 
+        // Kiểm tra chống spam cho bài viết cộng đồng
+        $user = $request->user();
+        $isAdmin = $user && method_exists($user, 'roles') && $user->roles()->whereIn('roles.name', ['admin', 'super_admin'])->exists();
+
+        if (! $isAdmin) {
+            // 1. Giãn cách thời gian giữa 2 bài đăng (Cooldown 30 giây)
+            $latestPost = CommunityPost::withTrashed()
+                ->where('author_id', $user->id)
+                ->latest('created_at')
+                ->first();
+
+            if ($latestPost && $latestPost->created_at) {
+                $secondsSince = (int) now()->diffInSeconds($latestPost->created_at);
+                $cooldown = 30;
+                if ($secondsSince < $cooldown) {
+                    $wait = $cooldown - $secondsSince;
+                    return response()->json([
+                        'message' => "Bạn vừa đăng bài cách đây ít giây. Vui lòng đợi thêm {$wait} giây trước khi đăng bài mới.",
+                        'errors' => ['content' => ["Vui lòng đợi thêm {$wait} giây trước khi đăng bài tiếp theo."]],
+                    ], 429);
+                }
+            }
+
+            // 2. Chặn bài đăng trùng lặp nội dung trong vòng 30 phút
+            $normalizedNew = preg_replace('/\s+/u', ' ', mb_strtolower($content));
+            $recentDuplicate = CommunityPost::withTrashed()
+                ->where('author_id', $user->id)
+                ->where('created_at', '>=', now()->subMinutes(30))
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+                ->first(function ($p) use ($normalizedNew) {
+                    $normalizedExisting = preg_replace('/\s+/u', ' ', mb_strtolower(trim((string) $p->content)));
+                    return $normalizedExisting === $normalizedNew;
+                });
+
+            if ($recentDuplicate) {
+                return response()->json([
+                    'message' => 'Nội dung bài viết bị trùng lặp với bài bạn vừa đăng gần đây. Vui lòng chia sẻ nội dung khác.',
+                    'errors' => ['content' => ['Nội dung bài viết bị trùng lặp với bài bạn vừa đăng gần đây.']],
+                ], 422);
+            }
+
+            // 3. Giới hạn số lượng bài đăng trong ngày (Tối đa 10 bài/ngày)
+            $dailyLimit = 10;
+            $todayCount = CommunityPost::where('author_id', $user->id)
+                ->whereDate('created_at', now()->toDateString())
+                ->count();
+
+            if ($todayCount >= $dailyLimit) {
+                return response()->json([
+                    'message' => "Bạn đã đạt giới hạn tối đa {$dailyLimit} bài đăng trong ngày. Vui lòng quay lại vào ngày mai.",
+                    'errors' => ['content' => ["Đã đạt giới hạn {$dailyLimit} bài đăng trong ngày."]],
+                ], 429);
+            }
+        }
+
         // Thẩm định bằng Gemini AI
         $gemini = app(GeminiService::class);
         $aiResult = $gemini->moderateCommunityPost($content, $tags);

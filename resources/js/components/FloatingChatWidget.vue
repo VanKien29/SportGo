@@ -1,5 +1,5 @@
 <template>
-  <div v-if="showWidget" class="sg-floating-chat-wrap" :class="{ 'is-portal': isPortal }">
+  <div v-if="showWidget" class="sg-floating-chat-wrap">
     <!-- Mini Chat Popup Window -->
     <div v-if="isOpen" class="sg-mini-chat-panel">
       <!-- Panel Header -->
@@ -238,12 +238,20 @@ export default {
   computed: {
     showWidget() {
       const path = this.$route?.path || "";
-      if (path.includes("/chat") || path === "/messages" || path.includes("/venues/map")) return false;
+      // Chỉ hiển thị ở trang khách, ẩn hoàn toàn trên các trang quản trị & đối tác
+      if (/^\/(?:admin|owner|staff|partner)(?:\/|$)/.test(path)) {
+        return false;
+      }
+      // Ẩn khi ở màn hình chat toàn trang, bản đồ hoặc trang đăng nhập/đăng ký
+      if (
+        path.includes("/chat") ||
+        path === "/messages" ||
+        path.includes("/venues/map") ||
+        /^\/(?:login|register|forgot-password|auth)(?:\/|$)/.test(path)
+      ) {
+        return false;
+      }
       return true;
-    },
-    isPortal() {
-      const path = this.$route?.path || "";
-      return /^\/(?:admin|owner|staff)(?:\/|$)/.test(path);
     },
     headerTitle() {
       if (!this.user) return "Hỗ trợ trực tuyến";
@@ -611,11 +619,6 @@ export default {
   bottom: 78px;
   right: 24px;
   z-index: 9998;
-  transition: bottom 0.25s ease;
-}
-
-.sg-floating-chat-wrap.is-portal {
-  bottom: 132px;
 }
 
 /* MINI CHAT PANEL WINDOW */
@@ -1012,10 +1015,6 @@ export default {
 @media (max-width: 640px) {
   .sg-floating-chat-wrap {
     bottom: 70px;
-    right: 16px;
-  }
-  .sg-floating-chat-wrap.is-portal {
-    bottom: 120px;
     right: 16px;
   }
   .sg-mini-chat-panel {

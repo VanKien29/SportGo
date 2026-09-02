@@ -278,9 +278,10 @@
               />
             </label>
           </div>
-          <p v-if="fileError" class="form-error" role="alert">{{ fileError }}</p>
-
-          <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
+          <div v-if="fileError || errorMsg" class="form-alert-banner" role="alert">
+            <AppIcon name="alert" :size="16" class="alert-icon" />
+            <span>{{ fileError || errorMsg }}</span>
+          </div>
 
           <footer class="form-actions">
             <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
@@ -1500,11 +1501,24 @@ textarea.field-control {
   color: #94a3b8;
 }
 
-.form-error {
-  color: #dc2626;
+.form-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
   font-size: 13px;
-  font-weight: 400;
-  margin: 0;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.form-alert-banner .alert-icon {
+  flex-shrink: 0;
+  color: #ef4444;
 }
 
 .field-warning {
