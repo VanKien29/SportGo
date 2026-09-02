@@ -651,7 +651,7 @@ Route::middleware('auth:sanctum')
         Route::post('/my-community-posts/{id}/restore', [PlayerVenuePostController::class, 'restore']);
         Route::post('/my-community-posts/{id}/appeal', [PlayerVenuePostController::class, 'appeal']);
         Route::post('/venue-posts', [PlayerVenuePostController::class, 'store'])->middleware('throttle:5,1');
-        Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
+        Route::match(['put', 'post', 'patch'], '/venue-posts/{id}', [PlayerVenuePostController::class, 'update']);
         Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);
 
         Route::get('/vip-membership', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'index']);

@@ -252,6 +252,22 @@
                         <FormField class="full-width" label="Số nhà, tên đường" required :error="fieldErrors.street_address">
                           <input v-model.trim="form.street_address" :class="inputClass(fieldErrors.street_address)" placeholder="Ví dụ: 123 Đường Nguyễn Văn Cừ" @input="syncVenueAddress" />
                         </FormField>
+                        <!-- MAP DISPLAY (Đặt ngay dưới Địa chỉ để không phải cuộn trang) -->
+                        <div class="form-group full-width map-picker-group">
+                          <div class="map-picker-header">
+                            <label class="form-label"><span class="form-label-text">Vị trí chính xác trên bản đồ</span></label>
+                            <button type="button" class="current-location-btn" @click="getCurrentLocation">
+                              <AppIcon name="mapPin" size="14" /> Lấy vị trí hiện tại của tôi
+                            </button>
+                          </div>
+
+                          <p v-if="mapStatus" style="font-size: 13px; color: #0284c7; margin: 6px 0 0 0; font-weight: 500;">{{ mapStatus }}</p>
+                          <p v-if="mapError" style="font-size: 13px; color: #ef4444; margin: 6px 0 0 0; font-weight: 500;">{{ mapError }}</p>
+
+                          <div id="partner-application-map" ref="mapContainer" class="portal-map-picker"></div>
+                          <p class="form-hint">Kéo thả ghim đỏ hoặc nhấp trực tiếp vào bản đồ để chọn vị trí cụm sân của bạn.</p>
+                        </div>
+
                         <FormField class="full-width" label="Tên Cụm sân hiển thị" required :error="fieldErrors.venue_name">
                           <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" placeholder="Ví dụ: Cụm sân Cầu lông SportGo Tân Bình" />
                         </FormField>
@@ -264,24 +280,6 @@
                         <FormField label="Quy mô diện tích (m²)" :error="fieldErrors.venue_area_sqm">
                           <input v-model.number="form.venue_area_sqm" :class="inputClass(fieldErrors.venue_area_sqm)" type="number" min="10" />
                         </FormField>
-
-                        <!-- MAP DISPLAY -->
-                        <div class="form-group full-width map-picker-group">
-                          <div class="map-picker-header">
-                            <label class="form-label"><span class="form-label-text">Vị trí chính xác trên bản đồ</span></label>
-                            <button type="button" class="current-location-btn" @click="getCurrentLocation">
-                              <AppIcon name="mapPin" size="14" /> Lấy vị trí hiện tại của tôi
-                            </button>
-                          </div>
-
-                          <div class="map-coordinates-bar">
-                            <span>Vĩ độ (Lat): <strong>{{ form.venue_latitude || form.latitude || 'Chưa chọn' }}</strong></span>
-                            <span>Kinh độ (Lng): <strong>{{ form.venue_longitude || form.longitude || 'Chưa chọn' }}</strong></span>
-                          </div>
-
-                          <div id="partner-application-map" ref="mapContainer" class="portal-map-picker"></div>
-                          <p class="form-hint">Kéo thả ghim đỏ hoặc nhấp trực tiếp vào bản đồ để chọn vị trí cụm sân của bạn.</p>
-                        </div>
                       </div>
                     </FormSection>
                   </div>
@@ -526,9 +524,9 @@
           <div v-else class="location-modal-result">
             <h3 class="location-modal-title">Xác nhận vị trí hành chính</h3>
             <p class="location-modal-desc">Hệ thống đã nhận diện được vị trí của bạn thuộc khu vực:</p>
-            <div class="location-detected-box">
-              <p class="location-detected-address">{{ locationModal.resolvedData?.full_address }}</p>
-            </div>
+            <p class="location-detected-address">
+              <strong>{{ locationModal.resolvedData?.full_address }}</strong>
+            </p>
             <p class="location-modal-question">Bạn có muốn tự động chọn Tỉnh/Thành phố & Phường/Xã này vào thông tin đăng ký không?</p>
 
             <div class="location-modal-actions">
@@ -663,6 +661,7 @@ const locationModal = reactive({
 });
 const bankTimer = ref(null);
 const mapTimer = ref(null);
+const mapContainer = ref(null);
 const mapInstance = ref(null);
 const mapMarker = ref(null);
 const mapReverseBusy = ref(false);
@@ -746,6 +745,10 @@ onMounted(async () => {
     }
     await openDraftFromRoute();
   }
+  if (formOpen.value) {
+    await nextTick();
+    ensureMapInitialized();
+  }
 });
 
 onBeforeUnmount(() => {
@@ -773,7 +776,7 @@ watch(() => form.venue_ward_code, syncVenueAddress);
 watch(formOpen, async (open) => {
   if (open) {
     await nextTick();
-    initMapPicker();
+    ensureMapInitialized();
     initScrollSpy();
     return;
   }
@@ -1334,9 +1337,28 @@ async function parseGoogleMapUrl(silent = false) {
   return false;
 }
 
+function ensureMapInitialized(retries = 5) {
+  if (mapInstance.value) {
+    mapInstance.value.invalidateSize();
+    return true;
+  }
+  const container = mapContainer.value || document.getElementById('partner-application-map');
+  if (container) {
+    initMapPicker();
+    return true;
+  }
+  if (retries > 0) {
+    setTimeout(() => ensureMapInitialized(retries - 1), 100);
+  }
+  return false;
+}
+
 function initMapPicker() {
-  if (mapInstance.value) return;
-  const container = document.getElementById('partner-application-map');
+  if (mapInstance.value) {
+    mapInstance.value.invalidateSize();
+    return;
+  }
+  const container = mapContainer.value || document.getElementById('partner-application-map');
   if (!container) return;
   const lat = validLatitude(form.venue_latitude) ? Number(form.venue_latitude) : 21.0285;
   const lng = validLongitude(form.venue_longitude) ? Number(form.venue_longitude) : 105.8542;
@@ -1357,7 +1379,10 @@ function initMapPicker() {
   mapMarker.value = L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
   mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
   mapInstance.value.on('click', (event) => applyPickedCoordinates(event.latlng));
-  setTimeout(() => mapInstance.value?.invalidateSize(), 150);
+  const invalidate = () => mapInstance.value?.invalidateSize();
+  setTimeout(invalidate, 100);
+  setTimeout(invalidate, 300);
+  setTimeout(invalidate, 600);
 }
 
 function destroyMapPicker() {
@@ -1369,22 +1394,45 @@ function destroyMapPicker() {
 
 function getCurrentLocation() {
   if (navigator.geolocation) {
+    mapError.value = '';
+    mapStatus.value = 'Đang lấy vị trí hiện tại của bạn...';
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        mapStatus.value = '';
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         applyPickedCoordinates({ lat, lng });
+        ensureMapInitialized();
         if (mapInstance.value) {
-          mapInstance.value.setView([lat, lng], 15);
-          if (mapMarker.value) mapMarker.value.setLatLng([lat, lng]);
+          mapInstance.value.setView([lat, lng], 16);
+          if (mapMarker.value) {
+            mapMarker.value.setLatLng([lat, lng]);
+          } else {
+            mapMarker.value = L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
+            mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
+          }
+          mapInstance.value.invalidateSize();
         }
+        toast.success('Đã lấy vị trí hiện tại thành công!');
       },
-      () => {
-        mapError.value = 'Không thể lấy vị trí. Hãy kiểm tra quyền truy cập vị trí của trình duyệt.';
-      }
+      (err) => {
+        mapStatus.value = '';
+        let errorMsg = 'Không thể lấy vị trí. Hãy kiểm tra quyền truy cập vị trí của trình duyệt.';
+        if (err.code === 1) {
+          errorMsg = 'Bạn đã từ chối quyền truy cập vị trí trên trình duyệt.';
+        } else if (err.code === 2) {
+          errorMsg = 'Không thể xác định vị trí thiết bị hiện tại.';
+        } else if (err.code === 3) {
+          errorMsg = 'Quá thời gian chờ lấy vị trí.';
+        }
+        mapError.value = errorMsg;
+        toast.error(errorMsg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   } else {
     mapError.value = 'Trình duyệt này không hỗ trợ định vị. Bạn vẫn có thể chọn vị trí trực tiếp trên bản đồ.';
+    toast.error(mapError.value);
   }
 }
 
@@ -1414,14 +1462,26 @@ function googleMapsPointUrl(lat, lng) {
 }
 
 function updateMapPickerMarker() {
-  if (!mapInstance.value || !mapMarker.value) return;
+  if (!mapInstance.value) {
+    if (validLatitude(form.venue_latitude) && validLongitude(form.venue_longitude)) {
+      ensureMapInitialized();
+    }
+    return;
+  }
   if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) return;
   const lat = Number(form.venue_latitude);
   const lng = Number(form.venue_longitude);
-  const current = mapMarker.value.getLatLng();
-  if (Math.abs(current.lat - lat) < 0.000001 && Math.abs(current.lng - lng) < 0.000001) return;
-  mapMarker.value.setLatLng([lat, lng]);
+  if (!mapMarker.value) {
+    mapMarker.value = L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
+    mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
+  } else {
+    const current = mapMarker.value.getLatLng();
+    if (Math.abs(current.lat - lat) >= 0.000001 || Math.abs(current.lng - lng) >= 0.000001) {
+      mapMarker.value.setLatLng([lat, lng]);
+    }
+  }
   mapInstance.value.setView([lat, lng], mapInstance.value.getZoom() || 15);
+  mapInstance.value.invalidateSize();
 }
 
 function validLatitude(value) {
@@ -3412,18 +3472,11 @@ function money(value) {
   font-weight: 400;
 }
 
-.location-detected-box {
-  padding: 14px;
-  border-radius: 12px;
-  background: #f2f7f4;
-  border: 1px solid #9ebcb0;
-}
-
 .location-detected-address {
-  margin: 0;
-  color: #2e4238;
+  margin: 4px 0;
+  color: #0f172a;
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.5;
 }
 

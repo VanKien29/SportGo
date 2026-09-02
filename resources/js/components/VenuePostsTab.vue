@@ -221,7 +221,7 @@
         </div>
 
         <!-- Post Actions Bar -->
-        <div class="venue-post-actions-bar">
+        <div v-if="isPostPublished(post)" class="venue-post-actions-bar">
           <button
             type="button"
             class="venue-action-btn"
@@ -792,7 +792,14 @@ async function ensurePostDetails(post) {
   }
 }
 
+function isPostPublished(post) {
+  if (!post) return false;
+  if (post.is_deleted || post.deleted_at) return false;
+  return !post.status || post.status === 'published' || post.status === 'approved';
+}
+
 async function toggleComments(post) {
+  if (!isPostPublished(post)) return;
   commentsOpen[post.id] = !commentsOpen[post.id];
   if (commentsOpen[post.id]) {
     await ensurePostDetails(post);
@@ -800,6 +807,7 @@ async function toggleComments(post) {
 }
 
 async function toggleLike(post) {
+  if (!isPostPublished(post)) return;
   if (!user) {
     toast.info('Vui lòng đăng nhập để thích bài viết.');
     goToLogin();

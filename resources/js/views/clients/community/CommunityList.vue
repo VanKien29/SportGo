@@ -133,16 +133,16 @@
 
               <div class="post-card__stats">
                 <span><AppIcon name="heart" />{{ post.like_count || 0 }}</span>
-                <button type="button" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
+                <button type="button" :disabled="!isPostPublished(post)" @click="isPostPublished(post) && toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
                 <span>{{ post.view_count || 0 }} lượt xem</span>
               </div>
-              <div class="post-card__actions">
+              <div v-if="isPostPublished(post)" class="post-card__actions">
                 <button type="button" :class="{ active: Boolean(post.is_liked) }" :disabled="likingPostIds.has(post.id) || !post.likes_available" :title="post.likes_available ? '' : 'Lượt thích đang tạm thời chưa khả dụng'" @click="toggleLike(post)"><AppIcon name="heart" />{{ post.is_liked ? 'Đã thích' : 'Thích' }}</button>
                 <button type="button" :class="{ active: commentsOpen[post.id] }" @click="toggleComments(post)"><AppIcon name="messageCircle" />Bình luận</button>
                 <button type="button" @click="sharePost(post)"><AppIcon name="share" />Chia sẻ</button>
               </div>
 
-              <section v-if="commentsOpen[post.id]" class="comments-panel" aria-label="Bình luận bài viết">
+              <section v-if="isPostPublished(post) && commentsOpen[post.id]" class="comments-panel" aria-label="Bình luận bài viết">
                 <div v-if="detailsLoading[post.id]" class="comments-loading"><span class="loader loader-small"></span>Đang tải bình luận...</div>
                 <template v-else>
                   <div v-if="post.top_level_comments?.length" class="comment-list">
@@ -475,12 +475,26 @@ async function ensurePostDetails(post) {
   }
 }
 
+function isPostPublished(post) {
+  if (!post) return false;
+  if (post.is_deleted || post.deleted_at) return false;
+  return post.status === 'published' || post.status === 'approved';
+}
+
 async function toggleComments(post) {
+  if (!isPostPublished(post)) {
+    toast.warning('Bài viết chưa được phê duyệt nên chưa thể xem hoặc viết bình luận.');
+    return;
+  }
   commentsOpen[post.id] = !commentsOpen[post.id];
   if (commentsOpen[post.id]) await ensurePostDetails(post);
 }
 
 async function toggleLike(post) {
+  if (!isPostPublished(post)) {
+    toast.warning('Bài viết chưa được phê duyệt nên chưa thể tương tác.');
+    return;
+  }
   if (!user) {
     toast.info('Vui lòng đăng nhập để thích bài viết.');
     goToLogin();
