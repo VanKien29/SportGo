@@ -201,12 +201,12 @@
       type="button"
       class="sg-btn-floating-chat"
       title="Mở Hộp Thư Tin Nhắn & Hỗ Trợ"
+      aria-label="Mở Hộp Thư Tin Nhắn & Hỗ Trợ"
       @click="togglePopup"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
-      <span class="sg-floating-chat-label">Nhắn tin</span>
       <span v-if="unreadBadge" class="sg-floating-badge">{{ unreadBadge }}</span>
     </button>
   </div>
@@ -967,25 +967,37 @@ export default {
 .sg-btn-floating-chat {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  padding: 0;
   background: #5c7e6e;
   color: #ffffff;
   border: none;
-  border-radius: 30px;
-  font-size: 14.5px;
-  font-weight: 600;
+  border-radius: 50%;
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+
+.sg-btn-floating-chat:hover {
+  background: #4a6759;
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
 }
 
 .sg-floating-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
   background: #ef4444;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 10px;
+  border: 2px solid #ffffff;
 }
 
 @media (max-width: 640px) {
@@ -998,12 +1010,9 @@ export default {
     width: calc(100vw - 32px);
     height: 460px;
   }
-  .sg-floating-chat-label {
-    display: none;
-  }
   .sg-btn-floating-chat {
-    padding: 14px;
-    border-radius: 50%;
+    width: 46px;
+    height: 46px;
   }
 }
 </style>
