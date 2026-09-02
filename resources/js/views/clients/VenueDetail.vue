@@ -78,9 +78,6 @@
 
               <!-- Hero Actions Group -->
               <div class="sg-hero-cta-group">
-                <button type="button" class="sg-btn-primary-action" @click="scrollToBooking">
-                  <span>Chọn lịch trống & đặt ngay</span>
-                </button>
                 <button type="button" class="sg-btn-ghost-action" @click="chatWithVenue">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                   <span>Nhắn tin</span>
@@ -379,52 +376,6 @@
           <!-- TAB 2: SÂN & BẢNG GIÁ -->
           <template v-else-if="activeTab === 'courts'">
             <div class="sg-courts-pricing-section">
-              <!-- Sơ đồ vị trí sân -->
-              <div v-if="courtGroups.length" class="sg-courts-block">
-                <div class="sg-court-heading-row">
-                  <div>
-                    <h2 class="sg-section-title">Sơ đồ vị trí sân</h2>
-                    <p class="sg-section-sub">Nhấp trực tiếp trên sơ đồ để xem vị trí sân con tương ứng.</p>
-                  </div>
-                  <span class="sg-court-legend-dot">Sân đang hoạt động</span>
-                </div>
-
-                <div class="sg-court-canvas" :style="layoutCanvasStyle" aria-label="Sơ đồ trực quan các sân">
-                  <button
-                    v-for="court in courtLayoutItems"
-                    :key="court.id"
-                    type="button"
-                    class="sg-court-node-btn"
-                    :class="{ 'is-selected': selectedLayoutCourt?.id === court.id }"
-                    :style="courtLayoutStyle(court)"
-                    @click="selectLayoutCourt(court)"
-                  >
-                    <CourtVisual
-                      :name="court.name || `Sân ${court.layoutIndex + 1}`"
-                      :court-type-name="court.court_type?.name"
-                      :image-url="imageUrl(court.image_url || court.custom_image_url || court.image)"
-                      status="active"
-                      :show-type="false"
-                    />
-                  </button>
-                  <div
-                    v-for="decoration in layoutDecorationItems"
-                    :key="decoration.id"
-                    class="sg-court-deco-item"
-                    :style="courtLayoutStyle(decoration)"
-                  >
-                    <DecorationVisual
-                      :type="decoration.type"
-                      :name="decoration.name"
-                      :rotation="decoration.layout_rotation || 0"
-                    />
-                  </div>
-                </div>
-
-                <p v-if="selectedLayoutCourt" class="sg-court-selected-note">
-                  Đang chọn xem: <span class="sg-court-selected-highlight">{{ selectedLayoutCourt.name }}</span> ({{ selectedLayoutCourt.court_type?.name || "Sân thể thao" }})
-                </p>
-              </div>
 
               <!-- Phân loại loại sân & Danh sách sân con (Flat clean list) -->
               <div v-if="courtGroups.length" class="sg-courts-block">
@@ -442,43 +393,87 @@
                 </div>
               </div>
 
-              <!-- Bảng giá thuê sân -->
-              <div v-if="pricingRows.length" class="sg-courts-block">
+              <!-- Bảng giá thuê sân (Trình bày chuẩn hóa trực quan theo từng loại sân) -->
+              <div v-if="courtPricingCards.length" class="sg-courts-block">
                 <div class="sg-price-heading-row">
                   <div>
-                    <h2 class="sg-section-title">Bảng giá thuê sân</h2>
-                    <p class="sg-section-sub">Giá tham khảo theo từng ngày và khung giờ. Khi đặt sân, hệ thống sẽ áp dụng mức giá phù hợp nhất.</p>
+                    <h2 class="sg-section-title">Bảng giá sân</h2>
+                    <p class="sg-section-sub">Bảng giá chi tiết theo từng loại sân, thứ trong tuần và khung giờ áp dụng.</p>
                   </div>
-                  <span class="sg-price-count">{{ pricingRows.length }} mức giá</span>
                 </div>
 
-                <div class="sg-price-table-wrap">
-                  <table class="sg-price-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Loại sân</th>
-                        <th scope="col">Ngày áp dụng</th>
-                        <th scope="col">Khung giờ</th>
-                        <th scope="col" class="sg-price-cell-right">Giá thuê / giờ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="row in pricingRows" :key="row.key" :class="`is-${row.source}`">
-                        <td>
-                          <strong class="sg-price-court-name">{{ row.courtName }}</strong>
-                          <span v-if="row.isSpecial" class="sg-price-promo">Ngày đặc biệt</span>
-                        </td>
-                        <td>{{ row.daysLabel }}</td>
-                        <td>{{ row.timeLabel }}</td>
-                        <td class="sg-price-cell-right">
-                          <strong class="sg-price-value">{{ formatCurrency(row.price) }}</strong>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div class="sg-pricing-cards-list">
+                  <div
+                    v-for="card in courtPricingCards"
+                    :key="card.courtTypeId"
+                    class="sg-pricing-card"
+                  >
+                    <!-- Tiêu đề loại sân -->
+                    <div class="sg-pricing-card-header">
+                      <h3>{{ card.courtTypeName }}</h3>
+                    </div>
+
+                    <!-- Bảng giá giờ chuẩn -->
+                    <div class="sg-pricing-table-container">
+                      <table class="sg-clean-pricing-table">
+                        <thead>
+                          <tr>
+                            <th class="col-day">Thứ</th>
+                            <th class="col-time">Khung giờ</th>
+                            <th class="col-price">Giá</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template v-for="(group, gIdx) in card.daysGroups" :key="`g-${gIdx}`">
+                            <tr v-for="(slot, sIdx) in group.slots" :key="slot.id || `s-${sIdx}`">
+                              <!-- Gộp ô cột Thứ -->
+                              <td
+                                v-if="sIdx === 0"
+                                :rowspan="group.slots.length"
+                                class="cell-day"
+                              >
+                                {{ group.daysLabel }}
+                              </td>
+                              <td class="cell-time">
+                                {{ slot.timeLabel }}
+                              </td>
+                              <td class="cell-price">
+                                {{ formatPriceBadge(slot.price) }}
+                              </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- Bảng giá ngày đặc biệt / ngày lễ (nếu có) -->
+                    <div v-if="card.holidays.length" class="sg-pricing-sub-section">
+                      <div class="sg-pricing-sub-header">
+                        <h4>Ngày đặc biệt &amp; Ngày lễ</h4>
+                      </div>
+                      <div class="sg-pricing-table-container">
+                        <table class="sg-clean-pricing-table">
+                          <thead>
+                            <tr>
+                              <th class="col-day">Ngày áp dụng</th>
+                              <th class="col-time">Khung giờ</th>
+                              <th class="col-price">Giá</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="holiday in card.holidays" :key="holiday.id">
+                              <td class="cell-day">{{ holiday.dateLabel }}</td>
+                              <td class="cell-time">{{ holiday.timeLabel }}</td>
+                              <td class="cell-price">{{ formatPriceBadge(holiday.price) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <p class="sg-price-footnote">Giá cuối cùng có thể thay đổi theo ưu đãi hoặc hạng thành viên của bạn ở bước xác nhận đặt sân.</p>
+                <p class="sg-price-footnote">Giá hiển thị là giá thuê theo giờ. Khi đặt sân, hệ thống sẽ tự động tính mức giá chính xác nhất theo khung giờ và ngày bạn chọn.</p>
               </div>
 
               <!-- Chính sách & Quy định -->
@@ -731,8 +726,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import AppIcon from "../../components/AppIcon.vue";
-import CourtVisual from "../../components/CourtVisual.vue";
-import DecorationVisual from "../../components/DecorationVisual.vue";
 import ComplaintModal from "../../components/ComplaintModal.vue";
 import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
@@ -745,7 +738,7 @@ import { useToast } from "vue-toastification";
 
 export default {
   name: "VenueDetail",
-  components: { PublicNavbar, AppIcon, CourtVisual, DecorationVisual, ComplaintModal, ReportModal, VenuePostsTab },
+  components: { PublicNavbar, AppIcon, ComplaintModal, ReportModal, VenuePostsTab },
   setup() {
     return { toast: useToast() };
   },
@@ -830,33 +823,6 @@ export default {
       });
       return Object.values(groups);
     },
-    courtLayoutItems() {
-      return (this.venue?.venue_courts || []).map((court, index) => ({
-        ...court,
-        shortName: String(court.name || `Sân ${index + 1}`).replace(/^Sân\s+/i, ""),
-        layoutIndex: index,
-      }));
-    },
-    selectedLayoutCourt() {
-      return this.courtLayoutItems.find((court) => court.id === this.selectedLayoutCourtId) || null;
-    },
-    layoutDecorationItems() {
-      return Array.isArray(this.venue?.layout_decorations) ? this.venue.layout_decorations : [];
-    },
-    layoutBounds() {
-      const items = [...this.courtLayoutItems, ...this.layoutDecorationItems];
-      const placedItems = items.filter((item) => item.layout_x !== null && item.layout_x !== undefined && item.layout_y !== null && item.layout_y !== undefined);
-      if (!placedItems.length) return { minX: 0, minY: 0, width: 1200, height: 700 };
-
-      const minX = Math.min(...placedItems.map((item) => Number(item.layout_x) || 0));
-      const minY = Math.min(...placedItems.map((item) => Number(item.layout_y) || 0));
-      const maxX = Math.max(...placedItems.map((item) => (Number(item.layout_x) || 0) + Math.max(80, Number(item.layout_w) || 180)));
-      const maxY = Math.max(...placedItems.map((item) => (Number(item.layout_y) || 0) + Math.max(60, Number(item.layout_h) || 110)));
-      return { minX: minX - 80, minY: minY - 80, width: Math.max(900, maxX - minX + 160), height: Math.max(560, maxY - minY + 160) };
-    },
-    layoutCanvasStyle() {
-      return {};
-    },
     groupedServices() {
       const services = this.venue?.services || [];
       const groups = {};
@@ -888,6 +854,97 @@ export default {
     basePrices() { return this.venue?.base_prices || []; },
     priceSlots() { return this.venue?.price_slots || []; },
     holidayPrices() { return this.venue?.holiday_prices || []; },
+    courtPricingCards() {
+      const cards = [];
+      const courtTypesMap = new Map();
+
+      // Thu thập tất cả court_type có trong cụm sân
+      (this.venue?.venue_courts || []).forEach((court) => {
+        if (court.court_type) {
+          courtTypesMap.set(court.court_type.id, court.court_type);
+        }
+      });
+
+      (this.basePrices || []).forEach((bp) => {
+        if (bp.court_type) {
+          courtTypesMap.set(bp.court_type.id, bp.court_type);
+        }
+      });
+
+      (this.priceSlots || []).forEach((ps) => {
+        if (ps.court_type) {
+          courtTypesMap.set(ps.court_type.id, ps.court_type);
+        }
+      });
+
+      const courtTypesList = Array.from(courtTypesMap.values());
+      if (!courtTypesList.length) {
+        courtTypesList.push({ id: 'all', name: 'Bảng giá sân' });
+      }
+
+      courtTypesList.forEach((courtType) => {
+        const isGeneral = courtType.id === 'all';
+        const typeSlots = (this.priceSlots || []).filter(
+          (ps) => isGeneral || !ps.court_type_id || ps.court_type_id === courtType.id
+        );
+
+        const typeBase = (this.basePrices || []).find(
+          (bp) => isGeneral || !bp.court_type_id || bp.court_type_id === courtType.id
+        );
+
+        const typeHolidays = (this.holidayPrices || []).filter(
+          (hp) => isGeneral || !hp.court_type_id || hp.court_type_id === courtType.id
+        );
+
+        const daysGroups = [];
+        if (typeSlots.length) {
+          const sortedSlots = [...typeSlots].sort((a, b) =>
+            (a.start_time || '').localeCompare(b.start_time || '')
+          );
+
+          sortedSlots.forEach((slot) => {
+            const dLabel = this.formatDaysGroup(slot.apply_to_days);
+            let group = daysGroups.find((g) => g.daysLabel === dLabel);
+            if (!group) {
+              group = { daysLabel: dLabel, slots: [] };
+              daysGroups.push(group);
+            }
+            group.slots.push({
+              id: slot.id,
+              timeLabel: this.formatTimeRange(slot.start_time, slot.end_time),
+              price: Number(slot.price || 0),
+            });
+          });
+        } else if (typeBase) {
+          daysGroups.push({
+            daysLabel: 'T2 - CN',
+            slots: [
+              {
+                id: `base-${typeBase.id}`,
+                timeLabel: 'Mọi khung giờ',
+                price: Number(typeBase.price || 0),
+              },
+            ],
+          });
+        }
+
+        if (daysGroups.length || typeHolidays.length) {
+          cards.push({
+            courtTypeId: courtType.id,
+            courtTypeName: courtType.name,
+            daysGroups,
+            holidays: typeHolidays.map((hp) => ({
+              id: hp.id,
+              dateLabel: `${hp.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ'} (${this.formatDate(hp.holiday_date)})`,
+              timeLabel: this.formatTimeRange(hp.start_time, hp.end_time),
+              price: Number(hp.price || 0),
+            })),
+          });
+        }
+      });
+
+      return cards;
+    },
     pricingRows() {
       const baseRows = this.basePrices.map((price) => ({
         key: `base-${price.id}`,
@@ -1072,35 +1129,6 @@ export default {
       this.$router.replace({ name: 'venue-detail', params: { id: this.$route.params.id }, query });
     },
 
-    courtLayoutStyle(court) {
-      const hasLayout = court.layout_x !== null && court.layout_x !== undefined
-        && court.layout_y !== null && court.layout_y !== undefined;
-      const fallbackIndex = Number(court.layoutIndex || 0);
-      const fallbackColumn = fallbackIndex % 4;
-      const fallbackRow = Math.floor(fallbackIndex / 4);
-      const fallbackX = 80 + fallbackColumn * 220;
-      const fallbackY = 80 + fallbackRow * 150;
-      const left = ((hasLayout ? Number(court.layout_x) : fallbackX) - this.layoutBounds.minX) / this.layoutBounds.width * 100;
-      const top = ((hasLayout ? Number(court.layout_y) : fallbackY) - this.layoutBounds.minY) / this.layoutBounds.height * 100;
-      const width = Math.max(8, Number(court.layout_w || 180) / this.layoutBounds.width * 100);
-      const height = Math.max(8, Number(court.layout_h || 110) / this.layoutBounds.height * 100);
-      return {
-        left: `${Math.min(94, Math.max(1, left))}%`,
-        top: `${Math.min(90, Math.max(1, top))}%`,
-        width: `${Math.min(45, Math.max(8, width))}%`,
-        height: `${Math.min(40, Math.max(8, height))}%`,
-        transform: `rotate(${Number(court.layout_rotation || 0)}deg)`,
-      };
-    },
-    decorationIcon(type) {
-      return { entrance: 'building', reception: 'building', restroom: 'settings', seating: 'users', parking: 'mapPin', custom: 'layers' }[type] || 'layers';
-    },
-    selectLayoutCourt(court) {
-      this.selectedLayoutCourtId = court.id;
-      this.bookCourtType = court.court_type_id || this.bookCourtType;
-      this.$nextTick(() => this.scrollToBooking());
-    },
-
     initials(name) {
       return String(name || "SG")
         .trim()
@@ -1179,6 +1207,55 @@ export default {
 
     timeLabel(value) {
       return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    formatDaysGroup(days) {
+      let values = days;
+      if (typeof values === 'string') {
+        try { values = JSON.parse(values); } catch { values = []; }
+      }
+      if (!Array.isArray(values) || !values.length) {
+        return 'T2 - CN';
+      }
+      const nums = [
+        ...new Set(
+          values
+            .map((d) => Number(d))
+            .filter((d) => Number.isInteger(d) && d >= 0 && d <= 7)
+            .map((d) => (d === 0 ? 7 : d))
+        ),
+      ].sort((a, b) => a - b);
+      if (!nums.length) return 'T2 - CN';
+
+      const dayStr = nums.join(',');
+      if (dayStr === '1,2,3,4,5,6,7') return 'T2 - CN';
+      if (dayStr === '1,2,3,4,5') return 'T2 - T6';
+      if (dayStr === '6,7') return 'T7 - CN';
+      if (dayStr === '1,2,3,4,5,6') return 'T2 - T7';
+      if (dayStr === '1,3,5') return 'T2, T4, T6';
+      if (dayStr === '2,4,6') return 'T3, T5, T7';
+
+      const labels = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN' };
+      return nums.map((n) => labels[n] || `T${n}`).join(', ');
+    },
+
+    formatTimeRange(start, end) {
+      if (!start || !end) return 'Mọi khung giờ';
+      const formatHour = (val) => {
+        const s = String(val).slice(0, 5);
+        const [h, m] = s.split(':');
+        const hourNum = parseInt(h, 10);
+        if (!m || m === '00') {
+          return `${hourNum}h`;
+        }
+        return `${hourNum}h${m}`;
+      };
+      return `${formatHour(start)} - ${formatHour(end)}`;
+    },
+
+    formatPriceBadge(price) {
+      const num = Number(price || 0);
+      return `${new Intl.NumberFormat('vi-VN').format(num)} đ`;
     },
 
     daysLabel(days) {
@@ -2262,92 +2339,130 @@ export default {
   white-space: nowrap;
 }
 
-.sg-price-table-wrap {
+/* Clean Pricing Cards by Court Type */
+.sg-pricing-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.sg-pricing-card {
+  background: #ffffff;
+  border: 1.5px solid #15803d;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(21, 128, 61, 0.06);
+}
+
+.sg-pricing-card-header {
+  background: #ffffff;
+  border-bottom: 1.5px solid #15803d;
+  padding: 11px 16px;
+  text-align: center;
+}
+
+.sg-pricing-card-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #15803d;
+  letter-spacing: 0.3px;
+}
+
+.sg-pricing-table-container {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
 }
 
-.sg-price-table {
+.sg-clean-pricing-table {
   width: 100%;
-  min-width: 620px;
   border-collapse: collapse;
   table-layout: fixed;
-  color: #334155;
-  font-size: 12px;
+  font-size: 13.5px;
 }
 
-.sg-price-table th,
-.sg-price-table td {
-  padding: 7px 9px;
-  border: 1px solid #dbe3ea;
-  text-align: left;
+.sg-clean-pricing-table th,
+.sg-clean-pricing-table td {
+  padding: 11px 14px;
+  border: 1px solid #15803d;
+  text-align: center;
   vertical-align: middle;
-  line-height: 1.35;
 }
 
-.sg-price-table th {
-  background: #f1f5f9 !important;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 700 !important;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-.sg-price-table tbody tr:nth-child(even) td {
-  background: #fbfdff !important;
-}
-
-.sg-price-table tbody tr:hover td {
-  background: #f0fdf4 !important;
-}
-
-.sg-price-table th:nth-child(1),
-.sg-price-table td:nth-child(1) { width: 30%; }
-
-.sg-price-table th:nth-child(2),
-.sg-price-table td:nth-child(2) { width: 27%; }
-
-.sg-price-table th:nth-child(3),
-.sg-price-table td:nth-child(3) { width: 25%; }
-
-.sg-price-table th:nth-child(4),
-.sg-price-table td:nth-child(4) { width: 18%; }
-
-.sg-price-court-name,
-.sg-price-promo {
-  display: block;
-}
-
-.sg-price-court-name {
-  color: #0f172a;
-  font-weight: 650 !important;
-}
-
-.sg-price-cell-right {
-  text-align: right !important;
-}
-
-.sg-price-value {
+.sg-clean-pricing-table th {
+  background: #ffffff;
   color: #15803d;
-  font-size: 12.5px;
-  font-weight: 700 !important;
-  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 700;
 }
 
-.sg-price-promo {
-  margin-top: 2px;
-  color: #b45309;
-  font-size: 10.5px;
+.sg-clean-pricing-table .col-day {
+  width: 30%;
+}
+
+.sg-clean-pricing-table .col-time {
+  width: 38%;
+}
+
+.sg-clean-pricing-table .col-price {
+  width: 32%;
+}
+
+.sg-clean-pricing-table .cell-day {
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  font-size: 13.5px;
+}
+
+.sg-clean-pricing-table .cell-time {
+  font-weight: 500;
+  color: #334155;
+  font-size: 13px;
+}
+
+.sg-clean-pricing-table .cell-price {
+  font-weight: 700;
+  color: #15803d;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+.sg-pricing-sub-section {
+  border-top: 1.5px solid #15803d;
+}
+
+.sg-pricing-sub-header {
+  background: #f8fafc;
+  padding: 8px 16px;
+  text-align: center;
+  border-bottom: 1px solid #15803d;
+}
+
+.sg-pricing-sub-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #15803d;
 }
 
 .sg-price-footnote {
-  margin: -3px 0 0;
+  margin: 6px 0 0;
   color: #64748b;
-  font-size: 11.5px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .sg-clean-pricing-table th,
+  .sg-clean-pricing-table td {
+    padding: 9px 6px;
+    font-size: 12px;
+  }
+  .sg-clean-pricing-table .cell-price {
+    font-size: 12.5px;
+  }
 }
 
 /* Policy Flat Grid */
