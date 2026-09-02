@@ -473,173 +473,180 @@
               </div>
 
               <!-- MESSAGES LIST -->
-              <div
-                v-for="msg in messages"
-                :id="`msg-${msg.id}`"
-                :key="msg.id"
-                :class="[
-                  'cc-msg-row',
-                  isMyMessage(msg) ? 'cc-msg-row--me' : 'cc-msg-row--other',
-                  { 'is-recalled': msg.is_recalled }
-                ]"
-              >
-                <!-- BOT AVATAR IF AI -->
-                <div v-if="!isMyMessage(msg) && activeConversation.is_ai" class="cc-msg-avatar">
-                  <AppIcon name="sparkles" size="14" />
+              <template v-for="msg in messages" :key="msg.id">
+                <!-- SYSTEM NOTICE MESSAGE (CĂN GIỮA MÀN HÌNH) -->
+                <div v-if="msg.is_system" :id="`msg-${msg.id}`" class="cc-msg-system-notice">
+                  <span class="cc-system-notice-pill">{{ msg.content }}</span>
                 </div>
 
-                <!-- MESSAGE CONTENT WRAPPER -->
-                <div class="cc-msg-wrap">
-                  <!-- FLOATING ACTION TOOLBAR (Hover on message) -->
-                  <div v-if="!msg.is_recalled && !activeConversation.is_ai" class="cc-msg-hover-bar">
-                    <!-- Quick Reactions -->
-                    <button
-                      v-for="emoji in ['❤️', '👍', '😂', '😮', '😢', '🔥']"
-                      :key="emoji"
-                      type="button"
-                      class="cc-reaction-quick-btn"
-                      @click="toggleReaction(msg, emoji)"
-                    >
-                      {{ emoji }}
-                    </button>
-
-                    <!-- Reply -->
-                    <button
-                      type="button"
-                      class="cc-action-icon-btn"
-                      title="Trả lời tin nhắn"
-                      @click="setReplyMessage(msg)"
-                    >
-                      <AppIcon name="cornerUpLeft" size="13" />
-                    </button>
-
-                    <!-- Pin / Unpin -->
-                    <button
-                      type="button"
-                      class="cc-action-icon-btn"
-                      :title="msg.is_pinned ? 'Bỏ ghim' : 'Ghim tin nhắn'"
-                      @click="togglePin(msg)"
-                    >
-                      <AppIcon name="pin" size="13" />
-                    </button>
-
-                    <!-- More Actions (Recall / Delete) -->
-                    <button
-                      type="button"
-                      class="cc-action-icon-btn"
-                      title="Tùy chọn khác"
-                      @click.stop="activeMsgMenuId = activeMsgMenuId === msg.id ? null : msg.id"
-                    >
-                      <AppIcon name="moreHorizontal" size="13" />
-                    </button>
-
-                    <!-- Message Dropdown Menu -->
-                    <div v-if="activeMsgMenuId === msg.id" class="cc-msg-dropdown" @click.stop>
-                      <button
-                        v-if="isMyMessage(msg) && canRecallMessage(msg)"
-                        type="button"
-                        class="cc-msg-dropdown-item"
-                        @click="recallMessage(msg)"
-                      >
-                        <AppIcon name="rotateCcw" size="13" />
-                        <span>Thu hồi tin nhắn</span>
-                      </button>
-                      <button
-                        type="button"
-                        class="cc-msg-dropdown-item cc-dropdown-item--danger"
-                        @click="deleteForSelf(msg)"
-                      >
-                        <AppIcon name="trash" size="13" />
-                        <span>Xóa ở phía tôi</span>
-                      </button>
-                    </div>
+                <!-- REGULAR USER / BOT MESSAGE -->
+                <div
+                  v-else
+                  :id="`msg-${msg.id}`"
+                  :class="[
+                    'cc-msg-row',
+                    isMyMessage(msg) ? 'cc-msg-row--me' : 'cc-msg-row--other',
+                    { 'is-recalled': msg.is_recalled }
+                  ]"
+                >
+                  <!-- BOT AVATAR IF AI -->
+                  <div v-if="!isMyMessage(msg) && activeConversation.is_ai" class="cc-msg-avatar">
+                    <AppIcon name="sparkles" size="14" />
                   </div>
 
-                  <!-- MESSAGE BUBBLE -->
-                  <div class="cc-msg-bubble">
-                    <!-- Sender Name for Group Chat -->
-                    <span v-if="(activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post') && !isMyMessage(msg) && msg.sender" class="cc-group-sender-name">
-                      {{ msg.sender.full_name || msg.sender.username }}
-                    </span>
+                  <!-- MESSAGE CONTENT WRAPPER -->
+                  <div class="cc-msg-wrap">
+                    <!-- FLOATING ACTION TOOLBAR (Hover on message) -->
+                    <div v-if="!msg.is_recalled && !activeConversation.is_ai" class="cc-msg-hover-bar">
+                      <!-- Quick Reactions -->
+                      <button
+                        v-for="emoji in ['❤️', '👍', '😂', '😮', '😢', '🔥']"
+                        :key="emoji"
+                        type="button"
+                        class="cc-reaction-quick-btn"
+                        @click="toggleReaction(msg, emoji)"
+                      >
+                        {{ emoji }}
+                      </button>
 
-                    <!-- Recalled message notice -->
-                    <div v-if="msg.is_recalled" class="cc-recalled-text">
-                      <AppIcon name="slash" size="12" />
-                      <span>Tin nhắn đã bị thu hồi</span>
+                      <!-- Reply -->
+                      <button
+                        type="button"
+                        class="cc-action-icon-btn"
+                        title="Trả lời tin nhắn"
+                        @click="setReplyMessage(msg)"
+                      >
+                        <AppIcon name="cornerUpLeft" size="13" />
+                      </button>
+
+                      <!-- Pin / Unpin -->
+                      <button
+                        type="button"
+                        class="cc-action-icon-btn"
+                        :title="msg.is_pinned ? 'Bỏ ghim' : 'Ghim tin nhắn'"
+                        @click="togglePin(msg)"
+                      >
+                        <AppIcon name="pin" size="13" />
+                      </button>
+
+                      <!-- More Actions (Recall / Delete) -->
+                      <button
+                        type="button"
+                        class="cc-action-icon-btn"
+                        title="Tùy chọn khác"
+                        @click.stop="activeMsgMenuId = activeMsgMenuId === msg.id ? null : msg.id"
+                      >
+                        <AppIcon name="moreHorizontal" size="13" />
+                      </button>
+
+                      <!-- Message Dropdown Menu -->
+                      <div v-if="activeMsgMenuId === msg.id" class="cc-msg-dropdown" @click.stop>
+                        <button
+                          v-if="isMyMessage(msg) && canRecallMessage(msg)"
+                          type="button"
+                          class="cc-msg-dropdown-item"
+                          @click="recallMessage(msg)"
+                        >
+                          <AppIcon name="rotateCcw" size="13" />
+                          <span>Thu hồi tin nhắn</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="cc-msg-dropdown-item cc-dropdown-item--danger"
+                          @click="deleteForSelf(msg)"
+                        >
+                          <AppIcon name="trash" size="13" />
+                          <span>Xóa ở phía tôi</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <template v-else>
-                      <!-- QUOTE / REPLY-TO BOX -->
-                      <div
-                        v-if="msg.reply_to"
-                        class="cc-reply-quote"
-                        @click="scrollToMessage(msg.reply_to.id)"
-                      >
-                        <span class="cc-reply-quote-sender">{{ msg.reply_to.sender?.full_name || "Tin nhắn gốc" }}</span>
-                        <p class="cc-reply-quote-text">{{ msg.reply_to.content || "[Hình ảnh]" }}</p>
-                      </div>
-
-                      <!-- BOOKING CARD / SUPPORT REQUEST PREVIEW -->
-                      <div v-if="msg.reference_type === 'booking_support_request' || msg.support_request" class="cc-booking-request-card">
-                        <div class="cc-br-head">
-                          <AppIcon name="helpCircle" size="14" />
-                          <span>Yêu cầu hỗ trợ booking</span>
-                        </div>
-                        <div class="cc-br-body">
-                          <span class="cc-br-type">Loại yêu cầu: {{ formatSupportType(msg.support_request?.request_type || 'other') }}</span>
-                          <span v-if="msg.support_request?.note" class="cc-br-note">{{ msg.support_request.note }}</span>
-                          <span class="cc-br-status" :class="`cc-status--${msg.support_request?.status || 'pending'}`">
-                            {{ formatSupportStatus(msg.support_request?.status || 'pending') }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div v-else-if="msg.reference_type === 'booking' || msg.booking" class="cc-booking-share-card">
-                        <div class="cc-bs-head">
-                          <AppIcon name="calendar" size="14" />
-                          <span>Thông tin đặt sân</span>
-                        </div>
-                        <div class="cc-bs-body">
-                          <span class="cc-bs-code">Mã đơn: #{{ msg.booking?.booking_code || msg.reference_id }}</span>
-                          <span v-if="msg.booking" class="cc-bs-details">
-                            {{ formatDate(msg.booking.booking_date) }} · {{ formatTime(msg.booking.start_time) }} - {{ formatTime(msg.booking.end_time) }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <!-- TEXT CONTENT -->
-                      <div class="cc-msg-text" v-html="renderContent(msg)"></div>
-
-                      <!-- IMAGE ATTACHMENT -->
-                      <div v-if="msg.image_url" class="cc-msg-img-wrap" @click="openLightbox(msg.image_url)">
-                        <img :src="msg.image_url" class="cc-msg-img" alt="Ảnh tin nhắn" />
-                      </div>
-
-                      <!-- PINNED ICON BADGE -->
-                      <span v-if="msg.is_pinned" class="cc-pinned-tag" title="Tin nhắn đã ghim">
-                        <AppIcon name="pin" size="10" />
+                    <!-- MESSAGE BUBBLE -->
+                    <div class="cc-msg-bubble">
+                      <!-- Sender Name for Group Chat -->
+                      <span v-if="(activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post') && !isMyMessage(msg) && msg.sender" class="cc-group-sender-name">
+                        {{ msg.sender.full_name || msg.sender.username }}
                       </span>
-                    </template>
 
-                    <span class="cc-msg-time">{{ formatTime(msg.created_at) }}</span>
-                  </div>
+                      <!-- Recalled message notice -->
+                      <div v-if="msg.is_recalled" class="cc-recalled-text">
+                        <AppIcon name="slash" size="12" />
+                        <span>Tin nhắn đã bị thu hồi</span>
+                      </div>
 
-                  <!-- REACTION COUNTER PILLS -->
-                  <div v-if="msg.reactions && msg.reactions.length > 0 && !msg.is_recalled" class="cc-msg-reactions">
-                    <button
-                      v-for="(grp, emojiKey) in groupReactions(msg.reactions)"
-                      :key="emojiKey"
-                      type="button"
-                      class="cc-reaction-pill"
-                      :class="{ 'is-my-reaction': grp.userReacted }"
-                      @click="toggleReaction(msg, emojiKey)"
-                    >
-                      <span>{{ emojiKey }}</span>
-                      <span class="cc-reaction-count">{{ grp.count }}</span>
-                    </button>
+                      <template v-else>
+                        <!-- QUOTE / REPLY-TO BOX -->
+                        <div
+                          v-if="msg.reply_to"
+                          class="cc-reply-quote"
+                          @click="scrollToMessage(msg.reply_to.id)"
+                        >
+                          <span class="cc-reply-quote-sender">{{ msg.reply_to.sender?.full_name || "Tin nhắn gốc" }}</span>
+                          <p class="cc-reply-quote-text">{{ msg.reply_to.content || "[Hình ảnh]" }}</p>
+                        </div>
+
+                        <!-- BOOKING CARD / SUPPORT REQUEST PREVIEW -->
+                        <div v-if="msg.reference_type === 'booking_support_request' || msg.support_request" class="cc-booking-request-card">
+                          <div class="cc-br-head">
+                            <AppIcon name="helpCircle" size="14" />
+                            <span>Yêu cầu hỗ trợ booking</span>
+                          </div>
+                          <div class="cc-br-body">
+                            <span class="cc-br-type">Loại yêu cầu: {{ formatSupportType(msg.support_request?.request_type || 'other') }}</span>
+                            <span v-if="msg.support_request?.note" class="cc-br-note">{{ msg.support_request.note }}</span>
+                            <span class="cc-br-status" :class="`cc-status--${msg.support_request?.status || 'pending'}`">
+                              {{ formatSupportStatus(msg.support_request?.status || 'pending') }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div v-else-if="msg.reference_type === 'booking' || msg.booking" class="cc-booking-share-card">
+                          <div class="cc-bs-head">
+                            <AppIcon name="calendar" size="14" />
+                            <span>Thông tin đặt sân</span>
+                          </div>
+                          <div class="cc-bs-body">
+                            <span class="cc-bs-code">Mã đơn: #{{ msg.booking?.booking_code || msg.reference_id }}</span>
+                            <span v-if="msg.booking" class="cc-bs-details">
+                              {{ formatDate(msg.booking.booking_date) }} · {{ formatTime(msg.booking.start_time) }} - {{ formatTime(msg.booking.end_time) }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- TEXT CONTENT -->
+                        <div class="cc-msg-text" v-html="renderContent(msg)"></div>
+
+                        <!-- IMAGE ATTACHMENT -->
+                        <div v-if="msg.image_url" class="cc-msg-img-wrap" @click="openLightbox(msg.image_url)">
+                          <img :src="msg.image_url" class="cc-msg-img" alt="Ảnh tin nhắn" />
+                        </div>
+
+                        <!-- PINNED ICON BADGE -->
+                        <span v-if="msg.is_pinned" class="cc-pinned-tag" title="Tin nhắn đã ghim">
+                          <AppIcon name="pin" size="10" />
+                        </span>
+                      </template>
+
+                      <span class="cc-msg-time">{{ formatTime(msg.created_at) }}</span>
+                    </div>
+
+                    <!-- REACTION COUNTER PILLS -->
+                    <div v-if="msg.reactions && msg.reactions.length > 0 && !msg.is_recalled" class="cc-msg-reactions">
+                      <button
+                        v-for="(grp, emojiKey) in groupReactions(msg.reactions)"
+                        :key="emojiKey"
+                        type="button"
+                        class="cc-reaction-pill"
+                        :class="{ 'is-my-reaction': grp.userReacted }"
+                        @click="toggleReaction(msg, emojiKey)"
+                      >
+                        <span>{{ emojiKey }}</span>
+                        <span class="cc-reaction-count">{{ grp.count }}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </template>
 
               <!-- LOADING AI TYPING -->
               <div v-if="sendingAi" class="cc-msg-row cc-msg-row--other">
@@ -1794,12 +1801,25 @@ export default {
         this.creatingGroup = false;
       }
     },
-    openGroupInfoModal() {
+    async openGroupInfoModal() {
       this.showChatActionsMenu = false;
       this.showAddMemberInput = false;
       this.addMemberQuery = "";
       this.addMemberResults = [];
       this.showGroupInfoModal = true;
+
+      // Tự động đồng bộ danh sách thành viên mới nhất từ server
+      if (this.activeConversation && !this.activeConversation.is_ai) {
+        try {
+          const res = await chatService.getConversations();
+          const found = (res || []).find((c) => String(c.id) === String(this.activeConversation.id));
+          if (found && found.participants) {
+            this.activeConversation.participants = found.participants;
+          }
+        } catch (e) {
+          // ignore error
+        }
+      }
     },
     handleSearchAddMembers() {
       const q = this.addMemberQuery.trim();
@@ -4769,5 +4789,28 @@ export default {
 .cc-btn-primary--danger:hover {
   background: #b91c1c !important;
   border-color: #b91c1c !important;
+}
+
+/* SYSTEM NOTICE PILL */
+.cc-msg-system-notice {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 12px 0 !important;
+  padding: 0 16px !important;
+}
+
+.cc-system-notice-pill {
+  display: inline-block !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 4px 14px !important;
+  border-radius: 999px !important;
+  text-align: center !important;
+  max-width: 85% !important;
+  line-height: 1.45 !important;
 }
 </style>

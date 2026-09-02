@@ -1712,11 +1712,16 @@ class DemoDatabaseSeeder extends Seeder
                     'joined_at' => $booking['created_at'],
                 ]);
             }
+            $sampleTexts = [
+                'Mình đã tạo nhóm cho buổi chơi.',
+                'Đã xác nhận tham gia nhé.',
+                'Hẹn gặp mọi người đúng giờ nhé!',
+            ];
             for ($message = 0; $message < 3; $message++) {
                 DB::table('messages')->insert([
                     'conversation_id' => $conversationId,
                     'sender_id' => $message % 2 ? $this->players[30 + ($index % 10)]['id'] : $booking['customer_id'],
-                    'content' => $message % 2 ? 'Đã xác nhận tham gia nhé.' : 'Mình đã tạo nhóm cho buổi chơi.',
+                    'content' => $sampleTexts[$message] ?? 'OK bạn nhé.',
                     'is_system' => false,
                     'is_pinned' => false,
                     'is_recalled' => false,
