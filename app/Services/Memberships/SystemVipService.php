@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\MembershipPackage;
 use App\Models\Payment;
 use App\Models\PaymentLog;
+use App\Models\PlayerPost;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Models\UserSubscription;
@@ -102,6 +103,56 @@ class SystemVipService
         $subscription = $this->activeSubscriptionForUser($user->id);
 
         return $subscription ? $this->subscriptionPayload($subscription) : null;
+    }
+
+    /** Reserve one community matchmaking post slot inside the caller's transaction. */
+    public function reserveMatchmakingPostQuota(User $user): array
+    {
+        $now = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $monthStart = $now->copy()->startOfMonth();
+        $nextMonth = $monthStart->copy()->addMonth();
+        $subscription = UserSubscription::query()
+            ->with('membershipPackage')
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('expires_at', '>', $now)
+            ->latest('expires_at')
+            ->lockForUpdate()
+            ->first();
+        $package = $subscription?->membershipPackage
+            ?: MembershipPackage::query()
+                ->where('type', 'free')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->first();
+        $limit = $package ? (int) $package->match_post_limit_per_month : 5;
+        $used = (int) PlayerPost::query()
+            ->where('author_id', $user->id)
+            ->where('created_at', '>=', $monthStart)
+            ->where('created_at', '<', $nextMonth)
+            ->count();
+
+        if ($limit >= 0 && $used >= $limit) {
+            $packageName = $package ? $this->packageLabel($package->type, $package->name) : 'hiện tại';
+            throw ValidationException::withMessages([
+                'quota' => "Gói {$packageName} đã dùng {$used}/{$limit} bài giao lưu trong tháng. Hạn mức sẽ đặt lại lúc {$nextMonth->format('d/m/Y H:i')}. Vui lòng nâng cấp gói để đăng thêm.",
+            ]);
+        }
+
+        $usedAfterReservation = $used + 1;
+        if ($subscription) {
+            $subscription->forceFill([
+                'month_post_count' => $usedAfterReservation,
+                'month_post_reset_at' => $nextMonth,
+            ])->save();
+        }
+
+        return [
+            'package' => $package ? $this->packageLabel($package->type, $package->name) : null,
+            'used' => $usedAfterReservation,
+            'limit' => $limit,
+            'reset_at' => $nextMonth,
+        ];
     }
 
     public function activeSubscriptionForUser(string $userId): ?UserSubscription

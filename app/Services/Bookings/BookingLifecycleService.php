@@ -5,8 +5,11 @@ namespace App\Services\Bookings;
 use App\Models\Booking;
 use App\Models\BookingStatusHistory;
 use App\Models\Notification;
+use App\Models\PlayerPost;
 use App\Models\User;
+use App\Events\MatchmakingUpdated;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BookingLifecycleService
 {
@@ -80,6 +83,68 @@ class BookingLifecycleService
                     'is_read' => false,
                 ],
             );
+        }
+    }
+
+    /** Notify only the author and approved members of the booking's meetup post. */
+    public function notifyMatchmakingBookingChanged(Booking $booking, string $eventKey, string $title, string $body, array $metadata = []): void
+    {
+        if (! Schema::hasTable('notifications')) {
+            return;
+        }
+
+        $post = PlayerPost::query()
+            ->with(['booking.venueCluster', 'booking.venueCourt', 'booking.items.venueCourt'])
+            ->where('booking_id', $booking->id)
+            ->first();
+        if (! $post) {
+            return;
+        }
+
+        $approvedUserIds = DB::table('player_post_participants')
+            ->where('post_id', $post->id)
+            ->where('status', 'approved')
+            ->pluck('user_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $recipients = array_values(array_unique([(int) $post->author_id, ...$approvedUserIds]));
+        $payload = [
+            'event_key' => $eventKey,
+            'player_post_id' => $post->id,
+            'player_post_title' => $post->title,
+            'booking_id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            ...$metadata,
+        ];
+
+        foreach ($recipients as $userId) {
+            $exists = Notification::query()
+                ->where('user_id', $userId)
+                ->where('type', 'matchmaking_booking_changed')
+                ->where('reference_type', 'player_post')
+                ->where('reference_id', (string) $post->id)
+                ->where('data->event_key', $eventKey)
+                ->exists();
+            if ($exists) {
+                continue;
+            }
+
+            Notification::query()->create([
+                'user_id' => $userId,
+                'type' => 'matchmaking_booking_changed',
+                'title' => $title,
+                'body' => $body,
+                'reference_type' => 'player_post',
+                'reference_id' => (string) $post->id,
+                'data' => $payload,
+                'is_read' => false,
+            ]);
+        }
+
+        try {
+            broadcast(new MatchmakingUpdated((int) $post->id, 'booking_changed', $payload));
+        } catch (\Throwable $exception) {
+            report($exception);
         }
     }
 }

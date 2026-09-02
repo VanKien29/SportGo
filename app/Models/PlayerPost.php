@@ -15,6 +15,7 @@ class PlayerPost extends Model
         'title',
         'description',
         'image_path',
+        'target_players',
         'needed_players',
         'lock_lead_minutes',
         'skill_level',
@@ -35,6 +36,7 @@ class PlayerPost extends Model
     {
         return [
             'needed_players' => 'integer',
+            'target_players' => 'integer',
             'lock_lead_minutes' => 'integer',
             'cost_per_player' => 'decimal:2',
             'ai_flags' => 'array',
@@ -61,7 +63,7 @@ class PlayerPost extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'player_post_participants', 'post_id', 'user_id')
-            ->withPivot(['status', 'message', 'responded_at', 'left_at'])
+            ->withPivot(['status', 'message', 'responded_at', 'left_at', 'removal_reason'])
             ->withTimestamps();
     }
 }

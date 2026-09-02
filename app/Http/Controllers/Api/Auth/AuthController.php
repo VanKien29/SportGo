@@ -230,7 +230,15 @@ class AuthController extends Controller
                 ]);
             }
         }
-        $user->phone = $data['phone'] ? trim($data['phone']) : null;
+        $nextPhone = array_key_exists('phone', $data)
+            ? ($data['phone'] ? trim($data['phone']) : null)
+            : $user->phone;
+        if ($nextPhone !== $user->phone) {
+            throw ValidationException::withMessages([
+                'phone' => 'Vui lòng xác thực số điện thoại mới trước khi lưu thay đổi.',
+            ]);
+        }
+        $user->phone = $nextPhone;
         $user->bio = array_key_exists('bio', $data) ? trim((string) ($data['bio'] ?? '')) : $user->bio;
         if (array_key_exists('preferred_sports', $data)) {
             $user->preferred_sports = array_values(array_unique(array_filter(array_map(
@@ -338,11 +346,15 @@ class AuthController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'current_password' => ['required', 'string'],
         ], [
             'email.required' => 'Vui lòng nhập email mới.',
             'email.email' => 'Địa chỉ email không đúng định dạng.',
             'email.unique' => 'Email đã được sử dụng.',
+            'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại để xác thực thay đổi.',
         ]);
+
+        $this->assertCurrentPassword($user, $data['current_password']);
 
         $email = strtolower(trim($data['email']));
         if (strcasecmp($email, (string) $user->email) === 0) {
@@ -356,6 +368,50 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Đã gửi mã OTP đến email mới. Mã có hiệu lực trong '.OtpService::EXPIRE_MINUTES.' phút.',
             'email' => $email,
+        ]);
+    }
+
+    public function requestPhoneChangeOtp(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate([
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^(0\d{9}|\+84\d{9})$/',
+                Rule::unique('users', 'phone')->ignore($user->id),
+            ],
+            'current_password' => ['required', 'string'],
+        ], [
+            'phone.required' => 'Vui lòng nhập số điện thoại mới.',
+            'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
+            'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại để xác thực thay đổi.',
+        ]);
+
+        $this->assertCurrentPassword($user, $data['current_password']);
+
+        $phone = trim($data['phone']);
+        if ($phone === (string) $user->phone) {
+            return response()->json(['message' => 'Số điện thoại mới trùng với số hiện tại.']);
+        }
+
+        if (! $user->email) {
+            throw ValidationException::withMessages([
+                'phone' => 'Tài khoản cần có email để nhận mã xác thực đổi số điện thoại.',
+            ]);
+        }
+
+        $otp = $this->otpService->generate();
+        $this->otpService->create($user, $this->phoneChangeOtpIdentifier($user->email, $phone), 'change_phone', $otp);
+        Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'change_phone', OtpService::EXPIRE_MINUTES));
+
+        return response()->json([
+            'message' => 'Đã gửi mã OTP đến email hiện tại để xác nhận đổi số điện thoại. Mã có hiệu lực trong '.OtpService::EXPIRE_MINUTES.' phút.',
+            'phone' => $phone,
+            'delivery_email' => $user->email,
         ]);
     }
 
@@ -399,6 +455,59 @@ class AuthController extends Controller
         ]);
     }
 
+    public function verifyPhoneChangeOtp(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate([
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^(0\d{9}|\+84\d{9})$/',
+                Rule::unique('users', 'phone')->ignore($user->id),
+            ],
+            'otp' => ['required', 'digits:6'],
+        ], [
+            'phone.required' => 'Vui lòng nhập số điện thoại cần xác thực.',
+            'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
+            'otp.required' => 'Vui lòng nhập mã OTP.',
+            'otp.digits' => 'Mã OTP phải gồm đúng 6 chữ số.',
+        ]);
+
+        $phone = trim($data['phone']);
+        $updatedUser = DB::transaction(function () use ($phone, $data, $user): User {
+            if (User::query()->where('phone', $phone)->where('id', '<>', $user->id)->exists()) {
+                throw ValidationException::withMessages(['phone' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.']);
+            }
+
+            $this->otpService->verify(
+                $this->phoneChangeOtpIdentifier((string) $user->email, $phone),
+                'change_phone',
+                $data['otp'],
+                true,
+                (int) $user->id,
+            );
+            $user->forceFill([
+                'phone' => $phone,
+                // The OTP is delivered to the current email. Do not mark the
+                // new phone as SMS-verified until an SMS provider is configured.
+                'phone_verified_at' => null,
+            ])->save();
+
+            return $user->fresh();
+        });
+
+        return response()->json([
+            'message' => 'Số điện thoại mới đã được cập nhật sau khi xác thực OTP qua email hiện tại.',
+            'user' => $updatedUser->only([
+                'id', 'username', 'full_name', 'email', 'phone', 'status',
+                'avatar_url', 'cover_image_url', 'email_verified_at', 'phone_verified_at', 'bio', 'preferred_sports',
+            ]),
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()?->currentAccessToken()?->delete();
@@ -415,19 +524,16 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed', 'different:current_password'],
         ], [
             'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại.',
             'password.required' => 'Vui lòng nhập mật khẩu mới.',
             'password.min' => 'Mật khẩu mới phải có ít nhất 8 ký tự.',
             'password.confirmed' => 'Xác nhận mật khẩu mới không trùng khớp.',
+            'password.different' => 'Mật khẩu mới phải khác mật khẩu hiện tại.',
         ]);
 
-        if (! Hash::check($data['current_password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => 'Mật khẩu hiện tại không đúng.',
-            ]);
-        }
+        $this->assertCurrentPassword($user, $data['current_password']);
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
@@ -476,6 +582,20 @@ class AuthController extends Controller
         $otp = $this->otpService->generate();
         $this->otpService->create($user, $user->email, 'register', $otp);
         Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'register', OtpService::EXPIRE_MINUTES));
+    }
+
+    private function assertCurrentPassword(User $user, string $currentPassword): void
+    {
+        if (! Hash::check($currentPassword, (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Mật khẩu hiện tại không đúng.',
+            ]);
+        }
+    }
+
+    private function phoneChangeOtpIdentifier(string $email, string $phone): string
+    {
+        return strtolower(trim($email)).'|'.trim($phone);
     }
 
     private function registrationVerificationUrl(string $email): string

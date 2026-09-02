@@ -7,7 +7,7 @@
           <div class="alb-footer-logo-row">
             <img v-if="brandLogo" :src="brandLogo" :alt="brandName" class="alb-footer-logo" />
             <div v-else class="alb-footer-fallback-logo">
-              <span class="logo-txt">SportGo</span>
+              <span class="logo-txt">{{ brandName }}</span>
               <span class="logo-sub">Platform</span>
             </div>
           </div>
@@ -19,15 +19,15 @@
           <div class="alb-footer-contacts">
             <div class="alb-footer-contact-item">
               <AppIcon name="phone" size="15" class="contact-icon" />
-              <span>Hotline 24/7: <strong>1900 6789</strong></span>
+              <span>Hotline 24/7: <strong>{{ supportPhone }}</strong></span>
             </div>
             <div class="alb-footer-contact-item">
               <AppIcon name="mail" size="15" class="contact-icon" />
-              <span>Email: <strong>support@sportgo.vn</strong></span>
+              <span>Email: <strong>{{ supportEmail }}</strong></span>
             </div>
             <div class="alb-footer-contact-item">
               <AppIcon name="mapPin" size="15" class="contact-icon" />
-              <span>Trụ sở chính: Hà Nội & TP. Hồ Chí Minh</span>
+              <span>Trụ sở chính: {{ companyAddress }}</span>
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@
     <div class="alb-footer-bottom">
       <div class="sg-container alb-footer-bottom-inner">
         <div class="alb-footer-copy">
-          <span>© {{ currentYear }} SportGo Platform. Tất cả quyền được bảo lưu.</span>
+          <span>© {{ currentYear }} {{ brandName }} Platform. Tất cả quyền được bảo lưu.</span>
         </div>
         <div class="alb-footer-badge-tag">
           <span class="status-live-dot"></span>
@@ -93,4 +93,7 @@ import AppIcon from "./AppIcon.vue";
 const currentYear = new Date().getFullYear();
 const brandName = computed(() => systemName() || "SportGo");
 const brandLogo = computed(() => resolveSystemAsset(systemProfileState.profile.logo_url));
+const supportPhone = computed(() => systemProfileState.profile.support_phone || "1900 6789");
+const supportEmail = computed(() => systemProfileState.profile.support_email || "support@sportgo.vn");
+const companyAddress = computed(() => systemProfileState.profile.company_address || "Hà Nội & TP. Hồ Chí Minh");
 </script>

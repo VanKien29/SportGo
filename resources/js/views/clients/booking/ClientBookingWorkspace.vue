@@ -355,7 +355,7 @@
 
           <p v-if="selectedSlotKeys.length" class="cbw-hold-note">
             <template v-if="['no_prepay', 'deposit'].includes(paymentOption)">
-              * Sân được giữ tối đa 30 phút để chủ sân duyệt. Nếu hết thời gian chưa được duyệt, booking tự hủy và sân được mở lại.
+              * Booking sẽ chờ chủ sân duyệt tối đa 30 phút, nhưng có thể ngắn hơn nếu gần giờ bắt đầu. Nếu hết hạn chưa được duyệt, booking tự hủy và sân được mở lại.
             </template>
             <template v-else-if="paymentOption !== 'no_prepay'">
               * Sân sẽ được giữ tạm thời {{ config.slot_hold_minutes || 20 }} phút để bạn hoàn tất thanh toán.
@@ -986,6 +986,14 @@ export default {
     validationError() {
       if (this.selectionError) return this.selectionError;
       if (!this.selectedSlotKeys.length) return "";
+      if (this.maxDuration && this.selectedSlotEntries.length) {
+        const starts = this.selectedSlotEntries.map(e => this.minutes(e.slot.start_time));
+        const ends = this.selectedSlotEntries.map(e => this.minutes(e.slot.end_time));
+        const span = Math.max(...ends) - Math.min(...starts);
+        if (span > this.maxDuration) {
+          return `Một booking chỉ được đặt tối đa ${this.maxDuration} phút (khoảng bạn chọn kéo dài ${span} phút).`;
+        }
+      }
       const bad = this.selectedCourts.find(c => {
         const mins = this.selectedSlotEntries
           .filter(e => String(e.courtId) === String(c.id))
@@ -1053,7 +1061,7 @@ export default {
     },
     paymentOptions() {
       return [
-        this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Chủ sân duyệt trong 30 phút, trả trực tiếp khi đến sân" },
+        this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Chờ chủ sân duyệt tối đa 30 phút; có thể ngắn hơn nếu gần giờ chơi" },
         this.config.allow_deposit !== false && { value: "deposit", label: `Đặt cọc trước ${this.config.deposit_percent || 30}%`, hint: "Quét QR sau khi tạo đơn; nếu chủ sân duyệt trước khi cọc, đơn chuyển sang trả sau" },
         this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán 100% online", hint: "Chuyển khoản qua cổng SePay/QR" },
         this.config.allow_full_payment !== false && this.walletBalance !== null && {

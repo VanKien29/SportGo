@@ -9,6 +9,7 @@ use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
+use App\Services\Bookings\BookingLifecycleService;
 use App\Services\Bookings\BookingApprovalService;
 use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
@@ -32,6 +33,7 @@ class BookingManagementController extends Controller
         private readonly BookingApprovalService $bookingApprovals,
         private readonly VenueStaffAccessService $venueStaffAccess,
         private readonly WalkInCustomerService $walkInCustomers,
+        private readonly BookingLifecycleService $bookingLifecycle,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -459,7 +461,7 @@ class BookingManagementController extends Controller
 
         if ($booking->status === 'pending_approval' && $this->bookingApprovals->expireIfDue($booking)) {
             throw ValidationException::withMessages([
-                'action' => 'Booking đã hết hạn do chủ sân không duyệt trong 30 phút. Vui lòng tạo booking mới.',
+                'action' => $this->bookingApprovals->approvalExpiredMessage($booking),
             ]);
         }
 
@@ -516,7 +518,7 @@ class BookingManagementController extends Controller
 
             if ($result['expired'] ?? false) {
                 throw ValidationException::withMessages([
-                    'action' => 'Booking đã hết hạn do chủ sân không duyệt trong 30 phút. Vui lòng tạo booking mới.',
+                    'action' => $this->bookingApprovals->approvalExpiredMessage($booking),
                 ]);
             }
 
@@ -547,7 +549,7 @@ class BookingManagementController extends Controller
 
             return response()->json([
                 'message' => count($result['refunds'])
-                    ? 'Đã hủy booking và tạo yêu cầu hoàn tiền chờ admin chuyển khoản.'
+                    ? 'Đã hủy booking và hoàn số tiền đã thanh toán vào ví SportGo của khách.'
                     : 'Đã hủy booking.',
                 'data' => $this->attachSettlementSummary($result['booking']),
                 'refunds' => $result['refunds'],
@@ -589,7 +591,7 @@ class BookingManagementController extends Controller
 
     public function changeCourt(Request $request, string $id): JsonResponse
     {
-        $booking = Booking::query()->with(['venueCluster', 'items'])->findOrFail($id);
+        $booking = Booking::query()->with(['venueCluster', 'venueCourt.courtType', 'items.venueCourt.courtType'])->findOrFail($id);
         $this->ensureClusterCanMutate($request, $booking->venueCluster);
         $this->assertBookingCourtAccess($request, $booking);
 
@@ -605,14 +607,26 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        $bookingStart = $booking->booking_date && $booking->start_time
+            ? $this->businessDateTime($booking->booking_date->toDateString(), (string) $booking->start_time)
+            : null;
+        if ($bookingStart && Carbon::now($this->businessTimezone())->gte($bookingStart)) {
+            throw ValidationException::withMessages([
+                'venue_court_id' => 'Không thể đổi sân sau khi booking đã bắt đầu.',
+            ]);
+        }
+
         $validated = $request->validate([
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
             'court_changed_reason' => ['required', 'string', 'max:1000'],
         ]);
 
+        $oldCourt = $booking->venueCourt;
         $newCourt = VenueCourt::query()
             ->where('venue_cluster_id', $booking->venue_cluster_id)
             ->where('status', 'active')
+            ->where('court_type_id', $booking->venueCourt?->court_type_id)
+            ->whereKeyNot($booking->venueCourt?->id)
             ->findOrFail($validated['venue_court_id']);
         $this->venueStaffAccess->assertCourtAccess($request->user(), $newCourt);
 
@@ -640,6 +654,24 @@ class BookingManagementController extends Controller
 
             $bookingItem?->update(['venue_court_id' => $newCourt->id]);
         });
+
+        $this->bookingLifecycle->notifyMatchmakingBookingChanged(
+            $booking,
+            'booking-court-switched-'.$booking->id.'-'.$oldCourt?->id.'-'.$newCourt->id,
+            'Kèo giao lưu được đổi sân',
+            "Booking gốc của bài giao lưu được đổi từ {$oldCourt?->name} sang {$newCourt->name}.",
+            [
+                'status' => $booking->status,
+                'reason' => $validated['court_changed_reason'],
+                'from_venue_court_id' => $oldCourt?->id,
+                'from_venue_court_name' => $oldCourt?->name,
+                'to_venue_court_id' => $newCourt->id,
+                'to_venue_court_name' => $newCourt->name,
+                'booking_date' => $booking->booking_date?->toDateString(),
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+            ],
+        );
 
         return response()->json([
             'message' => 'Đã đổi sân thực tế cho booking.',

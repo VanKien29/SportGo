@@ -1769,6 +1769,20 @@ class BookingService
                 $this->assertDurationWithinConfig($durationMinutes, $minDuration, $maxDuration, 'time_ranges');
             });
 
+        // A booking may contain multiple ranges/courts. Validate the real wall-clock
+        // span as well, otherwise splitting one booking into several ranges could
+        // bypass the configured maximum duration.
+        if ($maxDuration) {
+            $firstStart = collect($timeRanges)->min(fn (array $range): int => $this->timeToMinutes($range['start_time']));
+            $lastEnd = collect($timeRanges)->max(fn (array $range): int => $this->timeToMinutes($range['end_time']));
+            $bookingSpan = max(0, $lastEnd - $firstStart);
+            if ($bookingSpan > $maxDuration) {
+                throw ValidationException::withMessages([
+                    'time_ranges' => "Một booking chỉ được đặt tối đa {$maxDuration} phút.",
+                ]);
+            }
+        }
+
         $this->assertPaymentOptionAllowed($config, $paymentOption);
     }
 

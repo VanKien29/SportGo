@@ -111,6 +111,9 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp'])->middleware('throttle:auth-otp-send');
+        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp'])->middleware('throttle:auth-otp-verify');
+        Route::post('/profile/phone/request-otp', [AuthController::class, 'requestPhoneChangeOtp'])->middleware('throttle:auth-otp-send');
+        Route::post('/profile/phone/verify-otp', [AuthController::class, 'verifyPhoneChangeOtp'])->middleware('throttle:auth-otp-verify');
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
         Route::post('/profile/cover', [AuthController::class, 'uploadCover']);
@@ -645,6 +648,7 @@ Route::middleware('auth:sanctum')
         Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/approve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'approveParticipant']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
+        Route::post('/matchmaking-posts/{id}/participants/{userId}/remove', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'removeParticipant']);
         Route::post('/matchmaking-posts/{id}/group/dissolve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'dissolveGroup']);
 
         // Player/Client Venue Posts (Community Posts)

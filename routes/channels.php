@@ -41,7 +41,10 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
 Broadcast::channel('booking.{bookingId}', function ($user, $bookingId) {
     return Booking::query()
         ->whereKey($bookingId)
-        ->where('customer_id', $user->id)
+        ->where(function ($query) use ($user) {
+            $query->where('customer_id', $user->id)
+                ->orWhereHas('venueCluster', fn ($clusterQuery) => $clusterQuery->where('owner_id', $user->id));
+        })
         ->exists();
 });
 

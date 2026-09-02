@@ -39,7 +39,7 @@
 
             <h1 class="hero-venue-title">
               {{ post.venue_name }}
-              <span v-if="post.court_name" class="hero-court-detail">({{ post.court_name }})</span>
+                <span v-if="post.booking?.court_name || post.court_name" class="hero-court-detail">({{ post.booking?.court_name || post.court_name }})</span>
             </h1>
 
             <!-- DẢI THÔNG SỐ PHẲNG (KHÔNG HỘP XÁM) -->
@@ -48,7 +48,7 @@
                 <span class="metric-label">Thời gian</span>
                 <span class="metric-value">
                   <AppIcon name="clock" size="14" />
-                  <span>{{ post.time }}</span>
+                  <span>{{ post.booking?.time || post.time }}</span>
                 </span>
               </div>
 
@@ -82,7 +82,13 @@
           </section>
 
           <!-- FORM SỬA BÀI NẾU ĐANG EDIT -->
-          <form v-if="editing" class="post-editor surface" @submit.prevent="savePost">
+          <MeetupPostModal
+            :is-open="editing"
+            :edit-post="post"
+            @close="editing = false"
+            @success="handlePostSaved"
+          />
+          <form v-if="false && editing" class="post-editor surface" @submit.prevent="savePost">
             <div>
               <h2>Chỉnh sửa nội dung</h2>
               <p>Cập nhật mô tả để người chơi hiểu rõ trình độ và nội dung giao lưu.</p>
@@ -187,6 +193,16 @@
                     <AppIcon :name="participantStatusIcon(participant.status)" size="15" />
                     {{ participantStatusLabel(participant.status) }}
                   </span>
+                  <button
+                    v-if="participant.status === 'approved'"
+                    type="button"
+                    class="sg-client-button sg-client-button--danger"
+                    :disabled="isProcessing(participant.user_id) || !canApprove"
+                    @click="removeParticipant(participant.user_id, participant.name)"
+                  >
+                    <AppIcon name="trash" size="15" />
+                    Xóa khỏi nhóm
+                  </button>
                 </div>
 
                 <div
@@ -439,6 +455,7 @@ import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
+import MeetupPostModal from '@/components/MeetupPostModal.vue';
 import { api } from '@/services/api.js';
 import echo from '../../../echo.js';
 import { BUSINESS_TIMEZONE, businessDateTime } from '@/utils/businessTime.js';
@@ -486,10 +503,18 @@ const isSessionExpired = computed(() => Boolean(
   bookingEndAt.value && bookingEndAt.value.getTime() <= Date.now(),
 ));
 
-const canApprove = computed(() => ['open', 'full'].includes(post.value?.status)
-  && !isSessionExpired.value);
+const isPostDeadlineReached = computed(() => Boolean(
+  bookingStartAt.value
+  && bookingStartAt.value.getTime() - (Number(post.value?.lock_lead_minutes ?? 30) * 60_000) <= Date.now(),
+));
 
-const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status) && !isSessionExpired.value);
+const canApprove = computed(() => ['open', 'full'].includes(post.value?.status)
+  && !isSessionExpired.value
+  && !isPostDeadlineReached.value);
+
+const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status)
+  && !isSessionExpired.value
+  && !isPostDeadlineReached.value);
 const canDissolve = computed(() => Boolean(post.value?.group_chat_id || post.value?.status !== 'closed'));
 
 const displayPostStatus = computed(() => isSessionExpired.value ? 'expired' : post.value?.status);
@@ -521,7 +546,7 @@ const requestCounts = computed(() => participants.value.reduce((counts, particip
   const status = participant.status || 'pending';
   counts[status] = (counts[status] || 0) + 1;
   return counts;
-}, { pending: 0, approved: 0, rejected: 0, cancelled: 0, expired: 0, left: 0 }));
+}, { pending: 0, approved: 0, rejected: 0, cancelled: 0, expired: 0, left: 0, removed_by_author: 0 }));
 
 const requestFilters = computed(() => [
   { value: 'all', label: 'Tất cả', count: participants.value.length },
@@ -530,10 +555,11 @@ const requestFilters = computed(() => [
   { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected || 0 },
   { value: 'left', label: 'Đã rời', count: requestCounts.value.left || 0 },
   { value: 'expired', label: 'Hết hạn', count: requestCounts.value.expired || 0 },
+  { value: 'removed_by_author', label: 'Đã xóa khỏi nhóm', count: requestCounts.value.removed_by_author || 0 },
 ]);
 
 const orderedParticipants = computed(() => {
-  const order = { pending: 0, approved: 1, rejected: 2, left: 3, cancelled: 4, expired: 5 };
+  const order = { pending: 0, approved: 1, rejected: 2, left: 3, removed_by_author: 4, cancelled: 5, expired: 6 };
   return [...participants.value].sort((a, b) => {
     const statusOrder = (order[a.status] ?? 6) - (order[b.status] ?? 6);
     if (statusOrder !== 0) return statusOrder;
@@ -572,7 +598,10 @@ async function fetchParticipants(silent = false) {
 
   try {
     const response = await api(`/api/matchmaking-posts/${route.params.id}/participants`);
-    post.value = response.post;
+    post.value = {
+      ...response.post,
+      booking: response.post?.booking || response.post?.booking_details || null,
+    };
     participants.value = Array.isArray(response.participants) ? response.participants : [];
   } catch (requestError) {
     const message = requestError.message || 'Không thể tải dữ liệu.';
@@ -666,6 +695,30 @@ function reject(userId) {
   updateParticipant(userId, 'reject');
 }
 
+async function removeParticipant(userId, name) {
+  if (processingId.value !== null || !window.confirm(`Xóa ${name || 'thành viên này'} khỏi nhóm giao lưu?`)) return;
+  processingId.value = userId;
+  processingAction.value = 'remove';
+  try {
+    await api(`/api/matchmaking-posts/${route.params.id}/participants/${userId}/remove`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+    toast.success('Đã xóa thành viên khỏi nhóm.');
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Không thể xóa thành viên.');
+  } finally {
+    processingId.value = null;
+    processingAction.value = '';
+  }
+}
+
+function handlePostSaved() {
+  editing.value = false;
+  fetchParticipants(true);
+}
+
 function openRejectConfirm(userId) {
   if (processingId.value !== null) return;
   confirmRejectId.value = userId;
@@ -692,6 +745,7 @@ function participantStatusLabel(status) {
     pending: 'Đang chờ duyệt',
     expired: 'Hết hạn',
     left: 'Đã rời',
+    removed_by_author: 'Đã bị xóa khỏi nhóm',
   }[status] || status || 'Không xác định';
 }
 
@@ -703,6 +757,7 @@ function participantStatusIcon(status) {
     pending: 'clock',
     expired: 'alert',
     left: 'close',
+    removed_by_author: 'trash',
   }[status] || 'alert';
 }
 

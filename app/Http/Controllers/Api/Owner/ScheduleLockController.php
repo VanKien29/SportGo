@@ -11,6 +11,7 @@ use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
+use App\Services\Bookings\BookingLifecycleService;
 use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class ScheduleLockController extends Controller
     public function __construct(
         private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
         private readonly BookingService $bookingService,
+        private readonly BookingLifecycleService $bookingLifecycle,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -885,6 +887,25 @@ class ScheduleLockController extends Controller
                 'booking_item_id' => $item->id,
                 'from_venue_court_id' => $oldCourt?->id,
                 'to_venue_court_id' => $newCourt->id,
+            ],
+        );
+
+        $this->bookingLifecycle->notifyMatchmakingBookingChanged(
+            $booking,
+            'booking-court-switched-'.$booking->id.'-'.$item->id.'-'.$newCourt->id,
+            'Kèo giao lưu được đổi sân',
+            "Một khung giờ trong booking gốc được đổi từ {$oldCourt?->name} sang {$newCourt->name} do sân cũ cần khóa/bảo trì.",
+            [
+                'status' => $booking->status,
+                'reason' => $reason,
+                'booking_item_id' => $item->id,
+                'from_venue_court_id' => $oldCourt?->id,
+                'from_venue_court_name' => $oldCourt?->name,
+                'to_venue_court_id' => $newCourt->id,
+                'to_venue_court_name' => $newCourt->name,
+                'booking_date' => $booking->booking_date?->toDateString(),
+                'start_time' => $item->start_time,
+                'end_time' => $item->end_time,
             ],
         );
     }
