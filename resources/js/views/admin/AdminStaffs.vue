@@ -41,7 +41,7 @@
             <template #full_name="{ row }">
               <div class="user-info-cell">
                 <span class="user-name">{{ row.full_name }}</span>
-                <span v-if="row.id === currentUserId" class="badge self">Bạn</span>
+                <span v-if="isCurrentUser(row)" class="badge self">Bạn</span>
               </div>
             </template>
 
@@ -90,7 +90,7 @@
                   v-if="row.status === 'locked'"
                   icon="unlock"
                   label="Mở khóa tài khoản"
-                  :disabled="!canManageUser(row) || row.id === currentUserId"
+                  :disabled="!canManageUser(row) || isCurrentUser(row)"
                   @click="openUnlockModal(row)"
                 />
                 <ActionIconButton
@@ -98,7 +98,7 @@
                   icon="lock"
                   label="Khóa tài khoản"
                   variant="danger"
-                  :disabled="!canManageUser(row) || row.id === currentUserId"
+                  :disabled="!canManageUser(row) || isCurrentUser(row)"
                   @click="openLockModal(row)"
                 />
               </TableActionGroup>
@@ -134,7 +134,7 @@
                     v-if="detailData.user.status === 'locked'"
                     class="btn success"
                     type="button"
-                    :disabled="!canManageUser(detailData.user) || detailData.user.id === currentUserId"
+                    :disabled="!canManageUser(detailData.user) || isCurrentUser(detailData.user)"
                     @click="openDetailUnlock"
                   >
                     Mở khóa
@@ -143,7 +143,7 @@
                     v-else
                     class="btn danger"
                     type="button"
-                    :disabled="!canManageUser(detailData.user) || detailData.user.id === currentUserId"
+                    :disabled="!canManageUser(detailData.user) || isCurrentUser(detailData.user)"
                     @click="openDetailLock"
                   >
                     Khóa tài khoản
@@ -262,7 +262,11 @@
             <div class="full-width field">
               <span class="field-label">Gán vai trò / Nhóm quyền <span class="required">*</span></span>
               <p class="hint mb-2">Chỉ Super Admin mới có quyền gán hoặc quản lý vai trò Admin / Super Admin.</p>
-              <div class="roles-grid">
+              <div v-if="isEditingSelfProtectedRole" class="locked-role-notice">
+                <strong>{{ isSelfSuperAdmin(editTarget) ? 'Super Admin' : 'Quản lý nhân sự' }}</strong>
+                <span>{{ isSelfSuperAdmin(editTarget) ? 'Quyền cao nhất được giữ nguyên và không thể tự thay đổi hoặc hạ xuống.' : 'Không thể tự thay đổi vai trò của chính mình. Bạn vẫn có thể cập nhật thông tin cá nhân.' }}</span>
+              </div>
+              <div v-else class="roles-grid">
                 <label v-for="role in availableRolesForForm" :key="role.id" class="checkbox-label">
                   <input
                     type="radio"
@@ -471,6 +475,7 @@ export default {
       showFormModal: false,
       isEditMode: false,
       editId: null,
+      editTarget: null,
       form: {
         full_name: '',
         username: '',
@@ -559,6 +564,11 @@ export default {
 
       // Ẩn vai trò Admin nếu người tạo không phải Super Admin.
       return roles.filter(role => role.name !== 'admin');
+    },
+    isEditingSelfProtectedRole() {
+      return this.isEditMode && (
+        this.isSelfSuperAdmin(this.editTarget) || this.isSelfStaffManager(this.editTarget)
+      );
     },
     lockUntilPreview() {
       if (this.lockForm.lock_duration === 'custom') {
@@ -674,6 +684,19 @@ export default {
       }
       return true;
     },
+    isSelfSuperAdmin(user) {
+      return Boolean(user)
+        && String(user.id) === String(this.currentUserId)
+        && (user.roles || []).includes('super_admin');
+    },
+    isSelfStaffManager(user) {
+      return Boolean(user)
+        && String(user.id) === String(this.currentUserId)
+        && (user.roles || []).includes('staff_manager');
+    },
+    isCurrentUser(user) {
+      return Boolean(user) && String(user.id) === String(this.currentUserId);
+    },
     getRoleDisplayName(roleName) {
       const role = this.allRoles.find(r => r.name === roleName);
       if (role) return role.display_name;
@@ -694,6 +717,7 @@ export default {
     openCreateModal() {
       this.isEditMode = false;
       this.editId = null;
+      this.editTarget = null;
       this.form = {
         full_name: '',
         username: '',
@@ -710,15 +734,18 @@ export default {
     openEditModal(user) {
       this.isEditMode = true;
       this.editId = user.id;
+      this.editTarget = user;
       this.form = {
         full_name: user.full_name,
         username: user.username,
         email: user.email,
         phone: user.phone || '',
         password: '',
-        role_id: (user.roles || []).length > 0 
-          ? (this.allRoles.find(r => r.name === user.roles[0])?.id || null)
-          : null,
+        role_id: (user.role_ids || []).length > 0
+          ? user.role_ids[0]
+          : ((user.roles || []).length > 0
+            ? (this.allRoles.find(r => r.name === user.roles[0])?.id || null)
+            : null),
       };
       this.error = '';
       this.success = '';
@@ -728,6 +755,7 @@ export default {
     closeFormModal() {
       this.showPassword = false;
       this.showFormModal = false;
+      this.editTarget = null;
     },
     async submitForm() {
       this.saving = true;
@@ -1336,6 +1364,22 @@ tr:last-child td {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 8px;
+}
+
+.locked-role-notice {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.locked-role-notice span {
+  color: #475569;
+  font-size: 12px;
 }
 
 .checkbox-label {

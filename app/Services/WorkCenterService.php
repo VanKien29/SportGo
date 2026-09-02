@@ -582,16 +582,51 @@ class WorkCenterService
 
     private function notificationTarget(object $notification, array $data, string $audience): string
     {
-        if (! empty($data['action_url']) && str_starts_with((string) $data['action_url'], '/')) {
-            return (string) $data['action_url'];
-        }
-
-        if (! empty($data['link']) && str_starts_with((string) $data['link'], '/')) {
-            return (string) $data['link'];
+        foreach ([$data['action_url'] ?? null, $data['url'] ?? null, $data['link'] ?? null, $data['redirect_url'] ?? null] as $candidate) {
+            if (is_string($candidate) && str_starts_with($candidate, '/')) {
+                return $candidate;
+            }
         }
 
         $referenceType = str_replace('\\', '/', strtolower((string) $notification->reference_type));
+        $notificationType = strtolower((string) $notification->type);
+        $context = $referenceType . ' ' . $notificationType;
         $referenceId = $notification->reference_id;
+
+        if ($referenceId && str_contains($context, 'booking')) {
+            return $audience === 'owner'
+                ? '/owner/booking-list?booking_id=' . $referenceId
+                : '/admin/dashboard';
+        }
+
+        if ($referenceId && str_contains($context, 'venue_cluster')) {
+            return $audience === 'admin'
+                ? '/admin/venue-clusters/' . $referenceId
+                : '/owner/venue-clusters?cluster_id=' . $referenceId;
+        }
+
+        if ($referenceId && str_contains($context, 'venue_unlock_request')) {
+            if ($audience === 'owner') {
+                $clusterId = DB::table('venue_unlock_requests')->where('id', $referenceId)->value('venue_cluster_id');
+                return $clusterId
+                    ? '/owner/venue-clusters?cluster_id=' . $clusterId . '&tab=unlock'
+                    : '/owner/venue-clusters';
+            }
+
+            return '/admin/venue-clusters';
+        }
+
+        if ($referenceId && str_contains($context, 'system_polic')) {
+            return $audience === 'admin'
+                ? '/admin/policies/' . $referenceId
+                : '/owner/policies';
+        }
+
+        if ($referenceId && str_contains($context, 'report')) {
+            return $audience === 'admin'
+                ? '/admin/reports-complaints?tab=reports&focus=' . $referenceId
+                : '/owner/complaints';
+        }
 
         if (str_contains($referenceType, 'partner_termination_request')) {
             if ($audience === 'owner') {

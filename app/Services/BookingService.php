@@ -17,6 +17,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Bookings\BookingApprovalService;
+use App\Services\Bookings\BookingLifecycleService;
 use App\Services\Memberships\SystemVipService;
 use App\Services\Memberships\VenueMembershipService;
 use App\Services\Wallets\OwnerWalletService;
@@ -44,6 +45,7 @@ class BookingService
         private readonly VenueMembershipService $venueMemberships,
         private readonly SystemVipService $systemVip,
         private readonly BookingApprovalService $bookingApprovals,
+        private readonly BookingLifecycleService $bookingLifecycle,
     ) {}
 
     /**
@@ -763,13 +765,54 @@ class BookingService
                 ->each(fn (Payment $pendingPayment) => $this->failPendingPayment($pendingPayment, $actor, 'counter_payment_replaced'));
 
             if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)) {
-                // Thu đủ tiền không kết thúc một buổi chơi còn ở tương lai.
-                // Lifecycle reconciler sẽ hoàn thành sau khi đã sử dụng sân.
                 $booking->update(['status' => 'confirmed']);
             }
 
-            return $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
+            return $this->markCounterBookingCheckedInAfterPayment($booking, $actor);
         });
+    }
+
+    /**
+     * Khoản thu tại quầy (tiền mặt hoặc QR SePay do sân tạo) đã đủ tiền thì
+     * booking được coi là khách đã đến sân. Thanh toán online của khách không
+     * đi qua hàm này nên vẫn giữ nút Check-in thủ công cho chủ sân.
+     */
+    public function markCounterBookingCheckedInAfterPayment(Booking $booking, ?User $actor = null): Booking
+    {
+        $lockedBooking = Booking::query()
+            ->whereKey($booking->id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if (! in_array($lockedBooking->status, ['pending_payment', 'confirmed'], true)
+            || $this->outstandingAmount($lockedBooking) > 0.009) {
+            return $lockedBooking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
+        }
+
+        $fromStatus = $lockedBooking->status;
+        $lockedBooking->forceFill([
+            'status' => 'checked_in',
+            'payment_deadline_at' => null,
+            'status_reason' => 'Đã thanh toán đủ tại quầy; hệ thống tự động check-in.',
+        ])->save();
+
+        $checkedInBooking = $lockedBooking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'venueCluster', 'payments']);
+        $this->bookingLifecycle->recordHistory(
+            $checkedInBooking,
+            $fromStatus,
+            'checked_in',
+            'counter_payment_auto_check_in',
+            'Đã thanh toán đủ tại quầy; hệ thống tự động check-in.',
+            $actor,
+        );
+        $this->bookingLifecycle->notifyStatusChanged(
+            $checkedInBooking,
+            'checked_in',
+            'counter_payment_auto_check_in',
+            'Đã thanh toán đủ tại quầy; hệ thống tự động check-in.',
+        );
+
+        return $checkedInBooking;
     }
 
     public function syncMembershipForCompletedBooking(Booking $booking): void
@@ -930,12 +973,14 @@ class BookingService
             // one booking-level deadline. This prevents the countdown from
             // depending on which court lock happens to be read first.
             $deadline = $booking->status === 'pending_approval'
-                ? $booking->approval_deadline_at
+                ? $this->bookingApprovals->approvalDeadline($booking)
                 : $booking->payment_deadline_at;
             $deadline ??= $existingLocks->min('expires_at');
 
             if ($deadline) {
-                $deadline = Carbon::parse($deadline)->setTimezone($this->businessTimezone());
+                $deadline = $this->storageDateTime(
+                    Carbon::parse($deadline)->setTimezone($this->businessTimezone()),
+                );
                 SlotLock::query()
                     ->where('booking_id', $booking->id)
                     ->where('lock_type', 'auto')
@@ -954,12 +999,11 @@ class BookingService
         $booking->loadMissing('items');
         $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
         $expiresAt = $booking->status === 'pending_approval'
-            ? ($booking->approval_deadline_at
-                ? Carbon::parse($booking->approval_deadline_at)->setTimezone($this->businessTimezone())
-                : $this->bookingApprovals->approvalDeadline($booking))
+            ? $this->bookingApprovals->approvalDeadline($booking)
             : ($booking->payment_deadline_at
                 ? Carbon::parse($booking->payment_deadline_at)->setTimezone($this->businessTimezone())
                 : $this->paymentHoldDeadline($booking, $slotHoldMinutes));
+        $expiresAt = $this->storageDateTime($expiresAt);
         $reason = $this->temporaryHoldReason($booking, $slotHoldMinutes);
         $items = $booking->items->isNotEmpty()
             ? $booking->items
@@ -1441,6 +1485,10 @@ class BookingService
 
         if ($payment && $payment->status === 'paid' && $payment->method !== 'wallet') {
             $this->recordSystemVoucherSubsidyForPayment($payment);
+
+            if ($source === 'counter' && in_array($payment->method, ['cash', 'bank_transfer'], true)) {
+                $booking = $this->markCounterBookingCheckedInAfterPayment($booking, $actor);
+            }
         } elseif (
             ! $payment
             && $booking->payment_option !== 'no_prepay'
@@ -2777,6 +2825,11 @@ class BookingService
     private function businessNow(): Carbon
     {
         return Carbon::now($this->businessTimezone());
+    }
+
+    private function storageDateTime(Carbon $dateTime): Carbon
+    {
+        return $dateTime->copy()->setTimezone((string) config('app.timezone', 'UTC'));
     }
 
     private function businessDateTime(string $date, string $time): Carbon

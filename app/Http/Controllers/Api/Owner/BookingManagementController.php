@@ -479,6 +479,12 @@ class BookingManagementController extends Controller
             }
         }
 
+        if ($validated['action'] === 'check_in' && $this->bookingService->outstandingAmount($booking) > 0.009) {
+            throw ValidationException::withMessages([
+                'action' => 'Chỉ có thể check-in booking đã thanh toán đủ. Vui lòng thu tiền mặt hoặc tạo QR chuyển khoản trước.',
+            ]);
+        }
+
         if ($validated['action'] === 'complete' && $sessionEnd && Carbon::now($this->businessTimezone())->lessThan($sessionEnd->copy()->addMinutes(15))) {
             throw ValidationException::withMessages([
                 'action' => 'Chưa thể hoàn thành booking trước khi buổi chơi kết thúc.',

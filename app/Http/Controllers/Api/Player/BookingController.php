@@ -622,6 +622,10 @@ class BookingController extends Controller
             ]);
         }
 
+        $approvalDeadline = $booking->status === 'pending_approval'
+            ? $this->bookingApprovals->approvalDeadline($booking)
+            : $booking->approval_deadline_at;
+
         // Tính thời gian giữ chỗ còn lại (giây)
         $timeLeftSeconds = 0;
         if ($booking->status === 'pending_approval') {
@@ -641,7 +645,9 @@ class BookingController extends Controller
         $bookingArray['services'] = $booking->bookingServices->values()->toArray();
         unset($bookingArray['booking_services']);
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
-        $bookingArray['approval_deadline_at'] = $booking->approval_deadline_at?->toIso8601String();
+        $bookingArray['approval_deadline_at'] = $approvalDeadline?->copy()
+            ->setTimezone(config('app.timezone', 'UTC'))
+            ->toIso8601String();
         $bookingArray['payment_deadline_at'] = $booking->payment_deadline_at?->toIso8601String();
         $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');

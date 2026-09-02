@@ -511,6 +511,9 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
 
         // Finance / Wallet
         Route::get('/finance/wallets', [OwnerFinanceController::class, 'wallets']);
+        Route::get('/finance/bank-accounts', [OwnerFinanceController::class, 'bankAccounts']);
+        Route::post('/finance/bank-accounts', [OwnerFinanceController::class, 'storeBankAccount']);
+        Route::patch('/finance/bank-accounts/{id}', [OwnerFinanceController::class, 'updateBankAccount']);
         Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
         Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
         Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);

@@ -36,13 +36,23 @@ class BookingApprovalService
                 ->where('lock_type', 'auto')
                 ->orderBy('expires_at')
                 ->first();
+
+        $sessionStart = $this->sessionStart($booking);
         $deadline = $booking->approval_deadline_at
             ? $booking->approval_deadline_at->copy()->setTimezone($timezone)
             : ($lock?->expires_at
                 ? Carbon::parse($lock->expires_at)->setTimezone($timezone)
                 : $booking->created_at->copy()->setTimezone($timezone)->addMinutes($this->approvalWindowMinutes($booking)));
 
-        $sessionStart = $this->sessionStart($booking);
+        // Before timestamps were normalized to UTC, a business-time Carbon
+        // instance could be stored as a UTC wall-clock value. That makes an
+        // approval window appear seven hours longer in Vietnam. Recognize
+        // that legacy shape while keeping the persisted deadline authoritative
+        // for correctly stored records.
+        $expectedDeadline = $this->deadlineFromCreation($booking, $sessionStart);
+        if ($expectedDeadline && $this->isLegacyBusinessTimestamp($deadline, $expectedDeadline)) {
+            $deadline = $expectedDeadline;
+        }
 
         return $sessionStart && $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
     }
@@ -64,7 +74,12 @@ class BookingApprovalService
             $timezone,
         );
 
-        return $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
+        $deadline = $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
+
+        // Eloquent stores timestamp columns using the application's storage
+        // timezone. Return UTC (the default in this app) so the value is not
+        // written as a Vietnam local wall-clock time and shifted on read.
+        return $deadline->copy()->setTimezone($this->storageTimezone());
     }
 
     public function approvalSecondsLeft(Booking $booking): int
@@ -83,7 +98,9 @@ class BookingApprovalService
         }
 
         $deadline = $this->approvalDeadline($booking);
-        $booking->forceFill(['approval_deadline_at' => $deadline])->save();
+        $booking->forceFill([
+            'approval_deadline_at' => $deadline->copy()->setTimezone($this->storageTimezone()),
+        ])->save();
 
         return $deadline;
     }
@@ -371,9 +388,41 @@ class BookingApprovalService
         );
     }
 
+    private function deadlineFromCreation(Booking $booking, ?Carbon $sessionStart): ?Carbon
+    {
+        if (! $booking->created_at) {
+            return null;
+        }
+
+        $deadline = $booking->created_at
+            ->copy()
+            ->setTimezone($this->businessTimezone())
+            ->addMinutes($this->approvalWindowMinutes($booking));
+
+        return $sessionStart && $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
+    }
+
+    private function isLegacyBusinessTimestamp(Carbon $candidate, Carbon $expected): bool
+    {
+        $storageOffset = $expected->copy()->setTimezone($this->storageTimezone())->getOffset();
+        $businessOffset = $expected->copy()->setTimezone($this->businessTimezone())->getOffset();
+        $legacyShift = $businessOffset - $storageOffset;
+
+        if ($legacyShift === 0) {
+            return false;
+        }
+
+        return abs(($candidate->getTimestamp() - $expected->getTimestamp()) - $legacyShift) <= 1;
+    }
+
     private function businessTimezone(): string
     {
         return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function storageTimezone(): string
+    {
+        return (string) config('app.timezone', 'UTC');
     }
 
     private function approvalWindowMinutes(Booking $booking): int

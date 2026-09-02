@@ -373,13 +373,29 @@ export default {
       }
     },
     async handleNotificationClick(notif) {
-      if (notif.is_read) return;
-      try {
-        await notificationService.markAsRead(notif.id);
-        notif.is_read = true;
-      } catch (error) {
-        console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
+      if (!notif.is_read) {
+        try {
+          await notificationService.markAsRead(notif.id);
+          notif.is_read = true;
+        } catch (error) {
+          console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
+        }
       }
+
+      const target = notif.action_url || notif.data?.action_url || notif.data?.url || notif.data?.link;
+      if (typeof target === 'string' && target.startsWith('/')) {
+        await this.$router.push(target).catch(() => {});
+        return;
+      }
+
+      const type = `${notif.reference_type || ''} ${notif.type || ''}`.toLowerCase();
+      const referenceId = notif.reference_id || notif.data?.booking_id;
+      if (referenceId && type.includes('booking')) {
+        await this.$router.push({ path: '/staff/bookings', query: { booking_id: referenceId } }).catch(() => {});
+        return;
+      }
+
+      await this.$router.push('/staff/bookings').catch(() => {});
     },
     async markAllNotificationsRead() {
       try {
