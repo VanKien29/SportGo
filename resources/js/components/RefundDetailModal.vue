@@ -36,7 +36,7 @@ export default {
     handleKeydown(event) { if (event.key === 'Escape' && this.isOpen) this.close(); },
     money(value) { return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND', maximumFractionDigits:0 }).format(Number(value || 0)); },
     formatDate(value) { return value ? new Date(value).toLocaleString('vi-VN') : '-'; },
-    destinationLabel(destination) { return { user_wallet:'Ví SportGo', original_payment:'Phương thức thanh toán gốc', bank_account:'Tài khoản ngân hàng', cash:'Tiền mặt tại sân' }[destination] || destination || 'Ví SportGo'; },
+    destinationLabel(destination) { return { user_wallet:'Ví SportGo', wallet:'Ví SportGo', original_payment:'Phương thức thanh toán gốc', bank_account:'Tài khoản ngân hàng', cash:'Tiền mặt tại sân' }[destination] || 'Không xác định'; },
     statusLabel(status) { return { pending_owner_confirmation:'Chờ chủ sân xác nhận', completed:'Đã hoàn vào ví', completed_cash:'Đã hoàn tiền mặt', owner_rejected:'Chủ sân từ chối' }[status] || status || 'Chưa cập nhật'; },
   },
 };

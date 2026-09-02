@@ -88,6 +88,36 @@
                         </div>
                     </div>
 
+                    <section class="booking-receivables-card">
+                        <div class="booking-receivables-head">
+                            <div>
+                                <span class="section-kicker">KHOẢN PHẢI THU</span>
+                                <h2>Tiền booking chưa thu</h2>
+                                <p>Booking đã được xác nhận nhưng khách còn chưa thanh toán đủ, gồm cả booking trả sau.</p>
+                            </div>
+                            <div class="booking-receivables-total">
+                                <strong>{{ formatCurrency(financeSummary.uncollected_booking_amount) }}</strong>
+                                <small>{{ financeSummary.uncollected_booking_count || 0 }} booking</small>
+                            </div>
+                        </div>
+                        <div v-if="bookingReceivables.length" class="booking-receivables-list">
+                            <div v-for="booking in bookingReceivables" :key="booking.id" class="booking-receivable-row">
+                                <div>
+                                    <strong>#{{ booking.booking_code }}</strong>
+                                    <small>{{ booking.venue_cluster_name || 'Cụm sân' }} · {{ booking.venue_court_name || 'Sân' }}</small>
+                                </div>
+                                <div>
+                                    <span class="receivable-status">{{ booking.payment_option_label }}</span>
+                                    <small>{{ booking.booking_date }} · {{ booking.start_time }} - {{ booking.end_time }}</small>
+                                </div>
+                                <strong class="receivable-amount">{{ formatCurrency(booking.outstanding_amount) }}</strong>
+                            </div>
+                        </div>
+                        <div v-else class="booking-receivables-empty">
+                            Không có booking đã xác nhận nào còn tiền cần thu.
+                        </div>
+                    </section>
+
                     <div class="wallet-dashboard-grid">
                         <section class="flow-card">
                             <div class="flow-card-header">
@@ -189,6 +219,10 @@
                                             wallet.venue_cluster?.address ||
                                             "Ví theo cụm sân"
                                         }}</small>
+                                        <small v-if="Number(wallet.uncollected_booking_amount || 0) > 0" class="cell-sub receivable-cell-sub">
+                                            Chưa thu booking: {{ formatCurrency(wallet.uncollected_booking_amount) }}
+                                            ({{ wallet.uncollected_booking_count }} đơn)
+                                        </small>
                                     </td>
                                     <td class="money positive">
                                         <strong>{{ formatCurrency(walletWithdrawableBalance(wallet)) }}</strong>
@@ -305,7 +339,7 @@
                             <span class="section-kicker">Tài khoản nhận tiền</span>
                             <h2>Quản lý tài khoản ngân hàng</h2>
                             <p>
-                                Chọn tài khoản nhận tiền khi tạo yêu cầu rút. Bạn có thể thêm nhiều tài khoản và đặt một tài khoản mặc định.
+                                Tài khoản nhận tiền trong hồ sơ đăng ký là tài khoản mặc định cố định. Bạn có thể thêm tài khoản phụ để sử dụng khi cần.
                             </p>
                         </div>
                         <button
@@ -345,6 +379,7 @@
                                     Mặc định
                                 </span>
                                 <button
+                                    v-if="!account.partner_application_id"
                                     type="button"
                                     class="secondary-btn compact"
                                     @click="openBankAccountModal(account)"
@@ -352,12 +387,21 @@
                                     <AppIcon name="pencil" size="14" />
                                     Sửa
                                 </button>
+                                <span v-else class="locked-account-label">
+                                    Không thể sửa/xóa
+                                </span>
                             </div>
                             <small
                                 v-if="account.status === 'pending'"
                                 class="bank-account-help"
                             >
                                 Đang chờ xác minh, chưa thể chọn để rút tiền.
+                            </small>
+                            <small
+                                v-if="account.partner_application_id"
+                                class="bank-account-help"
+                            >
+                                Tài khoản được lấy từ hồ sơ đăng ký đối tác và luôn giữ làm tài khoản mặc định.
                             </small>
                             <small
                                 v-if="account.status === 'rejected' && account.rejected_reason"
@@ -540,13 +584,16 @@
                         <input v-model.trim="bankAccountForm.branch_name" maxlength="150" />
                     </label>
 
-                    <label class="checkbox-field">
+                    <label v-if="!hasApplicationBankAccount" class="checkbox-field">
                         <input
                             v-model="bankAccountForm.is_default"
                             type="checkbox"
                         />
                         <span>Đặt làm tài khoản mặc định</span>
                     </label>
+                    <p v-else class="bank-account-help">
+                        Tài khoản mặc định từ hồ sơ đăng ký đối tác không thể thay đổi.
+                    </p>
                 </div>
 
                 <footer class="modal-actions">
@@ -708,8 +755,11 @@ export default {
                 total_earned: 0,
                 total_withdrawn: 0,
                 wallet_count: 0,
+                uncollected_booking_count: 0,
+                uncollected_booking_amount: 0,
             },
             cashflow: [],
+            bookingReceivables: [],
             ledgers: [],
             withdrawals: [],
             bankAccounts: [],
@@ -806,6 +856,9 @@ export default {
 
             return options;
         },
+        hasApplicationBankAccount() {
+            return this.managedBankAccounts.some((account) => Boolean(account.partner_application_id));
+        },
     },
     async mounted() {
         window.addEventListener("scroll", this.handleScroll);
@@ -840,6 +893,7 @@ export default {
                     response.managed_bank_accounts || this.bankAccounts;
                 this.minimumWithdrawal = response.minimum_withdrawal || 100000;
                 this.summary = response.summary || this.buildFinanceSummary(this.wallets);
+                this.bookingReceivables = response.booking_receivables || [];
                 this.cashflow = response.cashflow || [];
                 this.ledgers = ledgerResponse.data || [];
                 this.ledgerMeta = ledgerResponse.meta || this.ledgerMeta;
@@ -917,6 +971,11 @@ export default {
             }
         },
         async openBankAccountModal(account = null) {
+            if (account?.partner_application_id) {
+                this.bankAccountModalError =
+                    "Tài khoản nhận tiền từ hồ sơ đăng ký đối tác là tài khoản mặc định cố định và không thể thay đổi hoặc xóa.";
+                return;
+            }
             this.editingBankAccount = account;
             this.bankAccountModalError = "";
             this.bankAccountForm = account
@@ -1150,6 +1209,8 @@ export default {
                     total_earned: 0,
                     total_withdrawn: 0,
                     wallet_count: (wallets || []).length,
+                    uncollected_booking_count: 0,
+                    uncollected_booking_amount: 0,
                 },
             );
             values.total_balance = values.available_balance + values.pending_withdrawal_balance;
@@ -1511,6 +1572,12 @@ export default {
 
 .default-account-label {
     color: #216b34;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.locked-account-label {
+    color: #64748b;
     font-size: 12px;
     font-weight: 600;
 }
@@ -2004,6 +2071,94 @@ button:disabled {
     font-size: 11px;
 }
 
+.booking-receivables-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid #f0dfc2;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #fffdf8, #fff8ec);
+}
+
+.booking-receivables-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.booking-receivables-head h2 {
+    margin: 3px 0 4px;
+    color: #172b22;
+    font-size: 18px;
+}
+
+.booking-receivables-head p {
+    margin: 0;
+    color: #65757c;
+    font-size: 12px;
+}
+
+.booking-receivables-total {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.booking-receivables-total strong {
+    display: block;
+    color: #a66b16;
+    font-size: 21px;
+}
+
+.booking-receivables-total small,
+.booking-receivable-row small {
+    display: block;
+    margin-top: 4px;
+    color: #78868b;
+    font-size: 12px;
+}
+
+.booking-receivables-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #f0dfc2;
+}
+
+.booking-receivable-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(210px, 1.2fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(240, 223, 194, 0.75);
+}
+
+.booking-receivable-row > div:first-child strong {
+    color: #263a31;
+}
+
+.receivable-status {
+    display: inline-flex;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fff0cc;
+    color: #986312;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.receivable-amount {
+    color: #a66b16;
+    white-space: nowrap;
+}
+
+.booking-receivables-empty {
+    padding: 12px 0 2px;
+    color: #78868b;
+    font-size: 13px;
+}
+
 .wallet-dashboard-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
@@ -2306,6 +2461,23 @@ button:disabled {
 
     .flow-card {
         padding: 15px;
+    }
+
+    .booking-receivables-card {
+        padding: 15px;
+    }
+
+    .booking-receivables-head {
+        flex-direction: column;
+    }
+
+    .booking-receivables-total {
+        text-align: left;
+    }
+
+    .booking-receivable-row {
+        grid-template-columns: 1fr;
+        gap: 5px;
     }
 
     .flow-card-foot {

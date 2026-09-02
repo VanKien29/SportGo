@@ -426,7 +426,7 @@ export default {
       }[status] || status;
     },
     paymentMethod(method) {
-      return { sepay: 'Chuyển khoản', wallet: 'Ví SportGo', cash: 'Tiền mặt' }[method] || method || '-';
+      return { sepay: 'Chuyển khoản QR', wallet: 'Ví SportGo', cash: 'Tiền mặt', bank_transfer: 'Chuyển khoản' }[method] || 'Không xác định';
     },
     refundDestinationLabel(refund) {
       return {

@@ -35,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (PostTooLargeException $exception, $request) {
             if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
-                    'message' => 'Tổng dung lượng ảnh tải lên vượt quá giới hạn cho phép của máy chủ.',
+                    'message' => 'Tổng dung lượng file tải lên vượt quá giới hạn 80 MB. Vui lòng giảm bớt hoặc nén file trước khi gửi.',
                 ], 413);
             }
 

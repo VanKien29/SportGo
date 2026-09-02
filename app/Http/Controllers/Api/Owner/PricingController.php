@@ -52,11 +52,19 @@ class PricingController extends Controller
 
         $courtTypes = DB::table('venue_courts')
             ->join('court_types', 'court_types.id', '=', 'venue_courts.court_type_id')
+            ->leftJoin('court_types as court_type_categories', 'court_type_categories.id', '=', 'court_types.parent_id')
             ->whereIn('venue_courts.venue_cluster_id', $clusterIds)
             ->whereNull('venue_courts.deleted_at')
             ->whereNull('court_types.deleted_at')
             ->where('court_types.is_active', true)
-            ->select(['venue_courts.venue_cluster_id', 'court_types.id', 'court_types.name'])
+            ->select([
+                'venue_courts.venue_cluster_id',
+                'court_types.id',
+                'court_types.name',
+                'court_types.parent_id',
+                DB::raw('COALESCE(court_type_categories.id, court_types.id) as category_id'),
+                DB::raw('COALESCE(court_type_categories.name, court_types.name) as category_name'),
+            ])
             ->distinct()
             ->orderBy('court_types.name')
             ->get()

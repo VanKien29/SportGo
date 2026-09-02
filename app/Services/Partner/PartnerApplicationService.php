@@ -1758,6 +1758,12 @@ class PartnerApplicationService
 
         $bankCode = $application->bank_code ?: Str::upper(Str::slug($application->bank_name, '_'));
 
+        // The account declared in the partner application is the immutable
+        // default payout account for this owner.
+        OwnerBankAccount::query()
+            ->where('owner_id', $application->user_id)
+            ->update(['is_default' => false]);
+
         OwnerBankAccount::updateOrCreate(
             [
                 'owner_id' => $application->user_id,

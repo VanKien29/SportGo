@@ -11,6 +11,7 @@ use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\Bookings\BookingLifecycleService;
 use App\Services\Bookings\BookingApprovalService;
+use App\Services\Bookings\BookingCourtChangeService;
 use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
@@ -31,6 +32,7 @@ class BookingManagementController extends Controller
         private readonly SepayPaymentService $sepayPaymentService,
         private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
         private readonly BookingApprovalService $bookingApprovals,
+        private readonly BookingCourtChangeService $bookingCourtChanges,
         private readonly VenueStaffAccessService $venueStaffAccess,
         private readonly WalkInCustomerService $walkInCustomers,
         private readonly BookingLifecycleService $bookingLifecycle,
@@ -589,6 +591,19 @@ class BookingManagementController extends Controller
         ]);
     }
 
+    public function courtOptions(Request $request, string $id): JsonResponse
+    {
+        $booking = Booking::query()
+            ->with(['venueCluster', 'venueCourt.courtType', 'items.venueCourt.courtType'])
+            ->findOrFail($id);
+        $this->ensureClusterCanMutate($request, $booking->venueCluster);
+        $this->assertBookingCourtAccess($request, $booking);
+
+        return response()->json([
+            'data' => $this->bookingCourtChanges->availableCourts($booking, $request->user()),
+        ]);
+    }
+
     public function changeCourt(Request $request, string $id): JsonResponse
     {
         $booking = Booking::query()->with(['venueCluster', 'venueCourt.courtType', 'items.venueCourt.courtType'])->findOrFail($id);
@@ -621,7 +636,43 @@ class BookingManagementController extends Controller
             'court_changed_reason' => ['required', 'string', 'max:1000'],
         ]);
 
-        $oldCourt = $booking->venueCourt;
+        $bookingItem = $booking->items->first();
+        $oldCourt = $bookingItem?->venueCourt ?: $booking->venueCourt;
+        $startTime = $bookingItem?->start_time ?? $booking->start_time;
+        $endTime = $bookingItem?->end_time ?? $booking->end_time;
+        $updatedBooking = $this->bookingCourtChanges->change(
+            $booking,
+            (int) $validated['venue_court_id'],
+            $request->user(),
+            $validated['court_changed_reason'],
+        );
+        $newCourt = $updatedBooking->venueCourt;
+
+        $this->bookingLifecycle->notifyMatchmakingBookingChanged(
+            $updatedBooking,
+            'booking-court-switched-'.$booking->id.'-'.$oldCourt?->id.'-'.$newCourt?->id,
+            'Kèo giao lưu đã đổi sân',
+            "Booking gốc của bài giao lưu đã đổi từ {$oldCourt?->name} sang {$newCourt?->name}.",
+            [
+                'status' => $updatedBooking->status,
+                'reason' => $validated['court_changed_reason'],
+                'from_venue_court_id' => $oldCourt?->id,
+                'from_venue_court_name' => $oldCourt?->name,
+                'to_venue_court_id' => $newCourt?->id,
+                'to_venue_court_name' => $newCourt?->name,
+                'booking_date' => $updatedBooking->booking_date?->toDateString(),
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Đã đổi sân thực tế cho booking.',
+            'data' => $updatedBooking,
+        ]);
+
+        /* Legacy inline implementation retained below only as a reference.
+         * All requests now use BookingCourtChangeService above. */
         $newCourt = VenueCourt::query()
             ->where('venue_cluster_id', $booking->venue_cluster_id)
             ->where('status', 'active')

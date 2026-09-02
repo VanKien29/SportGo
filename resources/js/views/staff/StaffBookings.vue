@@ -1709,6 +1709,7 @@ export default {
             // Shift attendance state
             shiftLoading: false,
             todayShift: null,
+            shiftRefreshTimer: null,
             attendanceSubmitting: false,
 
             // Drawer states
@@ -1960,6 +1961,16 @@ export default {
                 `${this.formatTime(this.todayShift.start_time)} - ${this.formatTime(this.todayShift.end_time)}`
             );
         },
+        hasActiveShift() {
+            return Boolean(this.todayShift);
+        },
+        shiftAccessMessage() {
+            if (!this.todayShift) {
+                return "Bạn hiện không có ca trực đang hoạt động. Các thao tác vận hành booking đang tạm khóa.";
+            }
+
+            return "Bạn hiện không có ca trực đang hoạt động tại cụm sân này. Chỉ có thể thực hiện thao tác trong thời gian ca được phân công.";
+        },
         liveOccupancyPercent() {
             const total = this.visibleCourts.length;
             if (!total) return 0;
@@ -2106,6 +2117,7 @@ export default {
         await this.loadBookingConfigs();
         await this.loadTodayShift();
         await this.loadBookings();
+        this.shiftRefreshTimer = window.setInterval(() => this.loadTodayShift(), 60000);
     },
     beforeUnmount() {
         window.removeEventListener(
@@ -2115,8 +2127,16 @@ export default {
         document.removeEventListener("click", this.handleOutsideClick);
         this.clearCollectPolling();
         this.clearCounterPolling();
+        if (this.shiftRefreshTimer) window.clearInterval(this.shiftRefreshTimer);
     },
     methods: {
+        ensureActiveShift() {
+            if (this.hasActiveShift) return true;
+
+            this.error = this.shiftAccessMessage;
+            this.notice = "";
+            return false;
+        },
         handleOutsideClick(e) {
             if (!e.target.closest(".pos-cal-dropdown")) {
                 this.showCalDropdown = false;
@@ -2282,9 +2302,19 @@ export default {
                     start_date: today,
                     end_date: today,
                 });
-                const schedules = res.data || [];
-                this.todayShift =
-                    schedules.find((s) => String(s.date) === today) || null;
+                const schedules = (res.data || []).filter((schedule) =>
+                    !this.filters.venue_cluster_id ||
+                    String(schedule.venue_cluster_id) ===
+                        String(this.filters.venue_cluster_id),
+                );
+                const nowMinutes = businessMinutes();
+                this.todayShift = schedules.find((schedule) => {
+                    if (String(schedule.date).slice(0, 10) !== today) return false;
+                    if (schedule.check_out_at || ["checked_out", "absent", "cancelled"].includes(schedule.status)) return false;
+                    const start = this.timeToMinutes(schedule.start_time);
+                    const end = this.timeToMinutes(schedule.end_time);
+                    return nowMinutes >= start && nowMinutes < end;
+                }) || null;
             } catch {
                 this.todayShift = null;
             } finally {
@@ -2594,6 +2624,7 @@ export default {
         },
 
         async submitCounterBooking() {
+            if (!this.ensureActiveShift()) return;
             if (
                 !this.counterFormValid ||
                 this.counterSubmitting ||
@@ -2682,6 +2713,7 @@ export default {
         },
 
         async runBookingAction(booking, action) {
+            if (!this.ensureActiveShift()) return;
             if (action === "collect") {
                 this.openCollectPayment(booking);
                 return;
@@ -2746,16 +2778,14 @@ export default {
         },
 
         async openChangeCourt(booking) {
+            if (!this.ensureActiveShift()) return;
             this.changeCourtBooking = booking;
             this.changeCourtForm = {
-                venue_court_id: booking.venue_court_id,
+                venue_court_id: "",
                 court_changed_reason: "",
             };
             try {
-                const response = await venueClusterService.getCourts(
-                    booking.venue_cluster_id,
-                    { status: "active" },
-                );
+                const response = await ownerBookingService.courtOptions(booking.id);
                 this.changeCourtOptions = response.data || [];
             } catch {
                 this.changeCourtOptions = [];
@@ -2768,6 +2798,7 @@ export default {
         },
 
         async saveChangeCourt() {
+            if (!this.ensureActiveShift()) return;
             if (!this.changeCourtBooking) return;
             this.savingChangeCourt = true;
             this.error = "";
@@ -2788,6 +2819,7 @@ export default {
         },
 
         openCollectPayment(booking) {
+            if (!this.ensureActiveShift()) return;
             this.showQrScannerModal = false;
             const pendingTransfer = this.pendingTransfer(booking);
             this.collectBooking = booking;
@@ -2807,8 +2839,9 @@ export default {
             this.clearCollectPolling();
         },
 
-    async submitCollectPayment() {
-      if (!this.collectBooking || this.collectingPayment) return;
+        async submitCollectPayment() {
+            if (!this.ensureActiveShift()) return;
+            if (!this.collectBooking || this.collectingPayment) return;
       if (this.isPayLaterBooking(this.collectBooking)) {
         this.collectForm.amount = this.outstandingAmount(this.collectBooking);
       }
@@ -2875,6 +2908,7 @@ export default {
     },
 
         openStatusAction(booking, action) {
+            if (!this.ensureActiveShift()) return;
             this.statusActionBooking = booking;
             this.statusAction = action;
             this.statusActionReason = "";
@@ -2887,6 +2921,7 @@ export default {
         },
 
         async submitStatusAction() {
+            if (!this.ensureActiveShift()) return;
             if (!this.statusActionBooking || !this.statusActionReason) return;
             this.updatingStatus = true;
             this.error = "";

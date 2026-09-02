@@ -700,7 +700,10 @@ export default {
                     deposit: "Đặt cọc",
                     wallet: "Ví SportGo",
                     no_prepay: "Trả sau",
-                }[value] || value || "—"
+                    cash: "Tiền mặt",
+                    bank_transfer: "Chuyển khoản",
+                    sepay: "Chuyển khoản QR",
+                }[value] || "Không xác định"
             );
         },
         kindLabel(value) {

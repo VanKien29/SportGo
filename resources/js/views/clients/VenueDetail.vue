@@ -2460,13 +2460,17 @@ export default {
 }
 
 .sg-pricing-table-container {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  overflow: visible;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .sg-clean-pricing-table {
   width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -2475,11 +2479,12 @@ export default {
 
 .sg-clean-pricing-table th,
 .sg-clean-pricing-table td {
-  padding: 11px 14px;
+  box-sizing: border-box;
+  padding: 9px 7px;
   border: 0;
   text-align: center;
   vertical-align: middle;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: break-word;
 }
 
@@ -2500,15 +2505,15 @@ export default {
 }
 
 .sg-clean-pricing-table .col-day {
-  width: 30%;
+  width: 28%;
 }
 
 .sg-clean-pricing-table .col-time {
-  width: 38%;
+  width: 42%;
 }
 
 .sg-clean-pricing-table .col-price {
-  width: 32%;
+  width: 30%;
 }
 
 .sg-special-pricing-table .col-court {
@@ -2547,8 +2552,9 @@ export default {
 .sg-clean-pricing-table .cell-price {
   font-weight: 700;
   color: #15803d;
-  font-size: 14px;
-  letter-spacing: 0.2px;
+  font-size: 13px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .sg-clean-pricing-table tr.is-base-price td {

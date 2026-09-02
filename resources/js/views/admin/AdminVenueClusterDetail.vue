@@ -1797,7 +1797,10 @@ export default {
         deposit: 'Đặt cọc',
         wallet: 'Ví SportGo',
         no_prepay: 'Trả sau',
-      }[option] || option || '—';
+        cash: 'Tiền mặt',
+        bank_transfer: 'Chuyển khoản',
+        sepay: 'Chuyển khoản QR',
+      }[option] || 'Không xác định';
     },
     approvalStatusLabel(status) {
       if (status === 'approved_pending_appendix') return 'Đã duyệt, chờ SportGo ký phụ lục';

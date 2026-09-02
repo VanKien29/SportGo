@@ -370,6 +370,16 @@
                                 <span>Xác nhận</span>
                             </button>
                             <button
+                                v-if="canChangeCourt(selectedBusyBooking)"
+                                class="secondary-btn compact action-transfer"
+                                type="button"
+                                :disabled="bookingActionLoading"
+                                @click="counterChangeCourtBooking = selectedBusyBooking"
+                            >
+                                <AppIcon name="pencil" size="15" />
+                                <span>Đổi sân</span>
+                            </button>
+                            <button
                                 v-if="selectedBookingOutstanding > 0"
                                 class="secondary-btn compact action-cash"
                                 type="button"
@@ -1716,6 +1726,15 @@
 
                     <div class="modal-actions">
                         <button
+                            v-if="canChangeCourt(bookingListDetail)"
+                            class="secondary-btn action-transfer"
+                            type="button"
+                            @click="counterChangeCourtBooking = bookingListDetail; bookingListDetail = null"
+                        >
+                            <AppIcon name="pencil" size="15" />
+                            Đổi sân
+                        </button>
+                        <button
                             class="secondary-btn"
                             type="button"
                             @click="closeBookingListDetail"
@@ -2021,12 +2040,18 @@
                 </section>
             </div>
         </Teleport>
+        <BookingCourtChangeModal
+            :booking="counterChangeCourtBooking"
+            @close="counterChangeCourtBooking = null"
+            @saved="handleCounterCourtChanged"
+        />
     </div>
 </template>
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
+import BookingCourtChangeModal from "../../components/BookingCourtChangeModal.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import { venueClusterService } from "../../services/venueClusters.js";
@@ -2071,7 +2096,7 @@ const SLOT_PERIODS = [
 
 export default {
     name: "OwnerCounterBooking",
-    components: { AppIcon, MiniCalendar },
+    components: { AppIcon, MiniCalendar, BookingCourtChangeModal },
     data() {
         const now = new Date();
         const today = toIsoDate(now);
@@ -2148,6 +2173,7 @@ export default {
             counterDrawerOpen: false,
             selectedOccupiedInterval: null,
             selectedBusyBooking: null,
+            counterChangeCourtBooking: null,
             selectedBusyBookingLoading: false,
             bookingActionLoading: false,
             bookingActionConfirm: null,
@@ -3777,6 +3803,18 @@ export default {
         closeBookingListDetail() {
             this.bookingListDetail = null;
         },
+        async handleCounterCourtChanged(booking) {
+            this.counterChangeCourtBooking = null;
+            this.selectedBusyBooking = booking;
+            this.bookingListDetail = null;
+            this.notice = "Đã đổi sân cho booking.";
+            await Promise.all([this.loadBookingList(), this.loadSchedule()]);
+        },
+        canChangeCourt(booking) {
+            return Boolean(booking?.id)
+                && ["pending_approval", "pending_payment", "confirmed"].includes(booking.status)
+                && this.bookingTimeSegments(booking).length <= 1;
+        },
         slotStatus(courtId, slot) {
             if (!slot) return null;
             return (
@@ -5071,9 +5109,12 @@ export default {
                     deposit: "Đặt cọc",
                     no_prepay: "Thu sau",
                     mixed: "Nhiều hình thức",
+                    wallet: "Ví SportGo",
+                    cash: "Tiền mặt",
+                    bank_transfer: "Chuyển khoản",
+                    sepay: "Chuyển khoản QR",
                 }[value] ||
-                value ||
-                "-"
+                "Không xác định"
             );
         },
         recurringGroupStatusSummary(group) {
