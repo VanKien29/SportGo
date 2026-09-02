@@ -122,13 +122,13 @@
                         </div>
                     </div>
 
-                    <div class="sg-community-post-stats">
+                    <div v-if="isPostPublished" class="sg-community-post-stats">
                         <span><Heart :size="16" /> {{ post.like_count || 0 }} lượt thích</span>
                         <span><MessageCircle :size="16" /> {{ post.comment_count || 0 }} bình luận</span>
                         <span><Eye :size="16" /> {{ post.view_count || 0 }} lượt xem</span>
                     </div>
 
-                    <div class="sg-community-post-actions">
+                    <div v-if="isPostPublished" class="sg-community-post-actions">
                         <button
                             type="button"
                             :class="{ active: post.is_liked }"
@@ -148,7 +148,7 @@
                         </button>
                     </div>
 
-                    <section class="sg-community-comments" aria-labelledby="community-comments-title">
+                    <section v-if="isPostPublished" class="sg-community-comments" aria-labelledby="community-comments-title">
                         <div class="sg-community-comments-heading">
                             <div>
                                 <p class="sg-community-eyebrow">Trao đổi</p>
@@ -337,6 +337,11 @@ const reportModal = reactive({
 
 const currentUser = computed(() => getAuth() || null);
 const isAuthor = computed(() => currentUser.value && String(currentUser.value.id) === String(post.value?.author?.id || post.value?.author_id));
+const isPostPublished = computed(() => {
+    if (!post.value) return false;
+    if (post.value.is_deleted || post.value.deleted_at) return false;
+    return post.value.status === "published" || post.value.status === "approved";
+});
 const authorName = computed(
     () => post.value?.author?.full_name || post.value?.author?.username || "Thành viên SportGo",
 );
