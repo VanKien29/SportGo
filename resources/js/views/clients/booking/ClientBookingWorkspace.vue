@@ -139,25 +139,65 @@
                     {{ shortTime(slotInfo.slot.start_time) }} – {{ shortTime(slotInfo.slot.end_time) }}
                   </td>
 
-                  <!-- COURT COLUMNS -->
-                  <td v-for="court in courts" :key="`${court.id}-${slotInfo.slot.start_time}`" class="cbw-td-slot">
-                    <button
-                      type="button"
-                      class="cbw-slot-btn"
-                      :class="slotClasses(court.id, slotInfo.slot)"
-                      :disabled="slotDisabled(court.id, slotInfo.slot)"
-                      :title="slotTitle(court, slotInfo.slot)"
-                      @click="toggleSlot(court, slotInfo.index)"
+                  <!-- COURT COLUMNS (MERGED WITH ROWSPAN) -->
+                  <template v-for="court in courts" :key="`${court.id}-${slotInfo.slot.start_time}`">
+                    <td
+                      v-if="!isSlotCoveredByMerge(court.id, slotInfo)"
+                      :rowspan="getSlotRowspan(court.id, slotInfo)"
+                      class="cbw-td-slot"
+                      :class="{
+                        'is-merged-selected': isSelectedSlot(court.id, slotInfo.slot) && getSlotRowspan(court.id, slotInfo) > 1,
+                        'is-single-selected': isSelectedSlot(court.id, slotInfo.slot) && getSlotRowspan(court.id, slotInfo) === 1,
+                      }"
                     >
-                      <span v-if="isSelectedSlot(court.id, slotInfo.slot)" class="cbw-slot-label">Đã chọn</span>
-                      <span v-else-if="!slotDisabled(court.id, slotInfo.slot)" class="cbw-slot-price">
-                        {{ compactMoney(slotStatus(court.id, slotInfo.slot)?.price) }}
-                      </span>
-                      <span v-else class="cbw-slot-disabled-text">
-                        {{ slotDisabledLabel(court.id, slotInfo.slot) }}
-                      </span>
-                    </button>
-                  </td>
+                      <!-- ĐÃ CHỌN (GỘP THÀNH 1 Ô DUY NHẤT CAO TRỌN VẸN CẢ DẢI SLOT) -->
+                      <button
+                        v-if="isSelectedSlot(court.id, slotInfo.slot)"
+                        type="button"
+                        class="cbw-slot-btn is-selected"
+                        :class="{ 'is-merged-btn': getSlotRowspan(court.id, slotInfo) > 1 }"
+                        :title="mergedSlotTitle(court, slotInfo)"
+                        @click="toggleMergedSlot(court, slotInfo)"
+                      >
+                        <div v-if="getSlotRowspan(court.id, slotInfo) > 1" class="cbw-merged-slot-card">
+                          <span class="cbw-merged-time">
+                            {{ shortTime(slotInfo.slot.start_time) }} – {{ shortTime(getMergedEndSlot(court.id, slotInfo).end_time) }}
+                          </span>
+                          <span class="cbw-merged-badge">
+                            Đã chọn ({{ formatDurationMinutes(getMergedDuration(court.id, slotInfo)) }})
+                          </span>
+                          <span class="cbw-merged-unselect-text">
+                            ✕ Hủy chọn
+                          </span>
+                        </div>
+                        <div v-else class="cbw-single-slot-card">
+                          <span class="cbw-single-time">
+                            {{ shortTime(slotInfo.slot.start_time) }} – {{ shortTime(slotInfo.slot.end_time) }}
+                          </span>
+                          <span class="cbw-slot-label">Đã chọn</span>
+                          <span class="cbw-single-unselect-text">✕ Hủy</span>
+                        </div>
+                      </button>
+
+                      <!-- TRẠNG THÁI KHÁC (CHƯA CHỌN / TRỐNG / ĐÃ ĐẶT / KHÓA) -->
+                      <button
+                        v-else
+                        type="button"
+                        class="cbw-slot-btn"
+                        :class="slotClasses(court.id, slotInfo.slot)"
+                        :disabled="slotDisabled(court.id, slotInfo.slot)"
+                        :title="slotTitle(court, slotInfo.slot)"
+                        @click="toggleSlot(court, slotInfo.index)"
+                      >
+                        <span v-if="!slotDisabled(court.id, slotInfo.slot)" class="cbw-slot-price">
+                          {{ compactMoney(slotStatus(court.id, slotInfo.slot)?.price) }}
+                        </span>
+                        <span v-else class="cbw-slot-disabled-text">
+                          {{ slotDisabledLabel(court.id, slotInfo.slot) }}
+                        </span>
+                      </button>
+                    </td>
+                  </template>
                 </tr>
               </tbody>
             </table>
@@ -1281,9 +1321,79 @@ export default {
     isSelectedSlot(courtId, slot) {
       return this.selectedSlotKeys.includes(this.slotKey(courtId, slot));
     },
+    isSlotCoveredByMerge(courtId, slotInfo) {
+      if (!this.isSelectedSlot(courtId, slotInfo.slot)) return false;
+      const list = this.activePeriodSlots;
+      const currIdx = list.findIndex(item => item.index === slotInfo.index);
+      if (currIdx <= 0) return false;
+
+      const prevItem = list[currIdx - 1];
+      return prevItem && prevItem.index === slotInfo.index - 1 && this.isSelectedSlot(courtId, prevItem.slot);
+    },
+    getSlotRowspan(courtId, slotInfo) {
+      if (!this.isSelectedSlot(courtId, slotInfo.slot)) return 1;
+      const list = this.activePeriodSlots;
+      const currIdx = list.findIndex(item => item.index === slotInfo.index);
+      if (currIdx === -1) return 1;
+
+      let span = 1;
+      for (let i = currIdx + 1; i < list.length; i++) {
+        const nextItem = list[i];
+        if (nextItem.index === list[i - 1].index + 1 && this.isSelectedSlot(courtId, nextItem.slot)) {
+          span += 1;
+        } else {
+          break;
+        }
+      }
+      return span;
+    },
+    getMergedEndSlot(courtId, slotInfo) {
+      const span = this.getSlotRowspan(courtId, slotInfo);
+      if (span <= 1) return slotInfo.slot;
+      const list = this.activePeriodSlots;
+      const currIdx = list.findIndex(item => item.index === slotInfo.index);
+      return list[currIdx + span - 1]?.slot || slotInfo.slot;
+    },
+    getMergedDuration(courtId, slotInfo) {
+      const endSlot = this.getMergedEndSlot(courtId, slotInfo);
+      return Math.max(0, this.minutes(endSlot.end_time) - this.minutes(slotInfo.slot.start_time));
+    },
+    mergedSlotTitle(court, slotInfo) {
+      const endSlot = this.getMergedEndSlot(court.id, slotInfo);
+      const duration = this.formatDurationMinutes(this.getMergedDuration(court.id, slotInfo));
+      return `${court.name} · ${this.shortTime(slotInfo.slot.start_time)} – ${this.shortTime(endSlot.end_time)} (${duration}) · Nhấp để hủy chọn dải sân này`;
+    },
+    async toggleMergedSlot(court, slotInfo) {
+      const list = this.activePeriodSlots;
+      const currIdx = list.findIndex(item => item.index === slotInfo.index);
+      const span = this.getSlotRowspan(court.id, slotInfo);
+
+      const keysToRemove = [];
+      for (let i = 0; i < span; i++) {
+        const item = list[currIdx + i];
+        if (item) {
+          keysToRemove.push(this.slotKey(court.id, item.slot));
+        }
+      }
+
+      this.selectionError = "";
+      this.selectedSlotKeys = this.selectedSlotKeys.filter(k => !keysToRemove.includes(k));
+      if (this.isLoggedIn) {
+        await this.checkAvailability();
+      }
+    },
+    formatDurationMinutes(mins) {
+      if (!mins) return "0 phút";
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      if (!h) return `${m} phút`;
+      if (!m) return `${h} giờ`;
+      return `${h}g${m}p`;
+    },
     slotClasses(courtId, slot) {
       const status = this.slotStatus(courtId, slot);
       const slotStatus = status?.slot_status;
+
       return {
         "is-selected": this.isSelectedSlot(courtId, slot),
         "is-booked": slotStatus === "booked" || (status?.is_available === false && status?.busy_source !== "slot_lock"),
@@ -2146,120 +2256,243 @@ export default {
 }
 
 .cbw-slot-btn.is-status-available {
-  background: #ecfdf3;
-  border-color: #b8e3c5;
-  color: #167548;
+  background: #e8f8ee;
+  border-color: #86efac;
+  color: #15803d;
 }
 
 .cbw-slot-btn.is-booked,
 .cbw-slot-btn.is-status-booked {
-  background: #eaf2ff;
-  border-color: #b9cef2;
-  color: #24569e;
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-status-pending-approval {
-  background: #fff8dc;
-  border-color: #f0d275;
-  color: #8a6100;
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-status-pending-payment {
-  background: #fff0e5;
-  border-color: #efb47e;
-  color: #984d16;
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #9a3412;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-locked,
 .cbw-slot-btn.is-status-locked {
-  background: #f3eefe;
-  border-color: #cdbdf0;
-  color: #6841a5;
+  background: #ede9fe;
+  border-color: #c4b5fd;
+  color: #5b21b6;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-status-busy {
-  background: #ffeaea;
-  border-color: #f1b6b6;
-  color: #a83f3f;
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-past,
 .cbw-slot-btn.is-status-past,
 .cbw-slot-btn.is-status-too-early {
-  background: #f1f3f5;
-  border-color: #d8dde3;
-  color: #697586;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
   cursor: not-allowed;
 }
 
+.cbw-td-slot.is-merged-selected {
+  padding: 3px 4px !important;
+  height: 1px !important;
+  vertical-align: stretch !important;
+}
+
+.cbw-td-slot.is-single-selected {
+  padding: 3px 4px !important;
+}
+
 .cbw-slot-btn.is-selected {
-  background: #15803d;
-  border-color: #15803d;
-  color: #ffffff;
-  font-weight: 500;
+  background: #15803d !important;
+  border: 1.5px solid #166534 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.cbw-slot-btn.is-merged-btn {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  box-sizing: border-box !important;
+  background: #15803d !important;
+  border: 1.5px solid #166534 !important;
+  border-radius: 8px !important;
+  padding: 10px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: 0 3px 8px rgba(21, 128, 61, 0.25) !important;
+  transition: all 0.15s ease !important;
+}
+
+.cbw-slot-btn.is-merged-btn:hover {
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+  box-shadow: 0 3px 8px rgba(220, 38, 38, 0.3) !important;
+}
+
+.cbw-merged-slot-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+.cbw-merged-time {
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.3px !important;
+  white-space: nowrap !important;
+}
+
+.cbw-merged-badge {
+  display: inline-block !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 12px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+}
+
+.cbw-merged-unselect-text {
+  display: none !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.4px !important;
+}
+
+.cbw-slot-btn.is-merged-btn:hover .cbw-merged-badge {
+  display: none !important;
+}
+
+.cbw-slot-btn.is-merged-btn:hover .cbw-merged-unselect-text {
+  display: inline-block !important;
+}
+
+.cbw-single-slot-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+.cbw-single-time {
+  font-size: 10px !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 500 !important;
+}
+
+.cbw-single-unselect-text {
+  display: none !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+.cbw-slot-btn.is-selected:not(.is-merged-btn):hover {
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+}
+
+.cbw-slot-btn.is-selected:not(.is-merged-btn):hover .cbw-single-time,
+.cbw-slot-btn.is-selected:not(.is-merged-btn):hover .cbw-slot-label {
+  display: none !important;
+}
+
+.cbw-slot-btn.is-selected:not(.is-merged-btn):hover .cbw-single-unselect-text {
+  display: block !important;
 }
 
 .cbw-slot-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: #ffffff;
 }
 
 .cbw-slot-price {
   font-size: 12px;
-  font-weight: 400;
-  color: #167548;
+  font-weight: 500;
+  color: #15803d;
 }
 
 .cbw-slot-disabled-text {
   font-size: 11.5px;
   color: currentColor;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .cbw-slot-btn.is-locked .cbw-slot-disabled-text,
 .cbw-slot-btn.is-status-locked .cbw-slot-disabled-text {
-  color: #6841a5;
+  color: #5b21b6;
   font-size: 11px;
+  font-weight: 600;
 }
 
 .cbw-status-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  margin-top: 12px;
-  color: #475569;
-  font-size: 11.5px;
+  gap: 10px 18px;
+  margin-top: 14px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .cbw-status-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   white-space: nowrap;
 }
 
 .cbw-legend-dot {
-  width: 12px;
-  height: 12px;
-  border: 1px solid transparent;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid transparent;
   border-radius: 3px;
   flex: 0 0 auto;
 }
 
-.cbw-legend-dot--available { background: #ecfdf3; border-color: #b8e3c5; }
-.cbw-legend-dot--selected { background: #15803d; border-color: #15803d; }
-.cbw-legend-dot--booked { background: #eaf2ff; border-color: #b9cef2; }
-.cbw-legend-dot--pending { background: #fff8dc; border-color: #f0d275; }
-.cbw-legend-dot--payment { background: #fff0e5; border-color: #efb47e; }
-.cbw-legend-dot--locked { background: #f3eefe; border-color: #cdbdf0; }
-.cbw-legend-dot--past { background: #f1f3f5; border-color: #d8dde3; }
+.cbw-legend-dot--available { background: #86efac; border-color: #16a34a; }
+.cbw-legend-dot--selected { background: #15803d; border-color: #14532d; }
+.cbw-legend-dot--booked { background: #93c5fd; border-color: #2563eb; }
+.cbw-legend-dot--pending { background: #fcd34d; border-color: #d97706; }
+.cbw-legend-dot--payment { background: #fdba74; border-color: #ea580c; }
+.cbw-legend-dot--locked { background: #c4b5fd; border-color: #7c3aed; }
+.cbw-legend-dot--past { background: #cbd5e1; border-color: #64748b; }
 
 /* ===== SELECTION FEEDBACK BAR ===== */
 .cbw-sel-bar {

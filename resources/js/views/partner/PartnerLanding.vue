@@ -139,7 +139,7 @@
 
               <div class="pl-calendar-topbar">
                 <div class="pl-cal-info">
-                  <h3>Sơ đồ sân Thứ Sáu, 07/08/2026</h3>
+                  <h3>Lịch sân Thứ Sáu, 07/08/2026</h3>
                   <span class="pl-subtext">Click vào ô bất kỳ để xem thao tác giữ chỗ / hủy chỗ</span>
                 </div>
                 <div class="pl-cal-actions">

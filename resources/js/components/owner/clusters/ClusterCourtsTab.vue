@@ -6,16 +6,6 @@
         <h2>Danh sách sân con</h2>
         <p class="section-subtitle">Quản lý danh sách, loại sân và trạng thái kinh doanh của các sân con tại cụm sân.</p>
       </div>
-      <div class="header-actions">
-        <button
-          type="button"
-          class="btn btn-outline"
-          @click="$emit('open-spatial-editor')"
-        >
-          <AppIcon name="maximize" size="14" />
-          <span>Sơ đồ mặt bằng</span>
-        </button>
-      </div>
     </div>
 
     <!-- Filter Bar (Đã loại bỏ padding và ô tìm kiếm) -->
@@ -170,7 +160,7 @@ export default {
     error: { type: String, default: null },
     isClusterLocked: { type: Boolean, default: false },
   },
-  emits: ['edit-court', 'toggle-court-status', 'open-scale-request', 'open-spatial-editor'],
+  emits: ['edit-court', 'toggle-court-status', 'open-scale-request'],
   data() {
     return {
       filterStatus: '',
