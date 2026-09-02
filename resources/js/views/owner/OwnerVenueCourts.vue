@@ -278,6 +278,17 @@
                 </form>
             </div>
         </div>
+
+        <!-- Modal xử lý booking trùng khi đổi trạng thái sân con -->
+        <CourtConflictResolutionModal
+            v-model="showConflictModal"
+            :court-name="form.name"
+            :target-status="form.status"
+            :conflicts="conflictData"
+            :loading="conflictLoading"
+            @confirm="handleConfirmConflictResolution"
+            @cancel="showConflictModal = false"
+        />
     </div>
 </template>
 
@@ -286,13 +297,14 @@ import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import BaseCombobox from "../../components/BaseCombobox.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
+import CourtConflictResolutionModal from "../../components/owner/CourtConflictResolutionModal.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { courtTypeService } from "../../services/courtTypes";
 import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, SaaSTable, BaseCombobox },
+    components: { ActionIconButton, AppIcon, SaaSTable, BaseCombobox, CourtConflictResolutionModal },
     data() {
         return {
             clusterId:
@@ -306,6 +318,10 @@ export default {
             error: null,
             showModal: false,
             editingId: null,
+            originalCourtStatus: null,
+            showConflictModal: false,
+            conflictData: { affected_count: 0, items: [] },
+            conflictLoading: false,
             submitting: false,
             modalError: null,
             form: {
@@ -460,6 +476,7 @@ export default {
         },
         openEditModal(court) {
             this.editingId = court.id;
+            this.originalCourtStatus = court.status;
             this.modalError = null;
             this.showTypeDropdown = false;
             this.form = {
@@ -473,6 +490,7 @@ export default {
         closeModal() {
             this.showModal = false;
             this.editingId = null;
+            this.originalCourtStatus = null;
             this.modalError = null;
             this.showTypeDropdown = false;
         },
@@ -487,6 +505,24 @@ export default {
             try {
                 const toast = useToast();
                 if (this.editingId) {
+                    const statusChanged = this.originalCourtStatus !== this.form.status;
+                    const isDeactivating = statusChanged && ["inactive", "maintenance"].includes(this.form.status);
+
+                    if (isDeactivating) {
+                        try {
+                            const res = await venueClusterService.getCourtConflicts(this.editingId);
+                            const data = res.data || { affected_count: 0, items: [] };
+                            if ((data.affected_count || 0) > 0) {
+                                this.conflictData = data;
+                                this.showConflictModal = true;
+                                this.submitting = false;
+                                return;
+                            }
+                        } catch (e) {
+                            console.warn("Could not check court conflicts:", e);
+                        }
+                    }
+
                     await venueClusterService.updateCourt(this.editingId, {
                         name: this.form.name,
                         court_type_id: this.form.court_type_id,
@@ -506,9 +542,38 @@ export default {
                 await this.initData();
                 this.closeModal();
             } catch (err) {
-                this.modalError = err.message || "Lỗi lưu dữ liệu sân con.";
+                const conflicts = err.conflicts || err.data?.conflicts;
+                if (conflicts) {
+                    this.conflictData = conflicts;
+                    this.showConflictModal = true;
+                } else {
+                    this.modalError = err.message || "Lỗi lưu dữ liệu sân con.";
+                }
             } finally {
                 this.submitting = false;
+            }
+        },
+        async handleConfirmConflictResolution({ resolutions, reason }) {
+            this.conflictLoading = true;
+            try {
+                const toast = useToast();
+                await venueClusterService.updateCourt(this.editingId, {
+                    name: this.form.name,
+                    court_type_id: this.form.court_type_id,
+                    status: this.form.status,
+                    sort_order: this.form.sort_order,
+                    reason,
+                    resolutions,
+                });
+                toast.success("Cập nhật trạng thái sân con và xử lý booking trùng thành công.");
+                this.showConflictModal = false;
+                await this.initData();
+                this.closeModal();
+            } catch (err) {
+                const toast = useToast();
+                toast.error(err.message || "Lỗi xử lý xung đột lịch sân.");
+            } finally {
+                this.conflictLoading = false;
             }
         },
         getParentTypeName(child) {

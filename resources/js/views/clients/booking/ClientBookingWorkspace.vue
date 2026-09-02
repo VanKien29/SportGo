@@ -117,8 +117,11 @@
               <thead>
                 <tr>
                   <th class="cbw-th-corner">KHUNG GIỜ</th>
-                  <th v-for="court in courts" :key="court.id" class="cbw-th-court">
-                    <strong>{{ court.name }}</strong>
+                  <th v-for="court in courts" :key="court.id" class="cbw-th-court" :class="{ 'is-maintenance': court.status === 'maintenance' }">
+                    <div class="cbw-court-header-main">
+                      <strong>{{ court.name }}</strong>
+                      <span v-if="court.status === 'maintenance'" class="cbw-court-badge-maintenance">Bảo trì</span>
+                    </div>
                     <span>{{ court.court_type?.name || 'Sân thể thao' }}</span>
                   </th>
                 </tr>
@@ -177,22 +180,47 @@
                       </button>
 
                       <!-- TRẠNG THÁI KHÁC (CHƯA CHỌN / TRỐNG / ĐÃ ĐẶT / KHÓA) -->
-                      <button
+                      <div
                         v-else
-                        type="button"
-                        class="cbw-slot-btn"
-                        :class="slotClasses(court.id, slotInfo.slot)"
-                        :disabled="slotDisabled(court.id, slotInfo.slot)"
-                        :title="slotTitle(court, slotInfo.slot)"
-                        @click="toggleSlot(court, slotInfo.index)"
+                        class="cbw-slot-cell-wrapper"
                       >
-                        <span v-if="!slotDisabled(court.id, slotInfo.slot)" class="cbw-slot-price">
-                          {{ compactMoney(slotStatus(court.id, slotInfo.slot)?.price) }}
-                        </span>
-                        <span v-else class="cbw-slot-disabled-text">
-                          {{ slotDisabledLabel(court.id, slotInfo.slot) }}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          class="cbw-slot-btn"
+                          :class="slotClasses(court.id, slotInfo.slot)"
+                          :disabled="slotDisabled(court.id, slotInfo.slot)"
+                          @click="toggleSlot(court, slotInfo.index)"
+                        >
+                          <span v-if="!slotDisabled(court.id, slotInfo.slot)" class="cbw-slot-price">
+                            {{ compactMoney(slotStatus(court.id, slotInfo.slot)?.price) }}
+                          </span>
+                          <span v-else class="cbw-slot-disabled-text">
+                            {{ slotDisabledLabel(court.id, slotInfo.slot) }}
+                          </span>
+                        </button>
+
+                        <!-- BONG BÓNG LÝ DO KHÓA KHI HOVER -->
+                        <div
+                          v-if="isSlotLockedOrMaintenance(court.id, slotInfo.slot)"
+                          class="cbw-bubble-tooltip"
+                          :class="{ 'drop-down': slotInfo.index <= 1 }"
+                          role="tooltip"
+                        >
+                          <div class="cbw-bubble-arrow"></div>
+                          <div class="cbw-bubble-header">
+                            <span class="cbw-bubble-badge" :class="getLockBadgeClass(court.id, slotInfo.slot)">
+                              {{ getLockBadgeLabel(court.id, slotInfo.slot) }}
+                            </span>
+                            <span class="cbw-bubble-time">
+                              {{ shortTime(slotInfo.slot.start_time) }} – {{ shortTime(slotInfo.slot.end_time) }}
+                            </span>
+                          </div>
+                          <div class="cbw-bubble-body">
+                            <span class="cbw-bubble-label">Lý do:</span>
+                            <span class="cbw-bubble-reason">{{ getLockReasonText(court.id, slotInfo.slot) }}</span>
+                          </div>
+                        </div>
+                      </div>
                     </td>
                   </template>
                 </tr>
@@ -207,6 +235,7 @@
             <span><i class="cbw-legend-dot cbw-legend-dot--pending"></i>Chờ xác nhận</span>
             <span><i class="cbw-legend-dot cbw-legend-dot--payment"></i>Chờ thanh toán</span>
             <span><i class="cbw-legend-dot cbw-legend-dot--locked"></i>Đang khóa</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--maintenance"></i>Bảo trì</span>
             <span><i class="cbw-legend-dot cbw-legend-dot--past"></i>Đã qua / quá sát giờ</span>
           </div>
 
@@ -1362,16 +1391,50 @@ export default {
       return this.minutes(slot.start_time) < businessMinutes() + this.minAdvance;
     },
     slotDisabled(courtId, slot) {
-      return this.bookingBlocked || this.slotPast(slot) || this.slotTooSoon(slot) || this.slotStatus(courtId, slot)?.is_available === false;
+      const court = this.courts.find(c => String(c.id) === String(courtId));
+      if (court?.status === 'maintenance') return true;
+      const status = this.slotStatus(courtId, slot);
+      if (status?.slot_status === 'maintenance') return true;
+      return this.bookingBlocked || this.slotPast(slot) || this.slotTooSoon(slot) || status?.is_available === false;
     },
     slotDisabledLabel(courtId, slot) {
+      const court = this.courts.find(c => String(c.id) === String(courtId));
       const status = this.slotStatus(courtId, slot);
+      if (court?.status === 'maintenance' || status?.slot_status === 'maintenance') return "Bảo trì";
+      if (status?.busy_source === "slot_lock" || status?.slot_status === "locked") return "Đã khóa";
       if (this.slotPast(slot)) return "Đã qua";
       if (this.slotTooSoon(slot)) return "Quá sát giờ";
       if (status?.status_label) return status.status_label;
-      if (status?.busy_source === "slot_lock") return "Đang khóa";
       if (status?.is_available === false) return "Đã đặt";
       return "-";
+    },
+    isSlotLocked(courtId, slot) {
+      const status = this.slotStatus(courtId, slot);
+      return status?.busy_source === "slot_lock" || status?.slot_status === "locked";
+    },
+    isCourtMaintenance(courtId, slot) {
+      const court = this.courts.find(c => String(c.id) === String(courtId));
+      if (court?.status === "maintenance") return true;
+      const status = this.slotStatus(courtId, slot);
+      return status?.slot_status === "maintenance";
+    },
+    isSlotLockedOrMaintenance(courtId, slot) {
+      return this.isSlotLocked(courtId, slot) || this.isCourtMaintenance(courtId, slot);
+    },
+    getLockBadgeLabel(courtId, slot) {
+      if (this.isCourtMaintenance(courtId, slot)) return "Bảo trì";
+      return "Đã khóa";
+    },
+    getLockBadgeClass(courtId, slot) {
+      if (this.isCourtMaintenance(courtId, slot)) return "maintenance";
+      return "locked";
+    },
+    getLockReasonText(courtId, slot) {
+      const status = this.slotStatus(courtId, slot);
+      if (this.isCourtMaintenance(courtId, slot)) {
+        return status?.unavailable_reason || "Sân đang trong quá trình bảo trì, tạm ngưng nhận lịch.";
+      }
+      return status?.lock_reason || status?.unavailable_reason || "Chủ sân đang tạm khóa khung giờ này.";
     },
     isSelectedSlot(courtId, slot) {
       return this.selectedSlotKeys.includes(this.slotKey(courtId, slot));
@@ -1448,12 +1511,16 @@ export default {
     slotClasses(courtId, slot) {
       const status = this.slotStatus(courtId, slot);
       const slotStatus = status?.slot_status;
+      const court = this.courts.find(c => String(c.id) === String(courtId));
+      const isMaintenance = court?.status === "maintenance" || slotStatus === "maintenance";
 
       return {
         "is-selected": this.isSelectedSlot(courtId, slot),
-        "is-booked": slotStatus === "booked" || (status?.is_available === false && status?.busy_source !== "slot_lock"),
-        "is-locked": slotStatus === "locked" || status?.busy_source === "slot_lock",
+        "is-maintenance": isMaintenance,
+        "is-booked": !isMaintenance && (slotStatus === "booked" || (status?.is_available === false && status?.busy_source !== "slot_lock")),
+        "is-locked": !isMaintenance && (slotStatus === "locked" || status?.busy_source === "slot_lock"),
         "is-status-available": slotStatus === "available",
+        "is-status-maintenance": isMaintenance,
         "is-status-pending-approval": slotStatus === "pending_approval",
         "is-status-pending-payment": slotStatus === "pending_payment",
         "is-status-locked": slotStatus === "locked",
@@ -1465,6 +1532,9 @@ export default {
     },
     slotTitle(court, slot) {
       const status = this.slotStatus(court.id, slot);
+      if (court.status === "maintenance" || status?.slot_status === "maintenance") {
+        return `${court.name} đang trong thời gian bảo trì, không thể đặt sân.`;
+      }
       if (this.bookingBlocked) return this.bookingAccess.message;
       if (this.slotPast(slot)) return "Khung giờ đã trôi qua.";
       if (this.slotTooSoon(slot)) return `Cần đặt trước ít nhất ${this.minAdvance} phút.`;
@@ -1476,6 +1546,11 @@ export default {
       const slot = this.slots[index];
       if (this.bookingBlocked) {
         this.toast.error(this.bookingAccess.message);
+        return;
+      }
+      const courtObj = this.courts.find(c => String(c.id) === String(court.id)) || court;
+      if (courtObj?.status === 'maintenance') {
+        this.toast.warning(`${courtObj.name} đang trong thời gian bảo trì, không thể đặt sân.`);
         return;
       }
       if (this.slotDisabled(court.id, slot)) return;
@@ -2325,6 +2400,130 @@ export default {
   font-weight: 400;
 }
 
+/* ===== SLOT CELL WRAPPER & BUBBLE TOOLTIP ===== */
+.cbw-slot-cell-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.cbw-bubble-tooltip {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  min-width: 190px;
+  max-width: 260px;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.08);
+  color: #1e293b;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  z-index: 100;
+  text-align: left;
+}
+
+.cbw-bubble-tooltip.drop-down {
+  bottom: auto;
+  top: calc(100% + 9px);
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.cbw-slot-cell-wrapper:hover .cbw-bubble-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.cbw-bubble-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: -5px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.cbw-bubble-tooltip.drop-down .cbw-bubble-arrow {
+  top: 0;
+  margin-top: -5px;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid #cbd5e1;
+  border-top: 1px solid #cbd5e1;
+}
+
+.cbw-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cbw-bubble-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.cbw-bubble-badge.locked {
+  background: #f3e8ff;
+  color: #7c3aed;
+  border: 1px solid #d8b4fe;
+}
+
+.cbw-bubble-badge.maintenance {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.cbw-bubble-time {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.cbw-bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cbw-bubble-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.cbw-bubble-reason {
+  font-size: 12.5px;
+  color: #0f172a;
+  word-break: break-word;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 /* ===== SLOT BUTTONS ===== */
 .cbw-slot-btn {
   width: 100%;
@@ -2390,6 +2589,55 @@ export default {
   border-color: #fca5a5;
   color: #991b1b;
   cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-maintenance,
+.cbw-slot-btn.is-status-maintenance {
+  background-color: #fffbeb !important;
+  border-color: #f59e0b !important;
+  color: #b45309 !important;
+  cursor: not-allowed !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(245, 158, 11, 0.12),
+    rgba(245, 158, 11, 0.12) 6px,
+    transparent 6px,
+    transparent 12px
+  ) !important;
+}
+
+.cbw-slot-btn.is-maintenance .cbw-slot-disabled-text,
+.cbw-slot-btn.is-status-maintenance .cbw-slot-disabled-text {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.02em;
+}
+
+.cbw-court-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cbw-court-badge-maintenance {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.cbw-th-court.is-maintenance {
+  background: #fefce8 !important;
+  border-bottom: 2px solid #f59e0b !important;
 }
 
 .cbw-slot-btn.is-past,
@@ -2586,6 +2834,7 @@ export default {
 .cbw-legend-dot--pending { background: #fcd34d; border-color: #d97706; }
 .cbw-legend-dot--payment { background: #fdba74; border-color: #ea580c; }
 .cbw-legend-dot--locked { background: #c4b5fd; border-color: #7c3aed; }
+.cbw-legend-dot--maintenance { background: #fde68a; border-color: #d97706; }
 .cbw-legend-dot--past { background: #cbd5e1; border-color: #64748b; }
 
 /* ===== SELECTION FEEDBACK BAR ===== */

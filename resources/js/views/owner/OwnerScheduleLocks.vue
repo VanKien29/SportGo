@@ -693,26 +693,54 @@
                                     class="trm-slot-cell"
                                     role="gridcell"
                                 >
-                                    <button
-                                        type="button"
-                                        class="trm-slot-btn"
-                                        :class="[
-                                            slotClass(court.id, slot),
-                                            unlockMode && isUnlockSelected(court.id, slot) ? 'unlock-selected' : ''
-                                        ]"
-                                        :disabled="!canInteractSlot(court.id, slot)"
-                                        :aria-pressed="
-                                            unlockMode
-                                                ? isUnlockSelected(court.id, slot)
-                                                : isSelected(court.id, slot)
-                                        "
-                                        :title="slotTitle(court.id, slot)"
-                                        @click="pickSlot(court, slot)"
-                                    >
-                                        <span v-if="isSelected(court.id, slot)">Đã chọn</span>
-                                        <span v-else-if="unlockMode && isUnlockSelected(court.id, slot)">Chọn mở</span>
-                                        <span v-else-if="canInteractSlot(court.id, slot)" class="trm-empty-hint">+ Khóa</span>
-                                    </button>
+                                    <div class="trm-slot-cell-wrapper">
+                                        <button
+                                            type="button"
+                                            class="trm-slot-btn"
+                                            :class="[
+                                                slotClass(court.id, slot),
+                                                unlockMode && isUnlockSelected(court.id, slot) ? 'unlock-selected' : ''
+                                            ]"
+                                            :disabled="!canInteractSlot(court.id, slot)"
+                                            :aria-pressed="
+                                                unlockMode
+                                                    ? isUnlockSelected(court.id, slot)
+                                                    : isSelected(court.id, slot)
+                                            "
+                                            @click="pickSlot(court, slot)"
+                                        >
+                                            <span v-if="isSelected(court.id, slot)">Đã chọn</span>
+                                            <span v-else-if="unlockMode && isUnlockSelected(court.id, slot)">Chọn mở</span>
+                                            <span v-else-if="isSlotLocked(court.id, slot)">Đã khóa</span>
+                                            <span v-else-if="isCourtMaintenance(court.id, slot)">Bảo trì</span>
+                                            <span v-else-if="isSlotBooked(court.id, slot)">Đã đặt</span>
+                                            <span v-else-if="isPastStatus(statusFor(court.id, slot))">Đã qua</span>
+                                            <span v-else-if="slotPrice(court.id, slot)" class="trm-slot-price">{{ slotPrice(court.id, slot) }}</span>
+                                            <span v-else-if="canInteractSlot(court.id, slot)" class="trm-empty-hint">+ Khóa</span>
+                                        </button>
+
+                                        <!-- BONG BÓNG LÝ DO KHÓA KHI HOVER -->
+                                        <div
+                                            v-if="isSlotLocked(court.id, slot) || isCourtMaintenance(court.id, slot)"
+                                            class="trm-bubble-tooltip"
+                                            :class="{ 'drop-down': isFirstTwoSlots(slot) }"
+                                            role="tooltip"
+                                        >
+                                            <div class="trm-bubble-arrow"></div>
+                                            <div class="trm-bubble-header">
+                                                <span class="trm-bubble-badge" :class="isCourtMaintenance(court.id, slot) ? 'maintenance' : 'locked'">
+                                                    {{ isCourtMaintenance(court.id, slot) ? 'BẢO TRÌ' : 'ĐÃ KHÓA' }}
+                                                </span>
+                                                <span class="trm-bubble-time">
+                                                    {{ time(slot.start_time) }} – {{ time(slot.end_time) }}
+                                                </span>
+                                            </div>
+                                            <div class="trm-bubble-body">
+                                                <span class="trm-bubble-label">Lý do:</span>
+                                                <span class="trm-bubble-reason">{{ getSlotLockReason(court.id, slot) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -1572,17 +1600,50 @@ export default {
                 this.canSelectSlot(courtId, slot)
             );
         },
+        compactMoney(value) {
+            const n = Number(value || 0);
+            return n >= 1000 ? `${Math.round(n / 1000)}k` : (n ? `${n}` : "");
+        },
+        slotPrice(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            return this.compactMoney(status?.price);
+        },
+        isFirstTwoSlots(slot) {
+            const index = this.activePeriodSlots.findIndex(s => s.start_time === slot?.start_time);
+            return index <= 1;
+        },
+        isSlotLocked(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            return status?.busy_source === "slot_lock" || ["manual", "emergency", "locked"].includes(status?.busy_status) || status?.slot_status === "locked";
+        },
+        isCourtMaintenance(courtId, slot) {
+            const court = this.scheduleCourts.find(c => String(c.id) === String(courtId));
+            if (court?.status === 'maintenance') return true;
+            const status = this.statusFor(courtId, slot);
+            return status?.slot_status === 'maintenance';
+        },
+        isSlotBooked(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            return status?.busy_source === "booking" || status?.slot_status === "booked";
+        },
+        getSlotLockReason(courtId, slot) {
+            if (this.isCourtMaintenance(courtId, slot)) {
+                return "Sân đang trong quá trình bảo trì định kỳ, tạm ngưng nhận lịch.";
+            }
+            const status = this.statusFor(courtId, slot);
+            return status?.lock_reason || status?.unavailable_reason || "Chủ sân đang tạm khóa khung giờ này.";
+        },
         slotClass(courtId, slot) {
             const status = this.statusFor(courtId, slot);
             if (this.isUnlockSelected(courtId, slot))
-                return "manual unlock-selected";
+                return "unlock-selected manual locked";
             if (this.isSelected(courtId, slot)) return "selected";
+            if (this.isCourtMaintenance(courtId, slot)) return "maintenance";
+            if (this.isSlotLocked(courtId, slot)) return "locked manual";
+            if (this.isPastStatus(status)) return "past unavailable";
+            if (this.isSlotBooked(courtId, slot)) return "booking booked";
             if (!status || status.is_available || this.isAdvanceNoticeStatus(status))
                 return "available";
-            if (this.isPastStatus(status)) return "unavailable";
-            if (status.busy_source === "booking") return "booking";
-            if (["manual", "emergency"].includes(status.busy_status))
-                return "manual";
             return "unavailable";
         },
         slotTitle(courtId, slot) {
@@ -2615,8 +2676,16 @@ export default {
 }
 
 .time-row-matrix .trm-slot-cell {
-    padding: 0;
+    padding: 4px;
+    vertical-align: stretch;
     border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.trm-slot-cell-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
 }
 
 .time-row-matrix .trm-slot-btn {
@@ -2624,60 +2693,202 @@ export default {
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 44px;
-    padding: 0 6px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
+    min-height: 38px;
+    height: 100%;
+    padding: 4px;
+    border: 1px solid #c8ead2;
+    border-radius: 4px;
+    background: #f0fdf4;
     cursor: pointer;
-    transition: background 0.15s, box-shadow 0.15s;
-    font-size: 12px;
-    color: var(--admin-primary, #16a34a);
+    transition: all 0.15s ease;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #15803d;
 }
 
-.time-row-matrix .trm-slot-btn:not(:disabled):hover {
-    background: var(--admin-hover, #f1f5f9);
+.time-row-matrix .trm-slot-btn:hover:not(:disabled):not(.selected) {
+    background: #dcfce7;
+    color: #166534;
 }
 
-.time-row-matrix .trm-slot-btn:disabled {
-    cursor: not-allowed;
-}
-
-.time-row-matrix .trm-empty-hint {
-    opacity: 0;
-    color: var(--admin-primary, #16a34a);
-    font-size: 11px;
-    font-weight: 400;
-    transition: opacity 0.15s;
-}
-
-.time-row-matrix tbody tr:hover .trm-slot-btn:not(:disabled) .trm-empty-hint {
-    opacity: 0.55;
+.time-row-matrix .trm-slot-btn.available {
+    background: #f0fdf4;
+    border-color: #c8ead2;
+    color: #15803d;
 }
 
 .time-row-matrix .trm-slot-btn.selected {
-    background: var(--admin-primary, #16a34a) !important;
-    box-shadow: inset 0 0 0 1px var(--admin-primary, #16a34a);
-    color: #ffffff !important;
-}
-
-.time-row-matrix .trm-slot-btn.selected span {
+    background: #16a34a !important;
+    border-color: #15803d !important;
     color: #ffffff !important;
 }
 
 .time-row-matrix .trm-slot-btn.unlock-selected {
-    background: #f3e3e0 !important;
-    box-shadow: inset 0 0 0 2px #b97870 !important;
-    color: #991b1b !important;
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+}
+
+.time-row-matrix .trm-slot-btn.manual,
+.time-row-matrix .trm-slot-btn.locked {
+    background: #ede9fe !important;
+    border-color: #c4b5fd !important;
+    color: #5b21b6 !important;
+    cursor: pointer;
+}
+
+.time-row-matrix .trm-slot-btn.maintenance {
+    background: #fffbeb !important;
+    border-color: #f59e0b !important;
+    color: #b45309 !important;
+    cursor: not-allowed !important;
 }
 
 .time-row-matrix .trm-slot-btn.booked,
-.time-row-matrix .trm-slot-btn.booked-paid    { background: #e2f0e7; color: #166534; }
-.time-row-matrix .trm-slot-btn.booked-online  { background: #e5edf3; color: #1e40af; }
-.time-row-matrix .trm-slot-btn.booked-counter { background: #ebe9f1; color: #6b21a8; }
-.time-row-matrix .trm-slot-btn.manual,
-.time-row-matrix .trm-slot-btn.locked         { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
-.time-row-matrix .trm-slot-btn.unavailable    { background: #f8fafc; }
+.time-row-matrix .trm-slot-btn.booking {
+    background: #dbeafe !important;
+    border-color: #93c5fd !important;
+    color: #1e40af !important;
+    cursor: pointer;
+}
+
+.time-row-matrix .trm-slot-btn.past,
+.time-row-matrix .trm-slot-btn.unavailable {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+}
+
+.time-row-matrix .trm-slot-price {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #15803d;
+}
+
+.time-row-matrix .trm-empty-hint {
+    opacity: 0.85;
+    color: var(--admin-primary, #16a34a);
+    font-size: 11.5px;
+    font-weight: 500;
+}
+
+/* ===== BUBBLE TOOLTIP IN OWNER SCHEDULE LOCKS ===== */
+.trm-bubble-tooltip {
+    position: absolute;
+    bottom: calc(100% + 9px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    min-width: 190px;
+    max-width: 260px;
+    padding: 9px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.08);
+    color: #1e293b;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 100;
+    text-align: left;
+}
+
+.trm-bubble-tooltip.drop-down {
+    bottom: auto;
+    top: calc(100% + 9px);
+    transform: translateX(-50%) translateY(-4px);
+}
+
+.trm-slot-cell-wrapper:hover .trm-bubble-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.trm-bubble-arrow {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-top: -5px;
+    width: 10px;
+    height: 10px;
+    background: #ffffff;
+    border-right: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.trm-bubble-tooltip.drop-down .trm-bubble-arrow {
+    top: 0;
+    margin-top: -5px;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
+}
+
+.trm-bubble-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.trm-bubble-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.trm-bubble-badge.locked {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border: 1px solid #d8b4fe;
+}
+
+.trm-bubble-badge.maintenance {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.trm-bubble-time {
+    font-size: 11.5px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.trm-bubble-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.trm-bubble-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.trm-bubble-reason {
+    font-size: 12.5px;
+    color: #0f172a;
+    word-break: break-word;
+    font-weight: 500;
+    line-height: 1.4;
+}
 
 /* ===== States ===== */
 .state {
@@ -2828,7 +3039,7 @@ export default {
     font-weight: 400;
 }
 .lock-table {
-    margin: 0 20px 18px;
+    margin: 0;
     overflow: hidden;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -3529,7 +3740,7 @@ export default {
         justify-content: flex-start;
     }
     .lock-table {
-        margin: 0 12px 14px;
+        margin: 0;
         border: 0;
         overflow: visible;
     }

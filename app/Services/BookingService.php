@@ -644,7 +644,9 @@ class BookingService
 
         if ($court->status !== 'active') {
             throw ValidationException::withMessages([
-                'venue_court_id' => 'Sân này hiện không hoạt động.',
+                'venue_court_id' => $court->status === 'maintenance'
+                    ? 'Sân này đang trong quá trình bảo trì, không thể đặt.'
+                    : 'Sân này hiện không hoạt động.',
             ]);
         }
 
@@ -1119,7 +1121,7 @@ class BookingService
         $courtsQuery = VenueCourt::query()
             ->with('courtType:id,name')
             ->where('venue_cluster_id', $cluster->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'maintenance'])
             ->orderBy('sort_order')
             ->orderBy('name');
 
@@ -1137,11 +1139,22 @@ class BookingService
         $slotStatuses = [];
 
         foreach ($courts as $court) {
+            $isMaintenance = $court->status === 'maintenance';
             foreach ($timeSlots as $slot) {
                 $busyInterval = $this->overlappingInterval($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
-                $slotState = $bookingAccess['can_book']
-                    ? $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time'])
-                    : $this->clusterBlockedSlotState($bookingAccess);
+                if ($isMaintenance) {
+                    $slotState = [
+                        'is_available' => false,
+                        'can_book' => false,
+                        'slot_status' => 'maintenance',
+                        'status_label' => 'Bảo trì',
+                        'unavailable_reason' => 'Sân đang bảo trì, tạm thời không nhận đặt sân.',
+                    ];
+                } else {
+                    $slotState = $bookingAccess['can_book']
+                        ? $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time'])
+                        : $this->clusterBlockedSlotState($bookingAccess);
+                }
                 $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
                 $durationHours = max(($this->timeToMinutes($slot['end_time']) - $this->timeToMinutes($slot['start_time'])) / 60, 0);
 

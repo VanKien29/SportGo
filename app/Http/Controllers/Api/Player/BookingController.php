@@ -41,7 +41,7 @@ class BookingController extends Controller
     public function initData()
     {
         $clusters = VenueCluster::with(['bookingConfig', 'venueCourts' => function ($query) {
-            $query->where('status', 'active');
+            $query->whereIn('status', ['active', 'maintenance']);
         }, 'venueCourts.courtType'])
             ->whereIn('status', ['pending', 'active', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'])
             ->get();

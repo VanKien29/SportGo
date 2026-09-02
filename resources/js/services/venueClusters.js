@@ -52,6 +52,9 @@ export const venueClusterService = {
       body: JSON.stringify(data),
     });
   },
+  getCourtConflicts(id) {
+    return api(`/api/owner/venue-courts/${id}/conflicts`);
+  },
   deleteCourt(id) {
     return api(`/api/owner/venue-courts/${id}`, {
       method: 'DELETE',

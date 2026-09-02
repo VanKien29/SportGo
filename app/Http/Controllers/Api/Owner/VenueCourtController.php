@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
+use App\Services\Courts\CourtStatusConflictService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,9 @@ use Illuminate\Validation\Rule;
 
 class VenueCourtController extends Controller
 {
+    public function __construct(
+        private readonly CourtStatusConflictService $courtStatusConflictService,
+    ) {}
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -103,6 +107,22 @@ class VenueCourtController extends Controller
         ], 201);
     }
 
+    public function conflicts(Request $request, string $id): JsonResponse
+    {
+        $court = VenueCourt::withTrashed()->findOrFail($id);
+        $cluster = $court->venueCluster;
+
+        if (! $cluster || $cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền xem sân con này.'], 403);
+        }
+
+        $items = $this->courtStatusConflictService->getFutureAffectedBookingItems($court);
+
+        return response()->json([
+            'data' => $this->courtStatusConflictService->buildConflictPayload($items),
+        ]);
+    }
+
     public function update(Request $request, string $id): JsonResponse
     {
         $court = VenueCourt::withTrashed()->findOrFail($id);
@@ -128,13 +148,45 @@ class VenueCourtController extends Controller
             'layout_w' => ['nullable', 'numeric', 'min:10'],
             'layout_h' => ['nullable', 'numeric', 'min:10'],
             'layout_rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
+            'reason' => ['nullable', 'string', 'max:500'],
+            'resolutions' => ['nullable', 'array'],
+            'resolutions.*.booking_item_id' => ['required_with:resolutions', 'integer', 'exists:booking_items,id'],
+            'resolutions.*.action' => ['required_with:resolutions', 'in:switch,cancel,cash_refund'],
+            'resolutions.*.scope' => ['nullable', 'in:affected,booking_item'],
+            'resolutions.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
         ]);
 
-        $court->update($data);
+        $statusChanged = $court->status !== $data['status'];
+        $isDeactivating = $statusChanged && in_array($data['status'], ['inactive', 'maintenance'], true);
+
+        if ($isDeactivating) {
+            $affectedItems = $this->courtStatusConflictService->getFutureAffectedBookingItems($court);
+
+            if ($affectedItems->isNotEmpty()) {
+                if (empty($data['resolutions'])) {
+                    $statusName = $data['status'] === 'inactive' ? 'tạm ngưng' : 'bảo trì';
+                    return response()->json([
+                        'message' => "Sân này đang có {$affectedItems->count()} lịch đặt trong tương lai. Vui lòng chọn phương án xử lý trước khi chuyển sang trạng thái {$statusName}.",
+                        'conflicts' => $this->courtStatusConflictService->buildConflictPayload($affectedItems),
+                    ], 422);
+                }
+
+                $this->courtStatusConflictService->resolveConflicts(
+                    $request,
+                    $court,
+                    $data['status'],
+                    $data['reason'] ?? null,
+                    $data['resolutions']
+                );
+            }
+        }
+
+        $fillData = collect($data)->except(['reason', 'resolutions'])->all();
+        $court->update($fillData);
 
         return response()->json([
             'message' => 'Cập nhật sân con thành công.',
-            'data' => $court->load('courtType'),
+            'data' => $court->fresh('courtType'),
         ]);
     }
 

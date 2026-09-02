@@ -1291,6 +1291,17 @@
                 </div>
             </div>
         </Teleport>
+
+        <!-- Modal xử lý booking trùng khi đổi trạng thái sân con -->
+        <CourtConflictResolutionModal
+            v-model="showConflictModal"
+            :court-name="editCourtForm.name"
+            :target-status="editCourtForm.status"
+            :conflicts="conflictData"
+            :loading="conflictLoading"
+            @confirm="handleConfirmCourtConflict"
+            @cancel="showConflictModal = false"
+        />
     </div>
 </template>
 
@@ -1302,6 +1313,7 @@ import FloatAddButton from "../../components/FloatAddButton.vue";
 import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
 import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
 import BaseCombobox from "../../components/BaseCombobox.vue";
+import CourtConflictResolutionModal from "../../components/owner/CourtConflictResolutionModal.vue";
 
 import ClusterHeaderHero from "../../components/owner/clusters/ClusterHeaderHero.vue";
 import ClusterCourtsTab from "../../components/owner/clusters/ClusterCourtsTab.vue";
@@ -1327,6 +1339,7 @@ export default {
         ClusterActionFloating,
         PartnerFilePreviewDialog,
         BaseCombobox,
+        CourtConflictResolutionModal,
         ClusterHeaderHero,
         ClusterCourtsTab,
         ClusterGeneralInfoTab,
@@ -1407,6 +1420,10 @@ export default {
             // Edit court modal
             showEditCourtModal: false,
             editingCourtId: null,
+            originalCourtStatus: null,
+            showConflictModal: false,
+            conflictData: { affected_count: 0, items: [] },
+            conflictLoading: false,
             editCourtSubmitting: false,
             editCourtError: null,
             editCourtForm: { name: "", status: "active", sort_order: 0 },
@@ -3013,6 +3030,7 @@ export default {
 
         openEditCourtModal(court) {
             this.editingCourtId = court.id;
+            this.originalCourtStatus = court.status;
             this.editCourtError = null;
             this.editCourtForm = {
                 name: court.name,
@@ -3025,22 +3043,89 @@ export default {
         closeEditCourtModal() {
             this.showEditCourtModal = false;
             this.editingCourtId = null;
+            this.originalCourtStatus = null;
+            this.editCourtError = null;
         },
 
         async handleEditCourtSubmit() {
             this.editCourtSubmitting = true;
             this.editCourtError = null;
             try {
+                const statusChanged = this.originalCourtStatus !== this.editCourtForm.status;
+                const isDeactivating = statusChanged && ["inactive", "maintenance"].includes(this.editCourtForm.status);
+
+                if (isDeactivating) {
+                    try {
+                        const res = await venueClusterService.getCourtConflicts(this.editingCourtId);
+                        const data = res.data || { affected_count: 0, items: [] };
+                        if ((data.affected_count || 0) > 0) {
+                            this.conflictData = data;
+                            this.showConflictModal = true;
+                            this.editCourtSubmitting = false;
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("Could not check court conflicts:", e);
+                    }
+                }
+
                 await venueClusterService.updateCourt(
                     this.editingCourtId,
                     this.editCourtForm,
                 );
+                useToast().success("Cập nhật sân con thành công.");
                 await this.fetchCourts(this.selectedCluster.id);
                 this.closeEditCourtModal();
             } catch (err) {
-                this.editCourtError = err.message || "Lỗi cập nhật sân con.";
+                const conflicts = err.conflicts || err.data?.conflicts;
+                if (conflicts) {
+                    this.conflictData = conflicts;
+                    this.showConflictModal = true;
+                } else {
+                    this.editCourtError = err.message || "Lỗi cập nhật sân con.";
+                }
             } finally {
                 this.editCourtSubmitting = false;
+            }
+        },
+
+        async handleConfirmCourtConflict({ resolutions, reason }) {
+            this.conflictLoading = true;
+            try {
+                await venueClusterService.updateCourt(this.editingCourtId, {
+                    ...this.editCourtForm,
+                    reason,
+                    resolutions,
+                });
+                useToast().success("Cập nhật trạng thái sân con và xử lý booking trùng thành công.");
+                this.showConflictModal = false;
+                await this.fetchCourts(this.selectedCluster.id);
+                this.closeEditCourtModal();
+            } catch (err) {
+                useToast().error(err.message || "Lỗi xử lý xung đột lịch sân.");
+            } finally {
+                this.conflictLoading = false;
+            }
+        },
+
+        async handleToggleCourtStatus(court) {
+            if (this.isClusterLocked) return;
+            const newStatus = court.status === 'active' ? 'inactive' : 'active';
+            if (newStatus === 'inactive') {
+                this.openEditCourtModal(court);
+                this.editCourtForm.status = 'inactive';
+                return;
+            }
+            try {
+                await venueClusterService.updateCourt(court.id, {
+                    name: court.name,
+                    status: 'active',
+                    sort_order: court.sort_order,
+                });
+                useToast().success(`Đã kích hoạt lại sân ${court.name}.`);
+                await this.fetchCourts(this.selectedCluster.id);
+            } catch (err) {
+                useToast().error(err.message || "Lỗi kích hoạt sân con.");
             }
         },
 

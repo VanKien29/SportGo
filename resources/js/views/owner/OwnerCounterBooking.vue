@@ -218,19 +218,44 @@
                                         class="trm-slot-cell"
                                         role="gridcell"
                                     >
-                                        <button
-                                            type="button"
-                                            class="trm-slot-btn"
-                                            :class="slotButtonClass(court.id, slot)"
-                                            :disabled="isSlotDisabled(court.id, slot)"
-                                            :aria-pressed="isSlotSelected(court.id, slot)"
-                                            :aria-label="slotActionTitle(court, slot)"
-                                            :title="slotActionTitle(court, slot)"
-                                            @click="toggleSlot(court, slot)"
-                                        >
-                                            <span v-if="isSlotSelected(court.id, slot)">+ Đặt sân</span>
-                                            <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
-                                        </button>
+                                        <div class="trm-slot-cell-wrapper">
+                                            <button
+                                                type="button"
+                                                class="trm-slot-btn"
+                                                :class="slotButtonClass(court.id, slot)"
+                                                :disabled="isSlotDisabled(court.id, slot)"
+                                                :aria-pressed="isSlotSelected(court.id, slot)"
+                                                :aria-label="slotActionTitle(court, slot)"
+                                                @click="toggleSlot(court, slot)"
+                                            >
+                                                <span v-if="isSlotSelected(court.id, slot)">+ Đặt sân</span>
+                                                <span v-else-if="isSlotLocked(court.id, slot)" class="trm-slot-locked-badge">Đã khóa</span>
+                                                <span v-else-if="isCourtMaintenance(court.id, slot)" class="trm-slot-maintenance-badge">Bảo trì</span>
+                                                <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
+                                            </button>
+
+                                            <!-- BONG BÓNG LÝ DO KHÓA KHI HOVER -->
+                                            <div
+                                                v-if="isSlotLocked(court.id, slot) || isCourtMaintenance(court.id, slot)"
+                                                class="trm-bubble-tooltip"
+                                                :class="{ 'drop-down': isFirstTwoSlots(slot) }"
+                                                role="tooltip"
+                                            >
+                                                <div class="trm-bubble-arrow"></div>
+                                                <div class="trm-bubble-header">
+                                                    <span class="trm-bubble-badge" :class="isCourtMaintenance(court.id, slot) ? 'maintenance' : 'locked'">
+                                                        {{ isCourtMaintenance(court.id, slot) ? 'Bảo trì' : 'Đã khóa' }}
+                                                    </span>
+                                                    <span class="trm-bubble-time">
+                                                        {{ formatTime(slot.start_time) }} - {{ formatTime(slot.end_time) }}
+                                                    </span>
+                                                </div>
+                                                <div class="trm-bubble-body">
+                                                    <span class="trm-bubble-label">Lý do:</span>
+                                                    <span class="trm-bubble-reason">{{ getSlotLockReason(court.id, slot) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -4720,6 +4745,33 @@ export default {
                 this.slotKey(courtId, slot),
             );
         },
+        isFirstTwoSlots(slot) {
+            const index = this.activePeriodSlots.findIndex(s => s.start_time === slot?.start_time);
+            return index <= 1;
+        },
+        isSlotLocked(courtId, slot) {
+            const interval = this.busyInterval(courtId, slot);
+            if (interval?.source === 'slot_lock') return true;
+            const status = this.slotStatus(courtId, slot);
+            return status?.slot_status === 'locked' || status?.busy_source === 'slot_lock';
+        },
+        isCourtMaintenance(courtId, slot) {
+            const court = this.scheduleCourts.find(c => String(c.id) === String(courtId));
+            if (court?.status === 'maintenance') return true;
+            const status = this.slotStatus(courtId, slot);
+            return status?.slot_status === 'maintenance';
+        },
+        getSlotLockReason(courtId, slot) {
+            if (this.isCourtMaintenance(courtId, slot)) {
+                return "Sân đang trong quá trình bảo trì định kỳ, tạm ngưng nhận lịch.";
+            }
+            const interval = this.busyInterval(courtId, slot);
+            if (interval?.reason || interval?.lock_reason) {
+                return interval.reason || interval.lock_reason;
+            }
+            const status = this.slotStatus(courtId, slot);
+            return status?.lock_reason || status?.unavailable_reason || "Chủ sân đang tạm khóa khung giờ này.";
+        },
         slotButtonClass(courtId, slot) {
             const selected = this.isSlotSelected(courtId, slot);
             const busy = this.isSlotBusy(courtId, slot);
@@ -4743,7 +4795,8 @@ export default {
                 busy: busy && !scheduleUnavailable,
                 unavailable: scheduleUnavailable,
                 viewing,
-                locked: tone === "locked",
+                locked: tone === "locked" || this.isSlotLocked(courtId, slot),
+                maintenance: this.isCourtMaintenance(courtId, slot),
                 "booked-paid": tone === "paid",
                 "booked-online": tone === "online",
                 "booked-counter": tone === "counter",
@@ -11271,5 +11324,158 @@ input.invalid {
 .recurring-form-actions .primary-btn:disabled {
     background: #94a3b8 !important;
     cursor: not-allowed !important;
+}
+
+/* ===== TRM SLOT CELL WRAPPER & BUBBLE TOOLTIP ===== */
+.trm-slot-cell-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+.trm-slot-btn.maintenance {
+    background: #fffbeb !important;
+    border-color: #f59e0b !important;
+    color: #b45309 !important;
+    cursor: not-allowed !important;
+}
+
+.trm-slot-locked-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b21a8;
+    background: #f3e8ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #d8b4fe;
+}
+
+.trm-slot-maintenance-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #b45309;
+    background: #fef3c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #fde68a;
+}
+
+.trm-bubble-tooltip {
+    position: absolute;
+    bottom: calc(100% + 9px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    min-width: 190px;
+    max-width: 260px;
+    padding: 9px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.08);
+    color: #1e293b;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 100;
+    text-align: left;
+}
+
+.trm-bubble-tooltip.drop-down {
+    bottom: auto;
+    top: calc(100% + 9px);
+    transform: translateX(-50%) translateY(-4px);
+}
+
+.trm-slot-cell-wrapper:hover .trm-bubble-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.trm-bubble-arrow {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-top: -5px;
+    width: 10px;
+    height: 10px;
+    background: #ffffff;
+    border-right: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.trm-bubble-tooltip.drop-down .trm-bubble-arrow {
+    top: 0;
+    margin-top: -5px;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
+}
+
+.trm-bubble-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.trm-bubble-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.trm-bubble-badge.locked {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border: 1px solid #d8b4fe;
+}
+
+.trm-bubble-badge.maintenance {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.trm-bubble-time {
+    font-size: 11.5px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.trm-bubble-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.trm-bubble-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.trm-bubble-reason {
+    font-size: 12.5px;
+    color: #0f172a;
+    word-break: break-word;
+    font-weight: 500;
+    line-height: 1.4;
 }
 </style>

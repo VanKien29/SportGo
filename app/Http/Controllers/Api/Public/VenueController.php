@@ -79,7 +79,7 @@ class VenueController extends Controller
                     'courtType:id,name,parent_id,icon_key',
                     'courtType.parent:id,name,parent_id,icon_key',
                 ])
-                    ->where('status', 'active')
+                    ->whereIn('status', ['active', 'maintenance'])
                     ->orderBy('sort_order')
                     ->orderBy('name');
             }, 'amenityCatalog' => function ($query) {
@@ -340,7 +340,7 @@ class VenueController extends Controller
                         'courtType:id,name,parent_id,icon_key',
                         'courtType.parent:id,name,parent_id,icon_key',
                     ])
-                        ->where('status', 'active')
+                        ->whereIn('status', ['active', 'maintenance'])
                         ->orderBy('sort_order')
                         ->orderBy('name');
                 },

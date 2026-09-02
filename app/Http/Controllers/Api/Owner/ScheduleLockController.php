@@ -356,15 +356,10 @@ class ScheduleLockController extends Controller
 
     private function payload(SlotLock $lock): array
     {
-        $startsAt = $lock->booking_date
-            ? $this->businessDateTime($lock->booking_date->toDateString(), (string) $lock->start_time)
-            : null;
         $endsAt = $lock->booking_date
             ? $this->businessDateTime($lock->booking_date->toDateString(), (string) $lock->end_time)
             : null;
-        $status = $endsAt?->isPast()
-            ? 'ended'
-            : ($startsAt?->isFuture() ? 'upcoming' : 'active');
+        $status = $endsAt?->isPast() ? 'ended' : 'active';
 
         return [
             'id' => $lock->id,
@@ -377,8 +372,7 @@ class ScheduleLockController extends Controller
             'lock_type' => $lock->lock_type,
             'status' => $status,
             'status_label' => match ($status) {
-                'active' => 'Đang khóa',
-                'upcoming' => 'Sắp áp dụng',
+                'active' => 'Đang áp dụng',
                 default => 'Đã kết thúc',
             },
             'lock_type_label' => $lock->lock_type === 'emergency'

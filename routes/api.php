@@ -434,6 +434,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureOwnerRole::c
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
         Route::delete('/venue-clusters/{clusterId}/media/{mediaId}', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'deleteMedia']);
         Route::put('/venue-courts/bulk-layout', [\App\Http\Controllers\Api\Owner\VenueCourtController::class, 'updateLayoutBulk']);
+        Route::get('/venue-courts/{id}/conflicts', [\App\Http\Controllers\Api\Owner\VenueCourtController::class, 'conflicts']);
         Route::apiResource('venue-courts', \App\Http\Controllers\Api\Owner\VenueCourtController::class);
         Route::get('/staff', [OwnerStaffController::class, 'index']);
         Route::post('/staff', [OwnerStaffController::class, 'store']);

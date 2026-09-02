@@ -392,7 +392,17 @@
                         <span class="sg-court-group-type">{{ group.typeName }}</span>
                         <span class="sg-court-group-count">({{ group.courts.length }} sân)</span>
                       </div>
-                      <p class="sg-court-group-subnames">Gồm: {{ group.courts.map((court) => court.name).join(" · ") }}</p>
+                      <div class="sg-court-chips-wrap">
+                        <span
+                          v-for="court in group.courts"
+                          :key="court.id"
+                          class="sg-court-chip"
+                          :class="{ 'is-maintenance': court.status === 'maintenance' }"
+                        >
+                          {{ court.name }}
+                          <span v-if="court.status === 'maintenance'" class="sg-court-chip-badge">Bảo trì</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2356,6 +2366,40 @@ export default {
   font-size: 12.5px;
   color: #475569;
   margin: 0;
+}
+
+.sg-court-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sg-court-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.sg-court-chip.is-maintenance {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
+}
+
+.sg-court-chip-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fef08a;
+  color: #713f12;
 }
 
 /* Compact pricing table */

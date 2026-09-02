@@ -996,7 +996,7 @@ class OwnerScheduleLockTest extends TestCase
             ->assertJsonCount(2, 'data');
 
         $this->assertSame(
-            ['Sắp áp dụng'],
+            ['Đang áp dụng'],
             collect($response->json('data'))->pluck('status_label')->unique()->values()->all(),
         );
     }
