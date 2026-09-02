@@ -111,7 +111,10 @@
             </label>
           </div>
 
-          <p v-if="fileError || errorMsg" class="form-error" role="alert">{{ fileError || errorMsg }}</p>
+          <div v-if="fileError || errorMsg" class="form-alert-banner" role="alert">
+            <AppIcon name="alert" :size="16" class="alert-icon" />
+            <span>{{ fileError || errorMsg }}</span>
+          </div>
 
           <footer class="form-actions">
             <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
@@ -127,6 +130,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import { apiFormData } from '@/services/api.js';
 import { getAuth } from '@/stores/auth.js';
@@ -137,6 +141,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'success']);
+const toast = useToast();
 const user = getAuth();
 const minimumContentLength = 20;
 const maximumTags = 3;
@@ -283,16 +288,19 @@ async function handleFileChange(event) {
   const remainingSlots = 10 - selectedImages.value.length;
   if (files.length > remainingSlots) {
     fileError.value = `Bạn chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tổng 10 ảnh).`;
+    toast.warning(fileError.value);
   }
 
   const allowedFiles = files.slice(0, remainingSlots);
   for (const file of allowedFiles) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       fileError.value = 'Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.';
+      toast.warning(fileError.value);
       continue;
     }
     if (file.size > 15 * 1024 * 1024) {
       fileError.value = 'Mỗi ảnh gốc không được vượt quá 15 MB.';
+      toast.warning(fileError.value);
       continue;
     }
     const optimizedFile = await compressImage(file);
@@ -367,7 +375,9 @@ async function submit() {
       emit('close');
     }
   } catch (error) {
-    errorMsg.value = error.message || 'Không thể lưu bài viết. Vui lòng kiểm tra nội dung và thử lại.';
+    const message = error.message || 'Không thể lưu bài viết. Vui lòng kiểm tra nội dung và thử lại.';
+    errorMsg.value = message;
+    toast.error(message);
   } finally {
     isSubmitting.value = false;
   }
@@ -734,12 +744,25 @@ onBeforeUnmount(() => {
   background: #f1f5f9;
 }
 
-/* ─── ERROR ─── */
-.form-error {
-  color: #dc2626;
+/* ─── ALERT BANNER ─── */
+.form-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
   font-size: 13px;
-  font-weight: 400;
-  margin: 0;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.form-alert-banner .alert-icon {
+  flex-shrink: 0;
+  color: #ef4444;
 }
 
 /* ─── ACTIONS ─── */
