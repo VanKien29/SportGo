@@ -137,17 +137,29 @@ export default {
 
 .floating-dropdown {
   position: absolute;
-  bottom: calc(100% + 10px);
-  right: 0;
+  bottom: 0;
+  right: calc(100% + 12px);
   background: var(--admin-floating-panel-bg, #1e293b);
   border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.15));
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
-  z-index: 9999;
-  min-width: 220px;
+  z-index: 10000;
+  min-width: 230px;
   padding: 6px 0;
   display: flex;
   flex-direction: column;
+  animation: floatMenuIn 0.15s ease-out;
+}
+
+@keyframes floatMenuIn {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .floating-dropdown button {
