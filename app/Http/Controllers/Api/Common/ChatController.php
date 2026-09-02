@@ -43,6 +43,13 @@ class ChatController extends Controller
 
         $formatted = $conversations->map(function ($conversation) use ($userId, $playerPosts) {
             $isMatchmakingGroup = $conversation->type === 'player_post';
+
+            // Find current user's own participant record first
+            $myParticipant = $conversation->participants->first(function ($p) use ($userId) {
+                return $p->user_id === $userId;
+            });
+            $clearedAt = $myParticipant ? $myParticipant->cleared_history_at : null;
+
             // Find the other participant in direct/venue chats
             $otherParticipant = $conversation->participants->first(function ($p) use ($userId) {
                 return $p->user_id !== $userId;
@@ -122,11 +129,6 @@ class ChatController extends Controller
             }
 
             // Calculate unread messages & last message considering cleared_history_at
-            $myParticipant = $conversation->participants->first(function ($p) use ($userId) {
-                return $p->user_id === $userId;
-            });
-            $clearedAt = $myParticipant ? $myParticipant->cleared_history_at : null;
-
             $lastMsgQuery = Message::where('conversation_id', $conversation->id);
             if ($clearedAt) {
                 $lastMsgQuery->where('created_at', '>', $clearedAt);
