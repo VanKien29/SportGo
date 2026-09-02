@@ -6,7 +6,7 @@
         <button
           type="button"
           class="btn-primary-add"
-          :disabled="!courtTypes.length"
+          :disabled="!courtTypes.length || isWriteBlocked"
           @click="$emit('open-create-modal')"
         >
           + {{ activeTabMeta.addLabel }}
@@ -71,6 +71,7 @@
                 class="switch-btn"
                 :class="{ on: row.is_active }"
                 :aria-pressed="row.is_active"
+                :disabled="isWriteBlocked"
                 :title="row.is_active ? 'Nhấp để tắt quy tắc này' : 'Nhấp để bật quy tắc này'"
                 @click="$emit('toggle-row', row)"
               >
@@ -82,6 +83,7 @@
                 <button
                   type="button"
                   class="action-btn edit-btn"
+                  :disabled="isWriteBlocked"
                   title="Sửa quy tắc giá"
                   @click="$emit('open-edit-modal', row)"
                 >
@@ -90,6 +92,7 @@
                 <button
                   type="button"
                   class="action-btn delete-btn"
+                  :disabled="isWriteBlocked"
                   title="Xóa quy tắc giá"
                   @click="$emit('delete-row', row)"
                 >
@@ -115,6 +118,7 @@ export default {
     filteredRows: { type: Array, default: () => [] },
     isLoading: { type: Boolean, default: false },
     loadFailed: { type: Boolean, default: false },
+    isWriteBlocked: { type: Boolean, default: false },
   },
   emits: [
     'open-create-modal',

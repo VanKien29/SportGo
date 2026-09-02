@@ -14,6 +14,7 @@ use App\Models\PartnerContract;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
+use App\Models\VenueAccessRestriction;
 use App\Models\VenueLocationChangeRequest;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\VenueUnlockRequest;
@@ -320,6 +321,23 @@ class VenueClusterController extends Controller
             'locked_by'     => $actor->id,
         ])->save();
 
+        // Keep a durable source for a manual lock so reconciliation can
+        // distinguish it from a policy restriction.
+        VenueAccessRestriction::query()->updateOrCreate(
+            [
+                'venue_cluster_id' => $cluster->id,
+                'restriction_type' => 'admin_manual',
+                'status' => 'active',
+            ],
+            [
+                'access_mode' => 'blocked',
+                'reason' => $data['status_reason'],
+                'starts_at' => $cluster->locked_at ?? now(),
+                'ends_at' => $cluster->locked_until,
+                'created_by' => $actor->id,
+            ],
+        );
+
         \App\Models\Report::resolvePendingReportsForTarget($cluster, 'venue_locked', $actor, $data['status_reason']);
 
         $this->audit($request, $actor, 'venue_cluster.locked', $cluster, $oldValues, $this->lockSnapshot($cluster));
@@ -339,11 +357,37 @@ class VenueClusterController extends Controller
         $actor   = $request->user();
         $cluster = VenueCluster::findOrFail($id);
 
+        $activePolicyRestriction = VenueAccessRestriction::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'active')
+            ->where('restriction_type', '!=', 'admin_manual')
+            ->where('starts_at', '<=', now())
+            ->where(function ($query): void {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->orderByRaw("CASE WHEN access_mode = 'blocked' THEN 0 ELSE 1 END")
+            ->first();
+
+        if ($activePolicyRestriction) {
+            return response()->json([
+                'message' => 'Cum san van con han che theo chinh sach. Vui long xu ly nguyen nhan truoc khi mo khoa.',
+            ], 422);
+        }
+
         if ($cluster->status !== 'locked') {
             return response()->json(['message' => 'Cụm sân không ở trạng thái bị khóa.'], 422);
         }
 
         $oldValues = $this->lockSnapshot($cluster);
+
+        VenueAccessRestriction::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('restriction_type', 'admin_manual')
+            ->where('status', 'active')
+            ->update([
+                'status' => 'cancelled',
+                'ends_at' => now(),
+            ]);
 
         $cluster->forceFill([
             'status'        => 'active',

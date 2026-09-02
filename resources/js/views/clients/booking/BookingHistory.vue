@@ -136,6 +136,9 @@
                   <div class="bh-price-block">
                     <span class="bh-total-price">{{ formatCurrency(booking.total_price) }}</span>
                     <span class="bh-payment-tag">{{ paymentStatusLabel(booking.payment_status) }}</span>
+                    <span v-if="booking.refund_status" class="bh-payment-tag bh-refund-tag">
+                      {{ refundStatusLabel(booking.refund_status) }}
+                    </span>
                   </div>
 
                   <div class="bh-status-block">
@@ -210,12 +213,22 @@
             <div v-else-if="previewData" class="bh-policy-box">
               <div class="bh-policy-row">
                 <span>Tỷ lệ hoàn tiền:</span>
-                <strong>{{ previewData.refund_percentage }}%</strong>
+                <strong>{{ Number(previewData.refund_percent ?? previewData.refund_percentage ?? 0) }}%</strong>
               </div>
               <div class="bh-policy-row">
                 <span>Số tiền sẽ hoàn vào Ví:</span>
                 <strong class="is-green">{{ formatCurrency(previewData.refund_amount) }}</strong>
               </div>
+              <p v-if="Number(previewData.refund_amount || 0) > 0" class="bh-policy-note">
+                Yêu cầu hoàn sẽ chờ chủ sân xác nhận trước khi cộng vào Ví SportGo.
+              </p>
+              <p v-else class="bh-policy-note is-warning">
+                Bạn vẫn có thể hủy booking nhưng không phát sinh hoàn tiền theo mốc hiện tại.
+              </p>
+            </div>
+
+            <div v-if="previewError" class="bh-alert bh-alert--error">
+              {{ previewError }}
             </div>
 
             <div class="bh-form-group">
@@ -238,7 +251,7 @@
             <button
               type="button"
               class="w2-btn w2-btn--outline is-danger"
-              :disabled="cancellingId === cancelTarget?.id"
+              :disabled="cancellingId === cancelTarget?.id || loadingPreview || !previewData"
               @click="confirmCancelBooking"
             >
               <span>{{ cancellingId === cancelTarget?.id ? "Đang hủy..." : "Xác nhận hủy đơn" }}</span>
@@ -298,6 +311,7 @@ export default {
       cancelTarget: null,
       previewData: null,
       loadingPreview: false,
+      previewError: "",
       cancelReason: "Khách hàng thay đổi kế hoạch",
       cancellingId: null,
       cancelError: "",
@@ -372,11 +386,12 @@ export default {
       this.showCancelModal = true;
       this.previewData = null;
       this.cancelError = "";
+      this.previewError = "";
       this.loadingPreview = true;
       try {
         this.previewData = await bookingService.previewCancellation(booking.id);
       } catch (e) {
-        this.previewData = { refund_percentage: 100, refund_amount: booking.total_price };
+        this.previewError = e.message || "Không thể tải chính sách hoàn tiền.";
       } finally {
         this.loadingPreview = false;
       }
@@ -386,6 +401,7 @@ export default {
       this.cancelTarget = null;
       this.previewData = null;
       this.cancelError = "";
+      this.previewError = "";
     },
     async confirmCancelBooking() {
       if (!this.cancelTarget) return;
@@ -395,7 +411,7 @@ export default {
       try {
         await bookingService.cancelBooking(targetId, this.cancelReason);
         this.closeCancelModal();
-        this.loadBookings();
+        await this.loadBookings();
       } catch (err) {
         this.cancelError = err.message || "Không thể hủy đơn đặt sân.";
       } finally {
@@ -452,6 +468,15 @@ export default {
         failed: "Thanh toán thất bại",
       };
       return map[pStatus] || pStatus || "Chưa thanh toán";
+    },
+    refundStatusLabel(status) {
+      const map = {
+        pending_owner_confirmation: "Chờ chủ sân xác nhận hoàn",
+        completed: "Đã hoàn vào ví",
+        completed_cash: "Đã hoàn tiền mặt",
+        owner_rejected: "Chủ sân từ chối hoàn",
+      };
+      return map[status] || status || "Hoàn tiền";
     },
   },
 };
@@ -824,6 +849,20 @@ export default {
 .bh-payment-tag {
   font-size: 11.5px;
   color: #64748b;
+}
+
+.bh-refund-tag {
+  color: #047857;
+}
+
+.bh-policy-note {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.bh-policy-note.is-warning {
+  color: #b45309;
 }
 
 .sg3-status-pill {

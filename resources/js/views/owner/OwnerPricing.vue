@@ -36,6 +36,9 @@
 
       <!-- PART 2: Single Unified Content Surface Card -->
       <div class="profile-section-card pricing-main-content">
+        <div v-if="pricingWriteBlocked" class="pricing-lock-banner" role="status">
+          Cum san dang bi khoa hoac han che theo chinh sach. Ban van co the xem cau hinh gia, nhung khong the chinh sua cho den khi quyen duoc khoi phuc.
+        </div>
         <!-- Section A: Giá chung (Giá cơ bản) -->
         <PricingBaseSection
           :court-types="courtTypes"
@@ -44,6 +47,7 @@
           :saving-base-price-id="savingBasePriceId"
           :is-loading="isLoading"
           :selected-cluster-id="selectedClusterId"
+          :is-write-blocked="pricingWriteBlocked"
           @update-draft="updateBasePriceDraft"
           @save-base-price="saveBasePrice"
         />
@@ -57,6 +61,7 @@
           :filtered-rows="rows"
           :is-loading="isLoading"
           :load-failed="loadFailed"
+          :is-write-blocked="pricingWriteBlocked"
           @open-create-modal="openCreateModal"
           @open-edit-modal="openEditModal"
           @toggle-row="toggleRow"
@@ -193,6 +198,10 @@ export default {
         && row.date_type === this.activeTab
       ));
     },
+    pricingWriteBlocked() {
+      return ['locked', 'pending'].includes(this.selectedCluster?.status)
+        || ['limited', 'blocked'].includes(this.selectedCluster?.access_restriction?.access_mode);
+    },
   },
   watch: {
     selectedClusterId(newVal) {
@@ -204,10 +213,14 @@ export default {
   },
   mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChange);
+    window.addEventListener('focus', this.refreshAccessState);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.fetchData();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChange);
+    window.removeEventListener('focus', this.refreshAccessState);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   },
   methods: {
     handleClusterChange(event) {
@@ -215,6 +228,29 @@ export default {
       if (clusterId && String(clusterId) !== String(this.selectedClusterId)) {
         this.selectedClusterId = String(clusterId);
         this.syncBasePriceDrafts();
+      }
+    },
+    handleVisibilityChange() {
+      if (!document.hidden) this.refreshAccessState();
+    },
+    async refreshAccessState() {
+      if (!this.clusters.length) return;
+
+      try {
+        const data = await api('/api/owner/venue-clusters?compact=1', {
+          cache: 'no-store',
+          dedupe: false,
+        });
+        const latestById = new Map((data.data || []).map((cluster) => [String(cluster.id), cluster]));
+        this.clusters = this.clusters.map((cluster) => {
+          const latest = latestById.get(String(cluster.id));
+          return latest
+            ? { ...cluster, status: latest.status, status_reason: latest.status_reason, access_restriction: latest.access_restriction }
+            : cluster;
+        });
+      } catch {
+        // Status refresh is opportunistic; the next action still receives
+        // authoritative enforcement from the API middleware.
       }
     },
     defaultForm() {
@@ -288,6 +324,7 @@ export default {
     },
     async saveBasePrice(type) {
       this.clearMessages();
+      if (this.pricingWriteBlocked) return;
       const val = this.basePriceDrafts[type.id];
       if (!this.isValidBasePrice(val)) {
         this.error = 'Giá chung phải là số hợp lệ lớn hơn 0.';
@@ -315,6 +352,7 @@ export default {
       }
     },
     openCreateModal() {
+      if (this.pricingWriteBlocked) return;
       this.clearMessages();
       this.modalError = '';
       this.editingRow = null;
@@ -322,6 +360,7 @@ export default {
       this.showModal = true;
     },
     openEditModal(row) {
+      if (this.pricingWriteBlocked) return;
       this.clearMessages();
       this.modalError = '';
       this.editingRow = row;
@@ -348,6 +387,11 @@ export default {
     async savePrice() {
       this.clearMessages();
       this.modalError = '';
+
+      if (this.pricingWriteBlocked) {
+        this.modalError = 'Cum san dang bi khoa hoac han che theo chinh sach.';
+        return;
+      }
 
       if (this.activeTab === 'weekly' && (!this.form.apply_to_days || !this.form.apply_to_days.length)) {
         this.modalError = 'Vui lòng chọn ít nhất một ngày trong tuần.';
@@ -407,6 +451,7 @@ export default {
     },
     async toggleRow(row) {
       this.clearMessages();
+      if (this.pricingWriteBlocked) return;
       const isWeekly = this.activeTab === 'weekly';
       const basePath = isWeekly ? '/api/owner/price-slots' : '/api/owner/holiday-prices';
       try {
@@ -421,6 +466,7 @@ export default {
       }
     },
     async deleteRow(row) {
+      if (this.pricingWriteBlocked) return;
       if (!window.confirm(`Bạn có chắc chắn muốn xóa quy tắc ${this.activeTabMeta.label.toLowerCase()} này?`)) return;
       this.clearMessages();
       const isWeekly = this.activeTab === 'weekly';
@@ -473,6 +519,15 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.pricing-lock-banner {
+  padding: 10px 12px;
+  border: 1px solid #f0c36d;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #8a5a00;
+  font-size: 13px;
 }
 
 .cluster-profile-surface.standalone {

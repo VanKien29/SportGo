@@ -667,6 +667,13 @@ class BookingService
             $outstandingAmount = $this->outstandingAmount($booking);
             $collectionAmount = round((float) ($amount ?: $outstandingAmount), 2);
 
+            $isPayLater = ($booking->effective_payment_option ?: $booking->payment_option) === 'no_prepay';
+            if ($isPayLater && abs($collectionAmount - $outstandingAmount) > 0.009) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Booking trả sau chỉ được thu đủ một lần, không hỗ trợ thanh toán từng phần.',
+                ]);
+            }
+
             if ($collectionAmount <= 0 || $collectionAmount > $outstandingAmount) {
                 throw ValidationException::withMessages([
                     'amount' => 'Số tiền thu không hợp lệ so với số còn phải thu.',
@@ -1473,6 +1480,13 @@ class BookingService
         if (in_array($booking->status, ['cancelled', 'expired', 'rejected', 'no_show'], true)) {
             throw ValidationException::withMessages([
                 'booking_id' => 'Booking này không còn ở trạng thái có thể thu tiền.',
+            ]);
+        }
+
+        if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)
+            && ($booking->effective_payment_option ?: $booking->payment_option) === 'no_prepay') {
+            throw ValidationException::withMessages([
+                'booking_id' => 'Vui lòng duyệt booking trước khi ghi nhận thanh toán trả sau.',
             ]);
         }
     }

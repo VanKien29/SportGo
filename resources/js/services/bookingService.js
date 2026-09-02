@@ -32,14 +32,6 @@ export const bookingService = {
     });
   },
 
-  // Gọi thêm dịch vụ tại sân vào booking
-  addServices(id, data) {
-    return api(`/api/bookings/${id}/services`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
   listBookings(params = {}) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -151,7 +143,10 @@ export const bookingService = {
       if (value !== undefined && value !== null && value !== '') query.append(key, value);
     });
     const suffix = query.toString();
-    return api(`/api/refunds${suffix ? `?${suffix}` : ''}`);
+    return api(`/api/refunds${suffix ? `?${suffix}` : ''}`, {
+      cache: 'no-store',
+      dedupe: false,
+    });
   },
 
   requestRefund(data) {

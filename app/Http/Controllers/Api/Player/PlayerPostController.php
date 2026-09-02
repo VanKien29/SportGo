@@ -531,7 +531,7 @@ class PlayerPostController extends Controller
         $post->description = trim(strip_tags($data['content']));
         $post->save();
 
-        broadcast(new MatchmakingUpdated((int) $post->id, 'post_updated', ['description' => $post->description]));
+        $this->broadcastMatchmakingUpdate((int) $post->id, 'post_updated', ['description' => $post->description]);
 
         return response()->json(['status' => 'success', 'message' => 'Đã cập nhật bài giao lưu.', 'data' => $post]);
     }
@@ -557,7 +557,7 @@ class PlayerPostController extends Controller
         $post->status_reason = 'closed_by_author';
         $post->save();
 
-        broadcast(new MatchmakingUpdated((int) $post->id, 'post_closed'));
+        $this->broadcastMatchmakingUpdate((int) $post->id, 'post_closed');
 
         return response()->json(['status' => 'success', 'message' => 'Đã đóng bài giao lưu.']);
     }
@@ -611,7 +611,7 @@ class PlayerPostController extends Controller
 
             DB::commit();
 
-            broadcast(new MatchmakingUpdated((int) $post->id, 'participant_left', ['user_id' => $userId]));
+            $this->broadcastMatchmakingUpdate((int) $post->id, 'participant_left', ['user_id' => $userId]);
 
             return response()->json(['status' => 'success', 'message' => 'Đã rút yêu cầu tham gia.']);
         } catch (\Throwable $e) {
@@ -719,7 +719,7 @@ class PlayerPostController extends Controller
 
             DB::commit();
 
-            broadcast(new MatchmakingUpdated((int) $post->id, 'participant_joined', ['user_id' => $userId]));
+            $this->broadcastMatchmakingUpdate((int) $post->id, 'participant_joined', ['user_id' => $userId]);
 
             return response()->json([
                 'status' => 'success',
@@ -892,7 +892,7 @@ class PlayerPostController extends Controller
 
             DB::commit();
 
-            broadcast(new MatchmakingUpdated((int) $post->id, 'participant_approved', ['user_id' => $userId]));
+            $this->broadcastMatchmakingUpdate((int) $post->id, 'participant_approved', ['user_id' => $userId]);
 
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
@@ -963,7 +963,7 @@ class PlayerPostController extends Controller
 
             DB::commit();
 
-            broadcast(new MatchmakingUpdated((int) $post->id, 'participant_rejected', ['user_id' => $userId]));
+            $this->broadcastMatchmakingUpdate((int) $post->id, 'participant_rejected', ['user_id' => $userId]);
 
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
@@ -1089,9 +1089,20 @@ class PlayerPostController extends Controller
 
         $this->matchmakingChat->dissolve($post);
 
-        broadcast(new MatchmakingUpdated((int) $post->id, 'group_dissolved'));
+        $this->broadcastMatchmakingUpdate((int) $post->id, 'group_dissolved');
 
         return response()->json(['status' => 'success', 'message' => 'Đã giải tán nhóm giao lưu.']);
+    }
+
+    private function broadcastMatchmakingUpdate(int $postId, string $action, array $data = []): void
+    {
+        try {
+            broadcast(new MatchmakingUpdated($postId, $action, $data));
+        } catch (\Throwable $exception) {
+            // Realtime delivery is best effort; the database mutation has
+            // already succeeded and must not be returned as a 500.
+            report($exception);
+        }
     }
 
     /**

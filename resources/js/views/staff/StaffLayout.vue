@@ -68,10 +68,14 @@ export default {
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.addEventListener('focus', this.refreshClusterStatuses);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     await this.loadClusters();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.removeEventListener('focus', this.refreshClusterStatuses);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   },
   methods: {
     async loadClusters() {
@@ -87,6 +91,25 @@ export default {
         this.ensureCurrentRouteAllowed();
       } finally {
         this.clusterLoading = false;
+      }
+    },
+    handleVisibilityChange() {
+      if (!document.hidden) this.refreshClusterStatuses();
+    },
+    async refreshClusterStatuses() {
+      if (this.clusterLoading) return;
+
+      try {
+        const response = await venueClusterService.getClusters({ compact: 1 });
+        const latestById = new Map((response.data || []).map((cluster) => [String(cluster.id), cluster]));
+        this.clusters = this.clusters.map((cluster) => {
+          const latest = latestById.get(String(cluster.id));
+          return latest
+            ? { ...cluster, status: latest.status, status_reason: latest.status_reason, access_restriction: latest.access_restriction }
+            : cluster;
+        });
+      } catch {
+        // Keep the current navigation if a background refresh is unavailable.
       }
     },
     changeCluster(clusterId) {
