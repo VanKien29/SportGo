@@ -48,6 +48,21 @@ class PlatformFeeController extends Controller
             ->get()
             ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger, $defaultPaymentAccount));
 
+        $ledgers->transform(function (array $ledger) use ($wallet): array {
+            $remaining = (float) ($ledger['amount_remaining'] ?? 0);
+            $canPay = in_array($ledger['effective_status'] ?? null, ['pending', 'overdue'], true)
+                && $remaining > 0;
+            $breakdown = $canPay && $wallet
+                ? $this->platformFeeWallets->balanceBreakdown($wallet, (int) $ledger['id'])
+                : ['safe_balance' => 0.0];
+
+            $ledger['can_pay_from_balance'] = $canPay
+                && (float) $breakdown['safe_balance'] + 0.01 >= $remaining;
+            $ledger['balance_shortfall'] = round(max($remaining - (float) $breakdown['safe_balance'], 0), 2);
+
+            return $ledger;
+        });
+
         $outstanding = $ledgers
             ->whereIn('effective_status', ['pending', 'overdue'])
             ->sum('amount_remaining');
@@ -152,7 +167,13 @@ class PlatformFeeController extends Controller
             ->orderByDesc('min_courts')
             ->get();
 
-        $data = $clusters->map(function (VenueCluster $cluster) use ($ledgersByCluster, $tiers): array {
+        $walletsByCluster = OwnerWallet::query()
+            ->where('owner_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusters->pluck('id'))
+            ->get()
+            ->keyBy('venue_cluster_id');
+
+        $data = $clusters->map(function (VenueCluster $cluster) use ($ledgersByCluster, $tiers, $walletsByCluster): array {
             $ledgers = $ledgersByCluster->get($cluster->id, collect());
             $unpaid = $ledgers
                 ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger))
@@ -165,6 +186,13 @@ class PlatformFeeController extends Controller
             $monthlyAmount = $tier
                 ? round($cluster->venue_courts_count * (float) $tier->price_per_court_month, 2)
                 : 0;
+
+            $wallet = $walletsByCluster->get($cluster->id);
+            $oldestOutstanding = $unpaid->first();
+            $outstandingAmount = (float) ($oldestOutstanding['amount_remaining'] ?? 0);
+            $balanceBreakdown = $wallet && $oldestOutstanding
+                ? $this->platformFeeWallets->balanceBreakdown($wallet, (int) $oldestOutstanding['id'])
+                : ['safe_balance' => 0.0];
 
             return [
                 'id' => $cluster->id,
@@ -183,7 +211,15 @@ class PlatformFeeController extends Controller
                 'outstanding_count' => $unpaid->count(),
                 'overdue_count' => $unpaid->where('effective_status', 'overdue')->count(),
                 'outstanding_amount' => round($unpaid->sum('amount_remaining'), 2),
-                'oldest_outstanding' => $unpaid->first(),
+                'oldest_outstanding' => $oldestOutstanding,
+                'owner_balance' => $wallet ? [
+                    'balance' => (float) $wallet->available_balance,
+                    'withdrawable' => $this->platformFeeWallets->withdrawableAmount($wallet),
+                    'safe_balance' => (float) $balanceBreakdown['safe_balance'],
+                ] : null,
+                'can_pay_outstanding_from_balance' => $oldestOutstanding !== null
+                    && (float) $balanceBreakdown['safe_balance'] + 0.01 >= $outstandingAmount,
+                'outstanding_balance_shortfall' => round(max($outstandingAmount - (float) $balanceBreakdown['safe_balance'], 0), 2),
                 'can_prepay' => $cluster->venue_courts_count > 0 && $unpaid->isEmpty() && $tier !== null,
                 'prepay_block_reason' => match (true) {
                     $cluster->venue_courts_count < 1 => 'Cụm sân chưa có sân con để tính phí.',

@@ -25,6 +25,7 @@ class BookingSupportRequest extends Model
         'handled_by',
         'handled_at',
         'resolution_note',
+        'resolution_venue_court_id',
     ];
 
     protected function casts(): array
@@ -57,5 +58,10 @@ class BookingSupportRequest extends Model
     public function handledBy()
     {
         return $this->belongsTo(User::class, 'handled_by');
+    }
+
+    public function resolutionVenueCourt()
+    {
+        return $this->belongsTo(VenueCourt::class, 'resolution_venue_court_id')->withTrashed();
     }
 }

@@ -7,7 +7,6 @@ use App\Models\MembershipPackage;
 use App\Services\Memberships\SystemVipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class MembershipPackageController extends Controller
 {
@@ -25,7 +24,9 @@ class MembershipPackageController extends Controller
         $package = MembershipPackage::query()->findOrFail($id);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'monthly_price' => [Rule::requiredIf($package->type !== 'free'), 'nullable', 'integer', 'min:1000'],
+            'monthly_price' => $package->type === 'free'
+                ? ['nullable', 'integer', 'min:0']
+                : ['required', 'integer', 'min:1000'],
             'voucher_count_per_month' => ['required', 'integer', 'min:0', 'max:50'],
             'voucher_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'voucher_min_order_amount' => ['required', 'numeric', 'min:0'],

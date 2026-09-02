@@ -7,6 +7,8 @@ use App\Models\DocumentAccessLog;
 use App\Models\GeneratedDocument;
 use App\Services\Partner\PartnerDocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PartnerDocumentDownloadController extends Controller
@@ -34,19 +36,30 @@ class PartnerDocumentDownloadController extends Controller
         $mode = (string) $request->query('mode', 'download');
         $isView = $mode === 'view';
 
-        DocumentAccessLog::query()->create([
-            'generated_document_id' => $document->id,
-            'user_id' => $request->user()?->id,
-            'action' => $isView ? 'view' : ($mode === 'export' ? 'export' : 'download'),
-            'delivery' => 'pdf',
-            'file_hash' => $document->final_pdf_hash ?: $document->pdf_hash,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'metadata' => [
-                'document_status' => $document->status,
-                'document_version' => $document->document_version,
-            ],
-        ]);
+        // Audit logging must not make an otherwise authorized document
+        // unavailable. This is especially important during deployments where
+        // the optional access-log migration may be applied after the code.
+        try {
+            DocumentAccessLog::query()->create([
+                'generated_document_id' => $document->id,
+                'user_id' => $request->user()?->id,
+                'action' => $isView ? 'view' : ($mode === 'export' ? 'export' : 'download'),
+                'delivery' => 'pdf',
+                'file_hash' => $document->final_pdf_hash ?: $document->pdf_hash,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'metadata' => [
+                    'document_status' => $document->status,
+                    'document_version' => $document->document_version,
+                ],
+            ]);
+        } catch (Throwable $exception) {
+            Log::warning('Không thể ghi nhật ký truy cập tài liệu đối tác.', [
+                'generated_document_id' => $document->id,
+                'user_id' => $request->user()?->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         $headers = [
             'Content-Type' => 'application/pdf',

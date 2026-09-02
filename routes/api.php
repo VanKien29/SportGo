@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureOwnerRole;
+use App\Http\Middleware\EnsureActiveStaffShift;
 use App\Http\Middleware\EnsureVenueStaffMenuPermission;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Middleware\RejectInactiveUser;
@@ -527,14 +528,21 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureOwnerRole::c
         Route::get('/bookings/schedule', [OwnerBookingManagementController::class, 'schedule']);
         Route::get('/bookings/recurring-groups', [OwnerBookingManagementController::class, 'recurringGroups']);
         Route::get('/bookings/eligible-vouchers', [OwnerBookingManagementController::class, 'eligibleVouchers']);
-        Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter'])
+            ->middleware(EnsureActiveStaffShift::class);
         Route::post('/bookings/recurring/preview', [OwnerBookingManagementController::class, 'previewRecurring']);
-        Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
-        Route::post('/bookings/recurring-groups/{groupCode}/payments/collect', [OwnerBookingManagementController::class, 'collectRecurringGroupPayment']);
+        Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring'])
+            ->middleware(EnsureActiveStaffShift::class);
+        Route::post('/bookings/recurring-groups/{groupCode}/payments/collect', [OwnerBookingManagementController::class, 'collectRecurringGroupPayment'])
+            ->middleware(EnsureActiveStaffShift::class);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
-        Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
-        Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
-        Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
+        Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment'])
+            ->middleware(EnsureActiveStaffShift::class);
+        Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus'])
+            ->middleware(EnsureActiveStaffShift::class);
+        Route::get('/bookings/{id}/court-options', [OwnerBookingManagementController::class, 'courtOptions']);
+        Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt'])
+            ->middleware(EnsureActiveStaffShift::class);
         // Owner Venue Posts
         Route::post('/venue-posts/upload-editor-image', [OwnerVenuePostController::class, 'uploadEditorImage']);
         Route::post('/venue-posts/{id}/restore', [OwnerVenuePostController::class, 'restore']);

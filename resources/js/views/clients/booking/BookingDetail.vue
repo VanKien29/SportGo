@@ -1019,6 +1019,10 @@ export default {
                 deposit: "Đặt cọc giữ chỗ",
                 wallet: "Thanh toán bằng ví SportGo",
                 no_prepay: "Thanh toán tại sân",
+                cash: "Tiền mặt",
+                bank_transfer: "Chuyển khoản",
+                sepay: "Chuyển khoản QR",
+                mixed: "Nhiều hình thức",
             };
             const effective =
                 this.booking.effective_payment_option ||
@@ -1029,7 +1033,7 @@ export default {
             ) {
                 return "Thanh toán tại sân (đã chuyển từ đặt cọc)";
             }
-            return map[effective] || effective;
+            return map[effective] || "Không xác định";
         },
         venueCluster() {
             return (

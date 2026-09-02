@@ -985,17 +985,16 @@ export default {
     async openChangeCourt(booking) {
       this.changeCourtBooking = booking;
       this.changeCourtForm = {
-        venue_court_id: booking.venue_court_id,
+        venue_court_id: '',
         court_changed_reason: '',
       };
-      const response = await venueClusterService.getCourts(booking.venue_cluster_id, { status: 'active' });
-      const oldTypeId = booking.venue_court?.court_type_id
-        || booking.venueCourt?.court_type_id
-        || booking.venue_court?.court_type?.id
-        || booking.venueCourt?.court_type?.id;
-      this.changeCourtOptions = (response.data || []).filter((court) => (
-        !oldTypeId || String(court.court_type_id || court.court_type?.id) === String(oldTypeId)
-      ));
+      try {
+        const response = await ownerBookingService.courtOptions(booking.id);
+        this.changeCourtOptions = response.data || [];
+      } catch (error) {
+        this.changeCourtOptions = [];
+        this.error = error.message || 'Không thể tải sân thay thế.';
+      }
     },
     closeChangeCourt() {
       this.changeCourtBooking = null;
@@ -1304,7 +1303,12 @@ export default {
         full_payment: 'Thanh toán đủ',
         deposit: 'Đặt cọc',
         no_prepay: 'Thu sau',
-      }[option] || option;
+        wallet: 'Ví SportGo',
+        cash: 'Tiền mặt',
+        bank_transfer: 'Chuyển khoản',
+        sepay: 'Chuyển khoản QR',
+        mixed: 'Nhiều hình thức',
+      }[option] || 'Không xác định';
     },
     statusActionTitle() {
       return this.statusAction === 'reject' ? 'Từ chối booking' : 'Hủy booking';

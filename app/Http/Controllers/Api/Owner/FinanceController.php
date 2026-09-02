@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use App\Models\Booking;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
 use App\Models\OwnerWalletLedger;
@@ -44,14 +45,20 @@ class FinanceController extends Controller
     public function wallets(Request $request): JsonResponse
     {
         $ownerId = $request->user()->id;
+        $bookingReceivables = $this->bookingReceivables($ownerId);
         $wallets = OwnerWallet::query()
             ->with('venueCluster:id,name,slug,address')
             ->where('owner_id', $ownerId)
             ->orderByDesc('available_balance')
             ->get();
-        $wallets->each(function (OwnerWallet $wallet): void {
+        $wallets->each(function (OwnerWallet $wallet) use ($bookingReceivables): void {
             $wallet->setAttribute('platform_fee_held', $this->platformFeeWallets->activeHoldAmount($wallet));
             $wallet->setAttribute('withdrawable_balance', $this->platformFeeWallets->withdrawableAmount($wallet));
+            $walletReceivables = $wallet->venue_cluster_id
+                ? $bookingReceivables->where('venue_cluster_id', (int) $wallet->venue_cluster_id)
+                : $bookingReceivables;
+            $wallet->setAttribute('uncollected_booking_count', $walletReceivables->count());
+            $wallet->setAttribute('uncollected_booking_amount', round($walletReceivables->sum('outstanding_amount'), 2));
         });
 
         $bankAccounts = OwnerBankAccount::query()
@@ -75,6 +82,8 @@ class FinanceController extends Controller
             'total_earned' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->total_earned),
             'total_withdrawn' => (float) $wallets->sum(fn ($wallet) => (float) $wallet->total_withdrawn),
             'wallet_count' => $wallets->count(),
+            'uncollected_booking_count' => $bookingReceivables->count(),
+            'uncollected_booking_amount' => round($bookingReceivables->sum('outstanding_amount'), 2),
         ];
         $summary['total_balance'] = $summary['available_balance'] + $summary['pending_withdrawal_balance'];
 
@@ -137,8 +146,65 @@ class FinanceController extends Controller
             'bank_accounts' => $bankAccounts,
             'managed_bank_accounts' => $managedBankAccounts,
             'summary' => $summary,
+            'booking_receivables' => $bookingReceivables->values(),
             'cashflow' => $cashflow->values(),
         ]);
+    }
+
+    /**
+     * Khoản phải thu chỉ gồm booking đã được xác nhận hoặc khách đã check-in.
+     * Pending approval/pending payment chưa phải doanh thu cần thu của chủ sân.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function bookingReceivables(int|string $ownerId)
+    {
+        return Booking::query()
+            ->with([
+                'venueCluster:id,name',
+                'venueCourt:id,name',
+                'customer:id,username,full_name',
+                'payments:id,booking_id,amount,status',
+            ])
+            ->whereIn('status', ['confirmed', 'checked_in'])
+            ->whereHas('venueCluster', fn ($query) => $query->where('owner_id', $ownerId))
+            ->orderBy('booking_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function (Booking $booking): ?array {
+                $paidAmount = (float) $booking->payments->where('status', 'paid')->sum('amount');
+                $outstandingAmount = round(max((float) $booking->total_price - $paidAmount, 0), 2);
+                if ($outstandingAmount <= 0.009) {
+                    return null;
+                }
+
+                return [
+                    'id' => $booking->id,
+                    'booking_code' => $booking->booking_code,
+                    'venue_cluster_id' => $booking->venue_cluster_id,
+                    'venue_cluster_name' => $booking->venueCluster?->name,
+                    'venue_court_name' => $booking->venueCourt?->name,
+                    'booking_date' => $booking->booking_date?->toDateString(),
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
+                    'status' => $booking->status,
+                    'payment_option' => $booking->payment_option,
+                    'payment_option_label' => match ($booking->payment_option) {
+                        'deposit' => 'Đặt cọc',
+                        'no_prepay' => 'Trả sau',
+                        default => 'Thanh toán chưa đủ',
+                    },
+                    'total_price' => (float) $booking->total_price,
+                    'paid_amount' => round($paidAmount, 2),
+                    'outstanding_amount' => $outstandingAmount,
+                    'customer_name' => $booking->customer?->full_name
+                        ?: $booking->customer?->username
+                        ?: $booking->walk_in_name
+                        ?: 'Khách đặt sân',
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     public function bankAccounts(Request $request): JsonResponse
@@ -179,11 +245,23 @@ class FinanceController extends Controller
             ]);
         }
 
-        $account = DB::transaction(function () use ($ownerId, $data): OwnerBankAccount {
+        $hasApplicationBankAccount = OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->whereNotNull('partner_application_id')
+            ->exists();
+
+        if ($hasApplicationBankAccount && (bool) ($data['is_default'] ?? false)) {
+            throw ValidationException::withMessages([
+                'is_default' => 'Tài khoản nhận tiền từ hồ sơ đăng ký đối tác là tài khoản mặc định cố định.',
+            ]);
+        }
+
+        $account = DB::transaction(function () use ($ownerId, $data, $hasApplicationBankAccount): OwnerBankAccount {
             $hasAccounts = OwnerBankAccount::query()
                 ->where('owner_id', $ownerId)
                 ->exists();
-            $isDefault = (bool) ($data['is_default'] ?? false) || ! $hasAccounts;
+            $isDefault = ! $hasApplicationBankAccount
+                && ((bool) ($data['is_default'] ?? false) || ! $hasAccounts);
 
             if ($isDefault) {
                 OwnerBankAccount::query()
@@ -218,6 +296,12 @@ class FinanceController extends Controller
         $account = OwnerBankAccount::query()
             ->where('owner_id', $request->user()->id)
             ->findOrFail($id);
+
+        if ($account->partner_application_id !== null) {
+            throw ValidationException::withMessages([
+                'account' => 'Tài khoản nhận tiền từ hồ sơ đăng ký đối tác là tài khoản mặc định cố định và không thể thay đổi hoặc xóa.',
+            ]);
+        }
 
         $data = $request->validate([
             'bank_name' => ['required', 'string', 'max:100'],
@@ -290,6 +374,22 @@ class FinanceController extends Controller
 
     private function ensureDefaultBankAccount(int|string $ownerId): void
     {
+        $applicationAccount = OwnerBankAccount::query()
+            ->where('owner_id', $ownerId)
+            ->whereNotNull('partner_application_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($applicationAccount) {
+            OwnerBankAccount::query()
+                ->where('owner_id', $ownerId)
+                ->whereKeyNot($applicationAccount->id)
+                ->update(['is_default' => false]);
+            $applicationAccount->update(['is_default' => true]);
+
+            return;
+        }
+
         $hasDefault = OwnerBankAccount::query()
             ->where('owner_id', $ownerId)
             ->where('status', 'active')

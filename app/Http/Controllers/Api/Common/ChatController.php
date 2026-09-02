@@ -13,7 +13,9 @@ use App\Models\Message;
 use App\Models\PlayerPost;
 use App\Models\User;
 use App\Models\VenueCluster;
+use App\Models\Notification;
 use App\Services\MatchmakingChatService;
+use App\Services\Bookings\BookingCourtChangeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +23,8 @@ use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
+    public function __construct(private readonly BookingCourtChangeService $bookingCourtChanges) {}
+
     /**
      * Get list of conversations for the authenticated user
      */
@@ -730,6 +734,7 @@ class ChatController extends Controller
         $validated = $request->validate([
             'status' => 'required|string|in:acknowledged,resolved,rejected',
             'resolution_note' => 'nullable|string|max:1000',
+            'venue_court_id' => 'nullable|integer|exists:venue_courts,id',
         ]);
 
         $supportRequest = BookingSupportRequest::query()
@@ -743,6 +748,23 @@ class ChatController extends Controller
             return response()->json([
                 'message' => 'Ban khong co quyen xu ly yeu cau nay.',
             ], 403);
+        }
+
+        if (in_array($supportRequest->status, ['resolved', 'rejected'], true)) {
+            return response()->json([
+                'message' => 'Yêu cầu này đã được xử lý trước đó.',
+            ], 409);
+        }
+
+        if ($supportRequest->request_type === 'change_court' && $validated['status'] === 'resolved') {
+            if (empty($validated['venue_court_id'])) {
+                return response()->json([
+                    'message' => 'Vui lòng chọn sân mới trước khi hoàn tất yêu cầu đổi sân.',
+                    'errors' => ['venue_court_id' => ['Vui lòng chọn sân mới.']],
+                ], 422);
+            }
+
+            return $this->resolveChangeCourtSupportRequest($request, $supportRequest, $validated);
         }
 
         $message = DB::transaction(function () use ($supportRequest, $request, $validated) {
@@ -766,6 +788,81 @@ class ChatController extends Controller
 
             Conversation::where('id', $supportRequest->conversation_id)->update(['last_message_at' => $now]);
             ConversationParticipant::where('conversation_id', $supportRequest->conversation_id)
+                ->where('user_id', $request->user()->id)
+                ->update(['last_read_at' => $now]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $supportRequest->conversation_id, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
+
+    private function resolveChangeCourtSupportRequest(Request $request, BookingSupportRequest $supportRequest, array $validated)
+    {
+        $message = DB::transaction(function () use ($request, $supportRequest, $validated) {
+            $lockedRequest = BookingSupportRequest::query()
+                ->with(['booking.venueCourt', 'booking.items.venueCourt'])
+                ->whereKey($supportRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($lockedRequest->status, ['resolved', 'rejected'], true)) {
+                throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('Yêu cầu này đã được xử lý trước đó.');
+            }
+
+            $booking = $this->bookingCourtChanges->change(
+                $lockedRequest->booking,
+                (int) $validated['venue_court_id'],
+                $request->user(),
+                (string) ($validated['resolution_note'] ?? 'Đổi sân theo yêu cầu hỗ trợ của khách.'),
+            );
+            $newCourt = $booking->venueCourt;
+            $now = now();
+
+            $lockedRequest->update([
+                'status' => 'resolved',
+                'handled_by' => $request->user()->id,
+                'handled_at' => $now,
+                'resolution_note' => $validated['resolution_note'] ?? $lockedRequest->resolution_note,
+                'resolution_venue_court_id' => $newCourt?->id,
+            ]);
+
+            if (Schema::hasTable('notifications')) {
+                Notification::query()->firstOrCreate(
+                    [
+                        'user_id' => $lockedRequest->customer_id,
+                        'type' => 'booking_support_resolved',
+                        'reference_type' => 'booking_support_request',
+                        'reference_id' => (string) $lockedRequest->id,
+                    ],
+                    [
+                        'title' => 'Yêu cầu đổi sân đã được xử lý',
+                        'body' => 'Booking #'.$booking->booking_code.' đã được chuyển sang '.$newCourt?->name.'.',
+                        'data' => [
+                            'booking_id' => $booking->id,
+                            'booking_support_request_id' => $lockedRequest->id,
+                            'venue_court_id' => $newCourt?->id,
+                            'action_url' => '/booking/'.$booking->id,
+                        ],
+                        'is_read' => false,
+                    ],
+                );
+            }
+
+            $msg = Message::create([
+                'conversation_id' => $lockedRequest->conversation_id,
+                'sender_id' => $request->user()->id,
+                'content' => 'Đã đổi booking #'.$booking->booking_code.' sang '.$newCourt?->name.'.',
+                'is_system' => false,
+                'reference_type' => 'booking_support_request',
+                'reference_id' => $lockedRequest->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $lockedRequest->conversation_id)->update(['last_message_at' => $now]);
+            ConversationParticipant::where('conversation_id', $lockedRequest->conversation_id)
                 ->where('user_id', $request->user()->id)
                 ->update(['last_read_at' => $now]);
 
@@ -1276,6 +1373,7 @@ class ChatController extends Controller
                     'booking.payments' => fn ($query) => $query->latest('created_at'),
                     'customer:id,full_name,username,phone,email',
                     'handledBy:id,full_name,username',
+                    'resolutionVenueCourt.courtType',
                 ])
                 ->find($message->reference_id);
 
@@ -1296,6 +1394,7 @@ class ChatController extends Controller
             'booking.payments' => fn ($query) => $query->latest('created_at'),
             'customer:id,full_name,username,phone,email',
             'handledBy:id,full_name,username',
+            'resolutionVenueCourt.courtType',
         ]);
 
         return [
@@ -1310,6 +1409,8 @@ class ChatController extends Controller
             'handled_by' => $supportRequest->handled_by,
             'handled_at' => $supportRequest->handled_at ? $supportRequest->handled_at->toIso8601String() : null,
             'resolution_note' => $supportRequest->resolution_note,
+            'resolution_venue_court_id' => $supportRequest->resolution_venue_court_id,
+            'resolution_venue_court' => $supportRequest->resolutionVenueCourt,
             'created_at' => $supportRequest->created_at ? $supportRequest->created_at->toIso8601String() : null,
             'updated_at' => $supportRequest->updated_at ? $supportRequest->updated_at->toIso8601String() : null,
             'booking' => $supportRequest->booking ? $this->bookingMessagePayload($supportRequest->booking) : null,

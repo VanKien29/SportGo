@@ -613,6 +613,8 @@ class PartnerDocumentService
         $relativePdfPath = $document->generated_pdf_path
             ?: 'generated-documents/' . ($document->generated_at?->format('Y/m') ?: now()->format('Y/m')) . '/' . $document->document_code . '.pdf';
         $pdfAbsolutePath = Storage::disk('local')->path($relativePdfPath);
+        $sourceModifiedAt = @filemtime($sourceAbsolutePath);
+        $pdfGeneratedAt = $document->pdf_generated_at?->getTimestamp();
         $watermark = sprintf(
             'BẢN SAO KIỂM SOÁT | %s | Phiên bản %d | Trạng thái: %s | Phát hành: %s',
             $document->document_code,
@@ -621,10 +623,17 @@ class PartnerDocumentService
             (string) ($document->render_data['rendered_by'] ?? 'Hệ thống')
         );
 
-        $needsRegeneration = ! $document->pdf_locked_at
-            || ! Storage::disk('local')->exists($relativePdfPath)
+        // An unsigned document does not have pdf_locked_at yet, but that does
+        // not mean its PDF is invalid. Re-rendering on every preview request
+        // made the endpoint depend on the DOCX renderer for every page load
+        // and caused intermittent 500 responses on production. Re-render only
+        // when the source DOCX is newer than the cached PDF, or when the PDF
+        // is missing/invalid. The layout and signature flows also invalidate
+        // the cached metadata when they replace the source document.
+        $needsRegeneration = ! Storage::disk('local')->exists($relativePdfPath)
             || ! $document->pdf_hash
-            || ! hash_equals((string) $document->pdf_hash, hash_file('sha256', $pdfAbsolutePath));
+            || ! hash_equals((string) $document->pdf_hash, hash_file('sha256', $pdfAbsolutePath))
+            || ($pdfGeneratedAt !== null && $sourceModifiedAt !== false && $sourceModifiedAt > $pdfGeneratedAt);
 
         if ($needsRegeneration) {
             $this->pdfs->convertDocx($sourceAbsolutePath, $pdfAbsolutePath, $watermark);
