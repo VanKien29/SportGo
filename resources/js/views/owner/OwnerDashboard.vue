@@ -349,6 +349,14 @@
                 <span>{{ formatCurrency(stats.wallet.total_earned) }}</span>
               </div>
             </div>
+
+            <div class="od-wallet-receivable">
+              <div>
+                <span>Chưa thu từ booking</span>
+                <small>{{ stats.wallet.uncollected_booking_count || 0 }} booking đã xác nhận còn thiếu tiền</small>
+              </div>
+              <strong>{{ formatCurrency(stats.wallet.uncollected_booking_amount) }}</strong>
+            </div>
             
             <router-link to="/owner/finance" class="od-wallet-btn">
               <span>Quản lý tài chính & Rút tiền</span>
@@ -848,7 +856,7 @@ const emptyStats = () => ({
   operations: { pending_bookings: 0, pending_refunds: 0, pending_refund_amount: 0, pending_withdrawals: 0, pending_withdrawal_amount: 0, open_complaints: 0, latest_refunds: [], latest_withdrawals: [] },
   recent_bookings: [],
   court_statuses: { total: 0, active: 0, maintenance: 0, inactive: 0 },
-  wallet: { available_balance: 0, pending_withdrawal_balance: 0, total_earned: 0, total_withdrawn: 0 },
+  wallet: { available_balance: 0, pending_withdrawal_balance: 0, total_earned: 0, total_withdrawn: 0, uncollected_booking_count: 0, uncollected_booking_amount: 0 },
   today_booking_summary: { date: null, total: 0, pending_approval: 0, pending_payment: 0, paid: 0, cancelled: 0, revenue: 0 },
   today_bookings: [],
   pending_bookings: [],
@@ -1937,6 +1945,34 @@ export default {
 .od-wallet-detail-row span:last-child {
   color: #334155;
   font-weight: 500;
+}
+
+.od-wallet-receivable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 0 14px;
+  padding: 10px 11px;
+  border: 1px solid #f0dfc2;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #8a5a13;
+  font-size: 12px;
+}
+
+.od-wallet-receivable div {
+  display: grid;
+  gap: 3px;
+}
+
+.od-wallet-receivable small {
+  color: #a27a3e;
+  font-size: 10.5px;
+}
+
+.od-wallet-receivable strong {
+  white-space: nowrap;
 }
 
 .od-wallet-btn {

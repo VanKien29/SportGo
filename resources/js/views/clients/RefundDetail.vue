@@ -255,10 +255,11 @@ export default {
       return (
         {
           user_wallet: 'Ví SportGo',
+          wallet: 'Ví SportGo',
           original_payment: 'Thanh toán gốc',
           bank_account: 'Tài khoản ngân hàng',
           cash: 'Tiền mặt',
-        }[destination] || destination || 'Ví SportGo'
+        }[destination] || 'Không xác định'
       );
     },
     statusLabel(status) {

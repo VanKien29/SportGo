@@ -28,7 +28,17 @@
       <p>{{ activeTabMeta.empty }}</p>
     </div>
 
-    <div v-else class="rules-table-wrapper">
+    <div v-else class="rules-category-groups">
+      <section v-for="group in groupedRows" :key="group.id" class="rules-category-section">
+        <div class="category-heading">
+          <div>
+            <span class="category-eyebrow">DANH MỤC SÂN</span>
+            <h4>{{ group.name }}</h4>
+          </div>
+          <span class="category-count">{{ group.rows.length }} quy tắc</span>
+        </div>
+
+        <div v-if="group.rows.length" class="rules-table-wrapper">
       <table class="rules-data-table">
         <thead>
           <tr>
@@ -42,7 +52,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in filteredRows" :key="row.id" :class="{ 'row-inactive': !row.is_active }">
+          <tr v-for="row in group.rows" :key="row.id" :class="{ 'row-inactive': !row.is_active }">
             <td class="cell-court-type">
               <div class="court-type-info">
                 <span class="type-name">{{ getCourtTypeName(row) }}</span>
@@ -103,6 +113,11 @@
           </tr>
         </tbody>
       </table>
+        </div>
+        <div v-else class="category-empty-state">
+          Chưa có quy tắc giá cho danh mục này.
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -114,6 +129,7 @@ export default {
     activeTab: { type: String, default: 'weekly' },
     activeTabMeta: { type: Object, required: true },
     courtTypes: { type: Array, default: () => [] },
+    courtTypeGroups: { type: Array, default: () => [] },
     days: { type: Array, default: () => [] },
     filteredRows: { type: Array, default: () => [] },
     isLoading: { type: Boolean, default: false },
@@ -126,6 +142,30 @@ export default {
     'toggle-row',
     'delete-row',
   ],
+  computed: {
+    groupedRows() {
+      const groups = this.courtTypeGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        rows: [],
+      }));
+      const groupByTypeId = new Map();
+
+      this.courtTypeGroups.forEach((group, index) => {
+        (group.types || []).forEach((type) => {
+          groupByTypeId.set(String(type.id), groups[index]);
+        });
+      });
+
+      this.filteredRows.forEach((row) => {
+        const group = groupByTypeId.get(String(row.court_type_id));
+        if (group) group.rows.push(row);
+      });
+
+      if (groups.length) return groups;
+      return [{ id: 'all', name: 'Tất cả danh mục sân', rows: this.filteredRows }];
+    },
+  },
   methods: {
     getCourtTypeName(row) {
       if (row.court_type?.name) return row.court_type.name;
@@ -169,6 +209,30 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.rules-category-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rules-category-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft, #e3ece4);
+  border-radius: 10px;
+  background: var(--admin-bg-soft, #f8fafc);
+}
+
+.category-empty-state {
+  padding: 18px 12px;
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
+  text-align: center;
+  background: var(--admin-surface, #ffffff);
 }
 
 .rules-table-toolbar {
@@ -241,6 +305,8 @@ export default {
 /* Data Table */
 .rules-table-wrapper {
   overflow-x: auto;
+  max-width: 100%;
+  background: var(--admin-surface, #ffffff);
   border: none;
   border-radius: 10px;
 }

@@ -21,9 +21,18 @@
     </div>
 
     <!-- Clean Modern List -->
-    <div v-else class="base-price-list">
+    <div v-else class="base-price-groups">
+      <section v-for="group in groupedCourtTypes" :key="group.id" class="base-price-category">
+        <div class="category-heading">
+          <div>
+            <span class="category-eyebrow">DANH MỤC SÂN</span>
+            <h4>{{ group.name }}</h4>
+          </div>
+          <span class="category-count">{{ group.types.length }} loại sân</span>
+        </div>
+        <div class="base-price-list">
       <div
-        v-for="type in courtTypes"
+        v-for="type in group.types"
         :key="type.id"
         class="base-price-row-card"
         :class="{ 'is-saving': savingBasePriceId === type.id }"
@@ -67,6 +76,8 @@
           </button>
         </div>
       </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -76,6 +87,7 @@ export default {
   name: 'PricingBaseSection',
   props: {
     courtTypes: { type: Array, default: () => [] },
+    courtTypeGroups: { type: Array, default: () => [] },
     basePriceDrafts: { type: Object, default: () => ({}) },
     basePrices: { type: Array, default: () => [] },
     savingBasePriceId: { type: [Number, String], default: null },
@@ -84,6 +96,14 @@ export default {
     isWriteBlocked: { type: Boolean, default: false },
   },
   emits: ['update-draft', 'save-base-price'],
+  computed: {
+    groupedCourtTypes() {
+      if (this.courtTypeGroups.length) return this.courtTypeGroups;
+      return this.courtTypes.length
+        ? [{ id: 'all', name: 'Tất cả danh mục sân', types: this.courtTypes }]
+        : [];
+    },
+  },
   methods: {
     getDraftValue(typeId) {
       return this.basePriceDrafts[typeId] !== undefined ? this.basePriceDrafts[typeId] : '';
@@ -180,6 +200,50 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.base-price-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.base-price-category {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft, #e3ece4);
+  border-radius: 10px;
+  background: var(--admin-bg-soft, #f8fafc);
+}
+
+.category-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.category-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--admin-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.category-heading h4 {
+  margin: 0;
+  color: var(--admin-text, #0f172a);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.category-count {
+  flex-shrink: 0;
+  color: var(--admin-muted, #64748b);
+  font-size: 11px;
 }
 
 .base-price-row-card {
@@ -331,6 +395,10 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .base-price-groups {
+    grid-template-columns: 1fr;
+  }
+
   .base-price-row-card {
     flex-direction: column;
     align-items: stretch;

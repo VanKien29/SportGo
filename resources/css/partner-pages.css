@@ -533,7 +533,9 @@
     min-height: 520px;
 }
 
-@container partner-document-viewer (max-width: 1240px) {
+/* The public document page is capped at 1180px. Keep the signing panel next
+ * to the viewer on desktop so the OTP action is immediately reachable. */
+@container partner-document-viewer (max-width: 900px) {
     .sg-client-page .partner-sign-layout {
         grid-template-columns: minmax(0, 1fr);
     }

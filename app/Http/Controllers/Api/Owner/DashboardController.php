@@ -80,7 +80,25 @@ class DashboardController extends Controller
             'pending_withdrawal_balance' => $wallet ? (float) $wallet->pending_withdrawal_balance + $legacyPendingAmount : 0.0,
             'total_earned' => $wallet ? (float) $wallet->total_earned : 0.0,
             'total_withdrawn' => $wallet ? (float) $wallet->total_withdrawn : 0.0,
+            'uncollected_booking_count' => 0,
+            'uncollected_booking_amount' => 0.0,
         ];
+
+        if ($clusterIds->isNotEmpty()) {
+            $uncollectedBookings = Booking::query()
+                ->with('payments:id,booking_id,amount,status')
+                ->whereIn('venue_cluster_id', $clusterIds)
+                ->whereIn('status', ['confirmed', 'checked_in'])
+                ->get()
+                ->map(function (Booking $booking): float {
+                    $paidAmount = (float) $booking->payments->where('status', 'paid')->sum('amount');
+
+                    return max((float) $booking->total_price - $paidAmount, 0);
+                })
+                ->filter(fn (float $amount): bool => $amount > 0.009);
+            $walletData['uncollected_booking_count'] = $uncollectedBookings->count();
+            $walletData['uncollected_booking_amount'] = round($uncollectedBookings->sum(), 2);
+        }
 
         if ($clusterIds->isEmpty()) {
             return response()->json([

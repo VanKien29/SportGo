@@ -1891,6 +1891,13 @@ function removeCourt(index) { if (form.courts.length <= 1) return; form.courts.s
 // ─── Files ────────────────────────────────────────────────────────────────────
 function setFiles(group, event) { files[group] = Array.from(event.target.files || []); }
 function removeFile(group, index) { files[group].splice(index, 1); }
+const PARTNER_UPLOAD_LIMIT_BYTES = 80 * 1024 * 1024;
+function selectedUploadBytes() {
+  return Object.values(files).flat().reduce((total, file) => total + Number(file?.size || 0), 0);
+}
+function formatBytes(bytes) {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 function hasDocumentForGroup(group) {
   return files[group]?.length > 0 || (existingDocuments[group] || [])
     .some((document) => document.status !== 'rejected' && document.file_available !== false);
@@ -1952,6 +1959,11 @@ function validateForm() {
   if (!hasDocumentForGroup('bank')) fieldErrors.bank_documents = 'Vui lòng tải lên chứng từ ngân hàng.';
   if (!hasDocumentForGroup('lease')) fieldErrors.lease_documents = 'Vui lòng tải lên hợp đồng hoặc giấy tờ thuê mặt bằng.';
   if (!confirmed.value) fieldErrors.confirmed = 'Vui lòng xác nhận thông tin trước khi gửi.';
+
+  const uploadBytes = selectedUploadBytes();
+  if (uploadBytes > PARTNER_UPLOAD_LIMIT_BYTES) {
+    fieldErrors.documents_total = `Tổng dung lượng file mới là ${formatBytes(uploadBytes)}, vượt quá giới hạn 80 MB. Vui lòng giảm bớt hoặc nén file trước khi gửi.`;
+  }
 
   // Validate từng sân con
   const courtList = Array.isArray(form.courts) ? form.courts : [];

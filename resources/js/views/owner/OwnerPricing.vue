@@ -42,6 +42,7 @@
         <!-- Section A: Giá chung (Giá cơ bản) -->
         <PricingBaseSection
           :court-types="courtTypes"
+          :court-type-groups="courtTypeGroups"
           :base-price-drafts="basePriceDrafts"
           :base-prices="basePrices"
           :saving-base-price-id="savingBasePriceId"
@@ -57,6 +58,7 @@
           :active-tab="activeTab"
           :active-tab-meta="activeTabMeta"
           :court-types="courtTypes"
+          :court-type-groups="courtTypeGroups"
           :days="days"
           :filtered-rows="rows"
           :is-loading="isLoading"
@@ -157,6 +159,26 @@ export default {
       return this.courtTypesByCluster[this.selectedClusterId]
         || this.courtTypesByCluster[Number(this.selectedClusterId)]
         || [];
+    },
+    courtTypeGroups() {
+      const groups = new Map();
+
+      this.courtTypes.forEach((type) => {
+        const categoryId = type.category_id ?? type.parent_id ?? type.id;
+        const categoryName = type.category_name || type.name || 'Danh mục sân';
+
+        if (!groups.has(String(categoryId))) {
+          groups.set(String(categoryId), {
+            id: categoryId,
+            name: categoryName,
+            types: [],
+          });
+        }
+
+        groups.get(String(categoryId)).types.push(type);
+      });
+
+      return [...groups.values()];
     },
     activeTabMeta() {
       return {

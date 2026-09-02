@@ -211,6 +211,15 @@
       </div>
     </header>
 
+    <div
+      v-if="!todayScheduleLoading && !hasActiveShift"
+      class="pos-shift-access-banner"
+      role="status"
+    >
+      <AppIcon name="lock" :size="15" />
+      <span>{{ shiftAccessMessage }}</span>
+    </div>
+
     <!-- MAIN POS WORKSPACE -->
     <main class="pos-main-content">
       <router-view />
@@ -376,6 +385,7 @@ export default {
       selectedClusterId: String(savedClusterId),
       clusterLoading: false,
       todaySchedule: null,
+      todayScheduleLoading: false,
       shiftActionLoading: false,
       showUserMenu: false,
       showClusterDropdown: false,
@@ -414,6 +424,35 @@ export default {
     currentDateString() {
       const dayName = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: BUSINESS_TIMEZONE }).format(this.currentTime);
       return `${dayName}, ${this.currentDateShortString}`;
+    },
+    hasActiveShift() {
+      const schedule = this.todaySchedule;
+      if (!schedule || schedule.check_out_at || ['checked_out', 'absent', 'cancelled'].includes(schedule.status)) {
+        return false;
+      }
+
+      if (String(schedule.date).slice(0, 10) !== businessDateString(this.currentTime)) {
+        return false;
+      }
+
+      const startTime = schedule.start_time || schedule.shift?.start_time || '';
+      const endTime = schedule.end_time || schedule.shift?.end_time || '';
+      const [startHour, startMinute] = String(startTime).split(':').map(Number);
+      const [endHour, endMinute] = String(endTime).split(':').map(Number);
+      const start = startHour * 60 + startMinute;
+      const end = endHour * 60 + endMinute;
+      const now = businessMinutes(this.currentTime);
+
+      return Number.isFinite(start) && Number.isFinite(end) && now >= start && now < end;
+    },
+    shiftAccessMessage() {
+      if (!this.todaySchedule) {
+        return 'Bạn chưa được phân ca trực hôm nay. Các thao tác vận hành booking đang tạm khóa.';
+      }
+
+      const start = (this.todaySchedule.start_time || this.todaySchedule.shift?.start_time || '').slice(0, 5);
+      const end = (this.todaySchedule.end_time || this.todaySchedule.shift?.end_time || '').slice(0, 5);
+      return `Bạn đang ngoài thời gian ca trực (${start} - ${end}). Các thao tác vận hành booking đang tạm khóa.`;
     },
   },
   async mounted() {
@@ -548,6 +587,7 @@ export default {
       }
     },
     async loadTodayShift() {
+      this.todayScheduleLoading = true;
       try {
         const todayStr = businessDateString(this.currentTime);
 
@@ -555,7 +595,10 @@ export default {
           start_date: todayStr,
           end_date: todayStr,
         });
-        const schedules = res.data || [];
+        const schedules = (res.data || []).filter((schedule) =>
+          !this.selectedClusterId
+          || String(schedule.venue_cluster_id) === String(this.selectedClusterId),
+        );
         if (!schedules.length) {
           this.todaySchedule = null;
           return;
@@ -563,25 +606,26 @@ export default {
 
         const nowMinutes = businessMinutes(this.currentTime);
 
-        // 1. Prioritize any currently checked-in shift that hasn't checked out yet (Active ongoing shift)
-        const activeCheckedIn = schedules.find((s) => s.check_in_at && !s.check_out_at);
-        if (activeCheckedIn) {
-          this.todaySchedule = activeCheckedIn;
-          return;
-        }
-
-        // 2. Prioritize shift currently in progress (within [start_time - 30min, end_time])
+        // Prefer the shift whose actual assigned hours contain the current time.
+        // The 30-minute early check-in window must not grant operation access.
         const currentOngoing = schedules.find((s) => {
+          if (s.check_out_at || ['checked_out', 'absent', 'cancelled'].includes(s.status)) return false;
           const startTime = s.start_time || s.shift?.start_time || '00:00';
           const endTime = s.end_time || s.shift?.end_time || '23:59';
           const [sh, sm] = startTime.split(':').map(Number);
           const [eh, em] = endTime.split(':').map(Number);
-          const startM = sh * 60 + sm - 30; // allow check-in 30 mins before
-          const endM = eh * 60 + em;
-          return nowMinutes >= startM && nowMinutes <= endM && !s.check_out_at;
+          return nowMinutes >= sh * 60 + sm && nowMinutes < eh * 60 + em;
         });
         if (currentOngoing) {
           this.todaySchedule = currentOngoing;
+          return;
+        }
+
+        // Keep a checked-in schedule visible for attendance, but it remains
+        // locked for operations when its assigned time has ended.
+        const activeCheckedIn = schedules.find((s) => s.check_in_at && !s.check_out_at);
+        if (activeCheckedIn) {
+          this.todaySchedule = activeCheckedIn;
           return;
         }
 
@@ -601,6 +645,8 @@ export default {
         this.todaySchedule = schedules[schedules.length - 1] || schedules[0] || null;
       } catch (e) {
         console.warn('Failed to load today shift:', e);
+      } finally {
+        this.todayScheduleLoading = false;
       }
     },
     async handleCheckIn() {
@@ -718,6 +764,21 @@ export default {
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+}
+
+.pos-shift-access-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 16px;
+  color: #92400e;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .pos-main-content:has(.admin-chat-page) {

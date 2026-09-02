@@ -2,9 +2,9 @@ export const staffNavigationSections = [
   {
     label: 'Vận hành',
     items: [
-      { label: 'Bàn làm việc quầy (POS)', icon: 'layoutGrid', to: '/staff/bookings', activeNames: ['staff-bookings'] },
-      { label: 'Lịch trực & Chấm công', icon: 'clock', to: '/staff/schedules', activeNames: ['staff-schedules'] },
-      { label: 'Đặt lịch cố định', icon: 'calendar', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'] },
+      { label: 'Bàn làm việc quầy (POS)', icon: 'layoutGrid', to: '/staff/bookings', activeNames: ['staff-bookings'], menuKey: 'bookings' },
+      { label: 'Lịch trực & Chấm công', icon: 'clock', to: '/staff/schedules', activeNames: ['staff-schedules'], menuKey: 'schedules' },
+      { label: 'Đặt lịch cố định', icon: 'calendar', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'], menuKey: 'counter_booking' },
     ],
   },
   {
@@ -42,4 +42,3 @@ export const staffRouteSections = {
   'staff-chat': 'Tin nhắn',
   'staff-profile': 'Tài khoản',
 };
-

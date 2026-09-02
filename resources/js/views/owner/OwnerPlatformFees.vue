@@ -15,14 +15,25 @@
               <strong>{{ summary.overdue }} kỳ phí quá hạn · {{ money(overdueAmount) }}</strong>
               <small>Thanh toán kỳ cũ nhất trước để tránh gián đoạn hoạt động.</small>
             </div>
-            <button
-              class="overdue-payment-btn"
-              type="button"
-              :disabled="submitting || !oldestOverdueFee"
-              @click="payOverdue"
-            >
-              Thanh toán ngay
-            </button>
+            <div class="attention-actions">
+              <button
+                v-if="canPayFromBalance(oldestOverdueFee)"
+                class="balance-payment-btn"
+                type="button"
+                :disabled="submitting"
+                @click="payByBalance(oldestOverdueFee)"
+              >
+                Dùng số dư
+              </button>
+              <button
+                class="overdue-payment-btn"
+                type="button"
+                :disabled="submitting || !oldestOverdueFee"
+                @click="payOverdue"
+              >
+                Thanh toán QR
+              </button>
+            </div>
           </div>
 
           <div v-else-if="dueSoonCount" class="payment-attention due-soon">
@@ -276,7 +287,16 @@
                   :disabled="submitting || !cluster.oldest_outstanding"
                   @click="payClusterOutstanding(cluster)"
                 >
-                  Thanh toán khoản còn thiếu
+                  Thanh toán QR
+                </button>
+                <button
+                  v-if="cluster.can_pay_outstanding_from_balance"
+                  type="button"
+                  class="debt-btn balance-debt-btn"
+                  :disabled="submitting"
+                  @click="payClusterOutstandingByBalance(cluster)"
+                >
+                  Dùng số dư
                 </button>
               </div>
 
@@ -354,6 +374,9 @@
         <footer>
           <button v-if="canCancel(paymentModal.fee)" class="danger-btn" type="button" :disabled="submitting" @click="openCancelDialog(paymentModal.fee)">
             Hủy kỳ phí
+          </button>
+          <button v-if="canPayFromBalance(paymentModal.fee)" class="balance-payment-btn" type="button" :disabled="submitting" @click="payPaymentModalByBalance">
+            Dùng số dư
           </button>
           <button class="cancel-btn" type="button" @click="closePaymentModal">Đóng</button>
         </footer>
@@ -651,6 +674,14 @@ export default {
       this.advancePlannerOpen = false;
       await this.openPaymentModalForVenue(cluster.oldest_outstanding, cluster.name);
     },
+    async payClusterOutstandingByBalance(cluster) {
+      if (!cluster.oldest_outstanding || !cluster.can_pay_outstanding_from_balance) return;
+      this.advancePlannerOpen = false;
+      await this.payByBalance({
+        ...cluster.oldest_outstanding,
+        can_pay_from_balance: true,
+      });
+    },
     async openPaymentModalForVenue(fee, venueName) {
       this.submitting = true;
       this.error = '';
@@ -702,6 +733,12 @@ export default {
       this.clearPaymentPolling();
       this.paymentModal = null;
     },
+    async payPaymentModalByBalance() {
+      const fee = this.paymentModal?.fee;
+      if (!fee) return;
+      this.closePaymentModal();
+      await this.payByBalance(fee);
+    },
     startPaymentPolling() {
       this.clearPaymentPolling();
       this.paymentPollInterval = window.setInterval(this.refreshPaymentStatus, 4000);
@@ -736,11 +773,15 @@ export default {
       }
     },
     canPay(fee) {
-      return ['pending', 'overdue'].includes(fee.effective_status) && Number(fee.amount_remaining) > 0;
+      return Boolean(fee)
+        && ['pending', 'overdue'].includes(fee.effective_status)
+        && Number(fee.amount_remaining) > 0;
     },
     canPayFromBalance(fee) {
-      return this.canPay(fee)
-        && Boolean(this.ownerBalance);
+      if (!this.canPay(fee)) return false;
+      if (typeof fee.can_pay_from_balance === 'boolean') return fee.can_pay_from_balance;
+      const safeBalance = Number(this.ownerBalance?.breakdown?.safe_balance ?? this.ownerBalance?.withdrawable ?? 0);
+      return safeBalance + 0.01 >= Number(fee.amount_remaining || 0);
     },
     canCancel(fee) {
       return fee?.can_cancel === true;
@@ -926,6 +967,13 @@ export default {
   font-weight: 400;
 }
 
+.attention-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
 .overdue-payment-btn,
 .advance-payment button {
   height: 38px;
@@ -939,9 +987,26 @@ export default {
 }
 
 .overdue-payment-btn {
-  margin-left: auto;
   background: var(--admin-danger);
   color: #fff;
+}
+
+.balance-payment-btn,
+.balance-debt-btn {
+  border: 1px solid var(--admin-primary);
+  background: var(--admin-surface);
+  color: var(--admin-primary);
+}
+
+.balance-payment-btn {
+  height: 38px;
+  border-radius: 9px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .quick-payment-bar button:disabled {
@@ -1768,6 +1833,15 @@ export default {
   color: var(--admin-danger);
 }
 
+.cluster-debt > div {
+  display: grid;
+  gap: 3px;
+}
+
+.cluster-debt .balance-debt-btn {
+  margin-left: 6px;
+}
+
 .cluster-debt small {
   color: var(--admin-danger);
 }
@@ -1944,9 +2018,18 @@ export default {
     grid-template-columns: auto 1fr;
   }
   .overdue-payment-btn {
-    grid-column: 1/3;
     width: 100%;
     margin: 4px 0 0;
+  }
+  .attention-actions {
+    grid-column: 1/3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .attention-actions button {
+    width: 100%;
   }
   .advance-payment {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -2004,8 +2087,10 @@ export default {
     display: grid;
   }
   .cluster-debt .debt-btn,
+  .cluster-debt .balance-debt-btn,
   .cluster-prepay .create-plan-btn {
     width: 100%;
+    margin: 5px 0 0;
   }
   .month-options {
     display: grid;

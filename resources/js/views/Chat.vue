@@ -915,6 +915,35 @@
               </form>
             </section>
           </div>
+
+          <div v-if="showChangeCourtSupportModal" class="booking-picker-backdrop" @click.self="closeChangeCourtSupportModal">
+            <section class="booking-picker-panel support-request-modal" role="dialog" aria-modal="true" aria-label="Đổi sân theo yêu cầu hỗ trợ">
+              <header class="booking-picker-header">
+                <div>
+                  <h3>Đổi sân theo yêu cầu</h3>
+                  <p v-if="changeCourtSupportRequest?.booking">#{{ changeCourtSupportRequest.booking.booking_code }}</p>
+                </div>
+                <button type="button" class="booking-picker-close" @click="closeChangeCourtSupportModal" aria-label="Đóng">×</button>
+              </header>
+              <form class="support-request-form" @submit.prevent="submitChangeCourtSupportRequest">
+                <div class="support-request-field">
+                  <label for="support-change-court">Sân mới</label>
+                  <select id="support-change-court" v-model="changeCourtSupportForm.venue_court_id" class="support-request-input" :disabled="loadingChangeCourtSupportOptions" required>
+                    <option value="" disabled>{{ loadingChangeCourtSupportOptions ? 'Đang tải sân...' : 'Chọn sân cùng loại còn trống' }}</option>
+                    <option v-for="court in changeCourtSupportOptions" :key="court.id" :value="court.id">{{ court.name }} · {{ court.court_type?.name || 'Cùng loại sân' }}</option>
+                  </select>
+                </div>
+                <div class="support-request-field">
+                  <label for="support-change-note">Ghi chú xử lý</label>
+                  <textarea id="support-change-note" v-model.trim="changeCourtSupportForm.resolution_note" class="support-request-input support-request-textarea" rows="3" maxlength="1000" placeholder="Nêu lý do đổi sân nếu cần."></textarea>
+                </div>
+                <div class="support-request-actions">
+                  <button type="button" class="support-request-secondary" @click="closeChangeCourtSupportModal">Hủy</button>
+                  <button type="submit" class="support-request-primary" :disabled="loadingChangeCourtSupportOptions || !changeCourtSupportForm.venue_court_id || updatingSupportRequestId">Xác nhận đổi sân</button>
+                </div>
+              </form>
+            </section>
+          </div>
           <!-- Right Sidebar (Profile Info Panel) -->
           <div
             v-if="showProfileSidebar"
@@ -1432,6 +1461,7 @@ import BaseInput from '../components/ui/BaseInput.vue';
 import echo from '../echo.js';
 import { getAuth } from '../stores/auth.js';
 import { chatService } from '../services/chat.service.js';
+import { ownerBookingService } from '../services/ownerBookings.js';
 import { getAvatarColorHex } from '../utils/avatar.js';
 import { businessDateLabel } from '../utils/businessTime.js';
 
@@ -1506,6 +1536,11 @@ export default {
       supportRequestError: '',
       creatingSupportRequest: false,
       updatingSupportRequestId: '',
+      showChangeCourtSupportModal: false,
+      changeCourtSupportRequest: null,
+      changeCourtSupportOptions: [],
+      changeCourtSupportForm: { venue_court_id: '', resolution_note: '' },
+      loadingChangeCourtSupportOptions: false,
       replyTarget: null,
       showContextMenu: false,
       contextMenuX: 0,
@@ -2334,6 +2369,12 @@ export default {
 
     async updateSupportRequestStatus(supportRequest, status) {
       if (!supportRequest?.id || this.updatingSupportRequestId) return;
+
+      if (supportRequest.request_type === 'change_court' && status === 'resolved') {
+        await this.openChangeCourtSupportModal(supportRequest);
+        return;
+      }
+
       this.updatingSupportRequestId = supportRequest.id;
       try {
         const response = await chatService.updateBookingSupportRequest(supportRequest.id, { status });
@@ -2346,6 +2387,58 @@ export default {
         this.scrollToBottom();
       } catch (error) {
         this.toast.error(error.message || 'Không thể cập nhật yêu cầu hỗ trợ.');
+      } finally {
+        this.updatingSupportRequestId = '';
+      }
+    },
+
+    async openChangeCourtSupportModal(supportRequest) {
+      if (!supportRequest?.id || !supportRequest.booking?.id) return;
+      this.changeCourtSupportRequest = supportRequest;
+      this.changeCourtSupportForm = {
+        venue_court_id: '',
+        resolution_note: '',
+      };
+      this.showChangeCourtSupportModal = true;
+      this.changeCourtSupportOptions = [];
+      this.loadingChangeCourtSupportOptions = true;
+      try {
+        const response = await ownerBookingService.courtOptions(supportRequest.booking.id);
+        this.changeCourtSupportOptions = response.data || [];
+      } catch (error) {
+        this.toast.error(error.message || 'Không thể tải danh sách sân thay thế.');
+        this.closeChangeCourtSupportModal();
+      } finally {
+        this.loadingChangeCourtSupportOptions = false;
+      }
+    },
+
+    closeChangeCourtSupportModal() {
+      if (this.updatingSupportRequestId) return;
+      this.showChangeCourtSupportModal = false;
+      this.changeCourtSupportRequest = null;
+      this.changeCourtSupportOptions = [];
+      this.changeCourtSupportForm = { venue_court_id: '', resolution_note: '' };
+    },
+
+    async submitChangeCourtSupportRequest() {
+      const supportRequest = this.changeCourtSupportRequest;
+      if (!supportRequest?.id || !this.changeCourtSupportForm.venue_court_id || this.updatingSupportRequestId) return;
+      this.updatingSupportRequestId = supportRequest.id;
+      try {
+        const response = await chatService.updateBookingSupportRequest(supportRequest.id, {
+          status: 'resolved',
+          venue_court_id: this.changeCourtSupportForm.venue_court_id,
+          resolution_note: this.changeCourtSupportForm.resolution_note?.trim() || null,
+        });
+        const exists = this.messages.some((message) => message.id === response.id);
+        if (!exists) this.messages.push(response);
+        this.applySupportRequestUpdate(response.support_request);
+        this.updateConversationLastMessage(response);
+        this.closeChangeCourtSupportModal();
+        this.scrollToBottom();
+      } catch (error) {
+        this.toast.error(error.message || 'Không thể xử lý yêu cầu đổi sân.');
       } finally {
         this.updatingSupportRequestId = '';
       }
