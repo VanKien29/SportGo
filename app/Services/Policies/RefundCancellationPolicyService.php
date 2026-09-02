@@ -688,7 +688,7 @@ class RefundCancellationPolicyService
     {
         return DB::transaction(function () use ($booking, $actor, $cancelAt, $reason): array {
             $booking = Booking::query()
-                ->with('payments')
+                ->with(['payments', 'venueCluster'])
                 ->whereKey($booking->id)
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -1141,9 +1141,44 @@ class RefundCancellationPolicyService
 
         return collect($created)
             ->filter()
+            ->tap(function ($refunds) use ($booking): void {
+                $this->notifyOwnerOfRefundRequest($booking, $refunds);
+            })
             ->map(fn (Refund $refund): array => $refund->fresh()->toArray())
             ->values()
             ->all();
+    }
+
+    private function notifyOwnerOfRefundRequest(Booking $booking, $refunds): void
+    {
+        if ($booking->cancellation_initiator !== 'customer'
+            || ! Schema::hasTable('notifications')
+            || ! $booking->venueCluster?->owner_id
+            || $refunds->isEmpty()) {
+            return;
+        }
+
+        $amount = (float) $refunds->sum(fn (Refund $refund): float => (float) $refund->amount);
+        $firstRefund = $refunds->first();
+
+        Notification::query()->create([
+            'user_id' => $booking->venueCluster->owner_id,
+            'type' => 'refund_customer_requested',
+            'title' => 'Có yêu cầu hoàn tiền mới',
+            'body' => sprintf(
+                'Khách hàng đã gửi yêu cầu hoàn %s cho booking %s. Vui lòng kiểm tra và xác nhận.',
+                number_format($amount, 0, ',', '.').'đ',
+                $booking->booking_code,
+            ),
+            'reference_type' => 'refund',
+            'reference_id' => (string) $firstRefund->id,
+            'data' => [
+                'booking_id' => $booking->id,
+                'booking_code' => $booking->booking_code,
+                'amount' => $amount,
+                'status' => 'pending_owner_confirmation',
+            ],
+        ]);
     }
 
     private function createRefundRow(

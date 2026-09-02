@@ -74,14 +74,14 @@
                             Xem sân
                         </router-link>
 
-                        <button
+                        <!-- <button
                             v-if="canAddInVenueServices"
                             type="button"
                             class="bd-btn bd-btn--primary"
                             @click="openServicesModal"
                         >
                             🥤 Gọi thêm dịch vụ tại sân
-                        </button>
+                        </button> -->
 
                         <router-link
                             v-if="venueId"
@@ -265,7 +265,7 @@
                                     booking.status === "pending_approval"
                                         ? booking.payment_option === "deposit"
                                             ? "Bạn có thể thanh toán khoản cọc trong thời gian chờ duyệt. Nếu quá hạn chưa được duyệt, booking tự hủy và khoản cọc (nếu có) được hoàn vào ví."
-                                            : "Nếu quá 30 phút chưa được duyệt, booking sẽ tự hủy và sân được mở lại."
+                                            : "Bạn có thể chuyển khoản đủ 100% trong thời gian chờ duyệt. Nếu quá hạn chưa được duyệt, booking tự hủy và khoản thanh toán sẽ được hoàn vào ví."
                                         : "Hoàn tất thanh toán trước khi hết giờ để giữ lịch chơi."
                                 }}
                             </p>
@@ -324,7 +324,17 @@
                             </div>
 
                             <div
-                                v-if="canPayOnline"
+                                v-if="payLaterPaymentDue"
+                                class="bd-price-row bd-price-row--req"
+                            >
+                                <span class="bd-label">Số tiền cần thanh toán đủ</span>
+                                <strong class="bd-price-val bd-price-val--green">{{
+                                    formatCurrency(outstandingAmount)
+                                }}</strong>
+                            </div>
+
+                            <div
+                                v-if="canPayOnline && !payLaterPaymentDue"
                                 class="bd-price-row bd-price-row--req"
                             >
                                 <span class="bd-label"
@@ -383,7 +393,10 @@
                                     <h4 id="bd-payment-title">
                                         Thanh toán chuyển khoản
                                     </h4>
-                                    <p>
+                                    <p v-if="payLaterPaymentDue">
+                                        Booking trả sau chỉ nhận một lần chuyển khoản đủ toàn bộ số tiền còn phải thanh toán.
+                                    </p>
+                                    <p v-else>
                                         Quét mã QR hoặc nhập thông tin bên dưới
                                         để thanh toán.
                                     </p>
@@ -582,6 +595,25 @@
                             </div>
                         </div>
 
+                        <!-- REFUND STATUS -->
+                        <div
+                            v-if="booking.refunds?.length"
+                            class="bd-refund-status"
+                        >
+                            <h4 class="bd-sub-title">Hoàn tiền</h4>
+                            <div
+                                v-for="refund in booking.refunds"
+                                :key="refund.id"
+                                class="bd-refund-status-row"
+                            >
+                                <div>
+                                    <strong>Yêu cầu hoàn #{{ refund.id }}</strong>
+                                    <small>{{ refundStatusLabel(refund.status) }}</small>
+                                </div>
+                                <strong class="bd-pay-amt">{{ formatCurrency(refund.amount) }}</strong>
+                            </div>
+                        </div>
+
                         <!-- CANCELLATION ACTION BUTTON -->
                         <div
                             v-if="canRequestCancellation"
@@ -634,6 +666,9 @@
                         <div class="bd-refund-preview">
                             <span>Chính sách hoàn tiền:</span>
                             <strong>{{ cancelDescription }}</strong>
+                            <small v-if="cancelPreview?.refund_amount > 0">
+                                Yêu cầu hoàn sẽ được chuyển cho chủ sân xác nhận trước khi cộng vào Ví SportGo.
+                            </small>
                         </div>
 
                         <div class="bd-field">
@@ -673,7 +708,7 @@
                         <button
                             type="button"
                             class="bd-btn bd-btn--danger"
-                            :disabled="cancellingBooking"
+                            :disabled="cancellingBooking || cancelPreviewLoading || !cancelPreview"
                             @click="cancelBooking"
                         >
                             <span>{{
@@ -861,7 +896,6 @@
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { chatService } from "../../../services/chat.service.js";
-import { venueService } from "../../../services/venues.js";
 import echo from "../../../echo.js";
 import {
     businessDateLabel,
@@ -887,6 +921,8 @@ export default {
             showCancelBookingModal: false,
             showCancelPaymentModal: false,
             cancelReason: "Khách hàng thay đổi kế hoạch",
+            cancelPreview: null,
+            cancelPreviewLoading: false,
             paymentInfo: null,
             paymentLoading: false,
             paymentError: "",
@@ -895,29 +931,9 @@ export default {
             paymentWebhookListening: false,
             qrImageError: false,
             copySuccess: "",
-            showServicesModal: false,
-            loadingVenueServices: false,
-            availableVenueServices: [],
-            extraServicesMap: {},
-            submittingExtra: false,
-            addServicesError: "",
         };
     },
     computed: {
-        canAddInVenueServices() {
-            return [
-                "confirmed",
-                "checked_in",
-                "pending_approval",
-                "pending_payment",
-            ].includes(this.booking?.status);
-        },
-        extraServicesTotal() {
-            return Object.values(this.extraServicesMap).reduce(
-                (sum, item) => sum + item.quantity * item.price,
-                0,
-            );
-        },
         formattedTimer() {
             const totalSeconds = Math.max(
                 0,
@@ -929,6 +945,12 @@ export default {
         },
         statusDescription() {
             if (!this.booking) return "";
+            if (this.booking.status === "confirmed" && this.payLaterPaymentDue) {
+                return "Chủ sân đã duyệt đơn. Bạn có thể chuyển khoản đủ 100% ngay trên trang này hoặc thanh toán đủ bằng tiền mặt tại sân.";
+            }
+            if (this.booking.status === "pending_approval" && this.payLaterPaymentDue) {
+                return "Bạn có thể chuyển khoản đủ 100% trong thời gian chờ chủ sân duyệt. Nếu booking bị từ chối hoặc hết hạn, khoản đã thanh toán sẽ được xử lý hoàn theo quy định.";
+            }
             const map = {
                 confirmed:
                     "Đơn của bạn đã được xác nhận. Hẹn gặp lại bạn tại sân chơi!",
@@ -946,7 +968,7 @@ export default {
                 expired: this.booking.status_reason?.includes("không duyệt")
                     ? "Chủ sân chưa duyệt trong thời gian quy định. Sân đã được mở lại; vui lòng tạo booking mới nếu còn nhu cầu."
                     : "Đơn đã quá hạn thanh toán. Sân đã được giải phóng để người khác có thể đặt.",
-                cancelled: "Đơn đặt sân này đã bị hủy bỏ.",
+                cancelled: this.refundStatusDescription,
             };
             if (
                 ["checked_in", "completed"].includes(this.booking.status) &&
@@ -1042,6 +1064,15 @@ export default {
         canCancelPendingPayment() {
             return this.booking?.status === "pending_payment";
         },
+        payLaterPaymentDue() {
+            return (
+                ["pending_approval", "confirmed"].includes(this.booking?.status) &&
+                this.booking?.payment_option === "no_prepay" &&
+                (this.booking?.effective_payment_option ||
+                    this.booking?.payment_option) === "no_prepay" &&
+                this.outstandingAmount > 0.009
+            );
+        },
         canPayOnline() {
             const depositApproval =
                 this.booking?.status === "pending_approval" &&
@@ -1053,12 +1084,17 @@ export default {
                 Number(this.booking?.required_payment_amount || 0);
             return (
                 (this.booking?.status === "pending_payment" ||
-                    depositApproval) &&
-                Number(this.booking?.required_payment_amount || 0) > 0 &&
+                    depositApproval ||
+                    this.payLaterPaymentDue) &&
+                (this.payLaterPaymentDue
+                    ? this.outstandingAmount
+                    : Number(this.booking?.required_payment_amount || 0)) > 0 &&
                 this.booking?.payment_option !== "wallet" &&
                 (this.booking?.payment_option !== "deposit" ||
                     depositStillDue) &&
-                this.timeLeft > 0
+                (this.payLaterPaymentDue
+                    ? this.booking?.status === "confirmed" || this.timeLeft > 0
+                    : this.timeLeft > 0)
             );
         },
         paymentAccount() {
@@ -1071,12 +1107,53 @@ export default {
         paymentAmount() {
             return (
                 this.paymentInfo?.payment?.amount ||
-                this.booking?.required_payment_amount ||
+                (this.payLaterPaymentDue
+                    ? this.outstandingAmount
+                    : this.booking?.required_payment_amount) ||
                 0
             );
         },
         cancelDescription() {
-            return "Quy định hủy sân: Hoàn lại 100% số tiền vào Ví SportGo khi hủy trước giờ chơi.";
+            if (this.cancelPreviewLoading) return "Đang tải chính sách hoàn tiền...";
+            if (!this.cancelPreview) return "Không tải được chính sách hoàn tiền.";
+
+            const percent = Number(
+                this.cancelPreview.refund_percent ??
+                    this.cancelPreview.refund_percentage ??
+                    0,
+            );
+            const amount = Number(this.cancelPreview.refund_amount || 0);
+
+            if (amount <= 0) {
+                return `Bạn vẫn có thể hủy booking nhưng không được hoàn tiền theo mốc hiện tại (${percent}%).`;
+            }
+
+            return `Dự kiến hoàn ${percent}% (${this.formatCurrency(amount)}) vào Ví SportGo.`;
+        },
+        refundStatusDescription() {
+            const refunds = this.booking?.refunds || [];
+            const latest = [...refunds].sort((a, b) =>
+                String(b.created_at || "").localeCompare(String(a.created_at || "")),
+            )[0];
+
+            if (latest?.status === "pending_owner_confirmation") {
+                return `Đơn đã hủy. Yêu cầu hoàn ${this.formatCurrency(latest.amount)} đang chờ chủ sân xác nhận.`;
+            }
+            if (latest?.status === "completed") {
+                return `Đơn đã hủy. ${this.formatCurrency(latest.amount)} đã được cộng vào Ví SportGo.`;
+            }
+            if (latest?.status === "completed_cash") {
+                return `Đơn đã hủy. Chủ sân đã ghi nhận hoàn ${this.formatCurrency(latest.amount)} tiền mặt.`;
+            }
+            if (latest?.status === "owner_rejected") {
+                return "Đơn đã hủy. Yêu cầu hoàn tiền đã bị chủ sân từ chối.";
+            }
+
+            if (this.booking?.payment_option === "no_prepay") {
+                return "Đơn đã hủy. Booking này không có khoản thanh toán trước để hoàn.";
+            }
+
+            return "Đơn đã hủy. Theo chính sách hiện tại, booking không phát sinh khoản hoàn tiền.";
         },
         paidAmount() {
             return (this.booking?.payments || [])
@@ -1124,67 +1201,6 @@ export default {
         },
     },
     methods: {
-        extraServiceQty(serviceId) {
-            return this.extraServicesMap[serviceId]?.quantity || 0;
-        },
-        updateExtraQty(srv, delta) {
-            const current = this.extraServicesMap[srv.id]?.quantity || 0;
-            const next = Math.max(0, current + delta);
-            if (next === 0) {
-                const copy = { ...this.extraServicesMap };
-                delete copy[srv.id];
-                this.extraServicesMap = copy;
-            } else {
-                this.extraServicesMap = {
-                    ...this.extraServicesMap,
-                    [srv.id]: {
-                        service_id: srv.id,
-                        name: srv.name,
-                        price: Number(srv.price || 0),
-                        unit: srv.unit || "lượt",
-                        quantity: next,
-                    },
-                };
-            }
-        },
-        async openServicesModal() {
-            this.showServicesModal = true;
-            this.addServicesError = "";
-            if (!this.availableVenueServices.length && this.venueId) {
-                this.loadingVenueServices = true;
-                try {
-                    const res = await venueService.show(this.venueId);
-                    this.availableVenueServices =
-                        res.data?.services || res.services || [];
-                } catch (e) {
-                    this.addServicesError = "Không tải được danh sách dịch vụ.";
-                } finally {
-                    this.loadingVenueServices = false;
-                }
-            }
-        },
-        async submitExtraServices() {
-            if (!this.extraServicesTotal) return;
-            this.submittingExtra = true;
-            this.addServicesError = "";
-            try {
-                const services = Object.values(this.extraServicesMap).map(
-                    (item) => ({
-                        service_id: item.service_id,
-                        quantity: item.quantity,
-                    }),
-                );
-                await bookingService.addServices(this.booking.id, { services });
-                this.showServicesModal = false;
-                this.extraServicesMap = {};
-                await this.loadBooking();
-            } catch (err) {
-                this.addServicesError =
-                    err.message || "Không thể thêm dịch vụ. Vui lòng thử lại.";
-            } finally {
-                this.submittingExtra = false;
-            }
-        },
         async loadBooking() {
             const id = this.$route.params.id;
             if (!id) {
@@ -1228,7 +1244,7 @@ export default {
                 // Deposit bookings should expose the configured QR immediately after
                 // the booking is created; the button remains available as a retry.
                 if (
-                    this.booking.payment_option === "deposit" &&
+                    ["deposit", "no_prepay"].includes(this.booking.payment_option) &&
                     this.canPayOnline
                 ) {
                     void this.loadPaymentInfo();
@@ -1394,10 +1410,26 @@ export default {
         openCancelBookingModal() {
             this.showCancelBookingModal = true;
             this.cancelBookingError = "";
+            this.cancelPreview = null;
+            this.cancelPreviewLoading = true;
+            bookingService
+                .previewCancellation(this.booking.id)
+                .then((preview) => {
+                    this.cancelPreview = preview;
+                })
+                .catch((err) => {
+                    this.cancelBookingError =
+                        err.message || "Không thể tải chính sách hoàn tiền.";
+                })
+                .finally(() => {
+                    this.cancelPreviewLoading = false;
+                });
         },
         closeCancelBookingModal() {
             this.showCancelBookingModal = false;
             this.cancelBookingError = "";
+            this.cancelPreview = null;
+            this.cancelPreviewLoading = false;
         },
         openCancelPaymentModal() {
             if (!this.canCancelPendingPayment) return;
@@ -1466,6 +1498,18 @@ export default {
                 partially_refunded: "Đã hoàn một phần",
             };
             return map[status] || status || "Chưa xác định";
+        },
+        refundStatusLabel(status) {
+            return (
+                {
+                    pending_owner_confirmation: "Đang chờ chủ sân xác nhận",
+                    completed: "Đã hoàn vào Ví SportGo",
+                    completed_cash: "Đã hoàn tiền mặt",
+                    owner_rejected: "Chủ sân từ chối hoàn",
+                }[status] ||
+                status ||
+                "Chưa cập nhật"
+            );
         },
         formatDate(dateStr) {
             if (!dateStr) return "-";
@@ -1701,7 +1745,8 @@ export default {
 }
 
 .bd-slots-section,
-.bd-pay-history {
+.bd-pay-history,
+.bd-refund-status {
     margin-top: 24px;
 }
 
@@ -1767,14 +1812,16 @@ export default {
 }
 
 .bd-slots-list,
-.bd-pay-history {
+.bd-pay-history,
+.bd-refund-status {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
 .bd-slot-row,
-.bd-pay-item {
+.bd-pay-item,
+.bd-refund-status-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2153,6 +2200,18 @@ export default {
     flex-direction: column;
     gap: 4px;
     font-size: 13px;
+}
+
+.bd-refund-status-row > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.bd-refund-status-row small,
+.bd-refund-preview small {
+    color: #64748b;
+    font-size: 12px;
 }
 
 .bd-field {

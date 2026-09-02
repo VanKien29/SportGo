@@ -24,20 +24,41 @@ class VenueClusterController extends Controller
         if ($request->boolean('compact')) {
             $clusters = VenueCluster::query()
                 ->select(['id', 'name', 'status', 'status_reason'])
+                ->with(['accessRestrictions' => fn ($query) => $query
+                    ->where('status', 'active')
+                    ->where('starts_at', '<=', now())
+                    ->where(function ($restrictionQuery): void {
+                        $restrictionQuery->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                    })
+                    ->orderByRaw("CASE WHEN access_mode = 'blocked' THEN 0 ELSE 1 END")
+                    ->orderByDesc('starts_at')])
                 ->withCount(['venueCourts as court_count'])
                 ->whereIn('id', $clusterIds)
                 ->orderBy('name')
-                ->get();
+                ->get()
+                ->map(fn (VenueCluster $cluster): VenueCluster => $this->attachAccessState($cluster));
 
             return response()->json(['data' => $clusters]);
         }
 
         $clusters = VenueCluster::query()
-            ->with(['media', 'amenityCatalog'])
+            ->with([
+                'media',
+                'amenityCatalog',
+                'accessRestrictions' => fn ($query) => $query
+                    ->where('status', 'active')
+                    ->where('starts_at', '<=', now())
+                    ->where(function ($restrictionQuery): void {
+                        $restrictionQuery->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                    })
+                    ->orderByRaw("CASE WHEN access_mode = 'blocked' THEN 0 ELSE 1 END")
+                    ->orderByDesc('starts_at'),
+            ])
             ->withCount(['venueCourts as court_count'])
             ->whereIn('id', $clusterIds)
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn (VenueCluster $cluster): VenueCluster => $this->attachAccessState($cluster));
 
         return response()->json(['data' => $clusters]);
     }
@@ -52,6 +73,21 @@ class VenueClusterController extends Controller
             ->pluck('venue_cluster_id');
 
         return $ownedClusterIds->merge($assignedClusterIds)->unique()->values();
+    }
+
+    private function attachAccessState(VenueCluster $cluster): VenueCluster
+    {
+        $restriction = $cluster->accessRestrictions->first();
+        $cluster->setAttribute('access_restriction', $restriction ? [
+            'id' => $restriction->id,
+            'restriction_type' => $restriction->restriction_type,
+            'access_mode' => $restriction->access_mode,
+            'reason' => $restriction->reason,
+            'starts_at' => $restriction->starts_at?->toISOString(),
+            'ends_at' => $restriction->ends_at?->toISOString(),
+        ] : null);
+
+        return $cluster;
     }
 
     private function ownedClusterIds(Request $request)

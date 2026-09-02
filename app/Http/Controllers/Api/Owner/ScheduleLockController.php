@@ -1362,6 +1362,11 @@ class ScheduleLockController extends Controller
         return Carbon::now($this->businessTimezone());
     }
 
+    private function businessToday(): string
+    {
+        return $this->businessNow()->toDateString();
+    }
+
     private function businessDateTime(string $date, string $time): Carbon
     {
         $normalizedTime = substr($time, 0, 8);

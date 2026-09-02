@@ -434,7 +434,7 @@ class ChatController extends Controller
 
         $message->update(['reactions' => $reactions]);
 
-        broadcast(new \App\Events\MessageReacted($message->conversation_id, $message->id, $reactions))->toOthers();
+        $this->broadcastSafely(new \App\Events\MessageReacted($message->conversation_id, $message->id, $reactions), true);
 
         return response()->json([
             'message_id' => $message->id,
@@ -467,7 +467,7 @@ class ChatController extends Controller
         $isPinned = !$message->is_pinned;
         $message->update(['is_pinned' => $isPinned]);
 
-        broadcast(new \App\Events\MessagePinned($message->conversation_id, $message->id, $isPinned))->toOthers();
+        $this->broadcastSafely(new \App\Events\MessagePinned($message->conversation_id, $message->id, $isPinned), true);
 
         return response()->json([
             'message_id' => $message->id,
@@ -486,7 +486,7 @@ class ChatController extends Controller
         }
 
         // Broadcast to the conversation channel (all participants listening)
-        broadcast(new MessageSent($conversationId, $messageData))->toOthers();
+        $this->broadcastSafely(new MessageSent($conversationId, $messageData), true);
 
         // Broadcast conversation update to each participant's personal channel
         $participants = ConversationParticipant::where('conversation_id', $conversationId)
@@ -504,7 +504,7 @@ class ChatController extends Controller
         ];
 
         foreach ($participants as $participantId) {
-            broadcast(new ConversationUpdated($participantId, $conversationData));
+            $this->broadcastSafely(new ConversationUpdated($participantId, $conversationData));
         }
     }
 
@@ -1675,7 +1675,7 @@ class ChatController extends Controller
             'is_pinned' => false,
         ]);
 
-        broadcast(new \App\Events\MessageRecalled($message->conversation_id, $message->id))->toOthers();
+        $this->broadcastSafely(new \App\Events\MessageRecalled($message->conversation_id, $message->id), true);
 
         return response()->json([
             'message' => 'Đã thu hồi tin nhắn.',
@@ -1715,6 +1715,20 @@ class ChatController extends Controller
     /**
      * Add member(s) to group conversation
      */
+    private function broadcastSafely(object $event, bool $toOthers = false): void
+    {
+        try {
+            $pendingBroadcast = broadcast($event);
+            if ($toOthers) {
+                $pendingBroadcast->toOthers();
+            }
+        } catch (\Throwable $exception) {
+            // Realtime delivery is best effort; it must not turn a completed
+            // chat mutation into a 500 response when Reverb is unavailable.
+            report($exception);
+        }
+    }
+
     public function addMembers(Request $request, $id)
     {
         $userId = (int) $request->user()->id;

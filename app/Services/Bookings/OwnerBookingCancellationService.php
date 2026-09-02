@@ -5,6 +5,7 @@ namespace App\Services\Bookings;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\Payment;
+use App\Models\PaymentLog;
 use App\Models\Refund;
 use App\Models\RefundStatusHistory;
 use App\Models\SlotLock;
@@ -20,6 +21,7 @@ class OwnerBookingCancellationService
     public function __construct(
         private readonly AdminRefundService $refunds,
         private readonly BookingService $bookings,
+        private readonly BookingLifecycleService $lifecycle,
     ) {}
 
     public function cancelBooking(Booking $booking, User $actor, string $reason, string $targetStatus = 'cancelled'): array
@@ -37,6 +39,7 @@ class OwnerBookingCancellationService
                 ]);
             }
 
+            $fromStatus = $booking->status;
             $booking->forceFill([
                 'status' => $targetStatus,
                 'status_reason' => $reason,
@@ -58,6 +61,23 @@ class OwnerBookingCancellationService
 
             SlotLock::query()->where('booking_id', $booking->id)->delete();
             $this->bookings->releaseVoucherUsageForBooking($booking, 'cancelled');
+            $this->invalidatePendingPayments($booking, "Booking bị {$targetStatus}: {$reason}");
+
+            $reasonCode = $targetStatus === 'rejected' ? 'owner_rejected' : 'owner_cancelled';
+            $this->lifecycle->recordHistory(
+                $booking,
+                $fromStatus,
+                $targetStatus,
+                $reasonCode,
+                $reason,
+                $actor,
+            );
+            $this->lifecycle->notifyStatusChanged(
+                $booking,
+                $targetStatus,
+                $reasonCode,
+                $reason,
+            );
 
             $refunds = $this->createFullRefundRequests(
                 $booking,
@@ -71,6 +91,33 @@ class OwnerBookingCancellationService
                 'refunds' => $refunds,
             ];
         });
+    }
+
+    private function invalidatePendingPayments(Booking $booking, string $reason): void
+    {
+        Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('status', 'pending')
+            ->lockForUpdate()
+            ->get()
+            ->each(function (Payment $payment) use ($reason): void {
+                $payment->forceFill([
+                    'status' => 'failed',
+                    'gateway_response' => array_merge((array) $payment->gateway_response, [
+                        'invalidated_at' => now()->toIso8601String(),
+                        'invalidated_reason' => $reason,
+                    ]),
+                ])->save();
+
+                PaymentLog::query()->create([
+                    'payment_id' => $payment->id,
+                    'event_type' => 'owner_booking_payment_invalidated',
+                    'status_before' => 'pending',
+                    'status_after' => 'failed',
+                    'error_code' => 'booking_cancelled_by_owner',
+                    'error_message' => $reason,
+                ]);
+            });
     }
 
     public function cancelItemsForMaintenance(

@@ -639,6 +639,55 @@ const router = createRouter({
     },
 });
 
+const chunkReloadStorageKey = "sportgo:chunk-reload";
+const chunkReloadWindowMs = 15_000;
+
+function isChunkLoadError(error) {
+    const message = String(error?.message || error || "").toLowerCase();
+
+    return message.includes("failed to fetch dynamically imported module")
+        || message.includes("importing a module script failed")
+        || message.includes("chunkloaderror")
+        || message.includes("loading chunk")
+        || message.includes("unable to preload css");
+}
+
+function recoverFromChunkError(error, to) {
+    if (!isChunkLoadError(error) || typeof window === "undefined") return;
+
+    const marker = `${window.location.pathname}:${to?.fullPath || ""}`;
+    let shouldReload = true;
+
+    try {
+        const previous = JSON.parse(sessionStorage.getItem(chunkReloadStorageKey) || "null");
+        if (previous?.marker === marker && Date.now() - Number(previous.at || 0) < chunkReloadWindowMs) {
+            shouldReload = false;
+            sessionStorage.removeItem(chunkReloadStorageKey);
+        } else {
+            sessionStorage.setItem(chunkReloadStorageKey, JSON.stringify({ marker, at: Date.now() }));
+        }
+    } catch {
+        // If storage is unavailable, the current navigation can still show the
+        // friendly fallback from the caller below.
+    }
+
+    if (!shouldReload) {
+        console.error("[SportGo] Lazy-loaded asset is still unavailable after retry", error);
+        return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("__asset_reload", String(Date.now()));
+    window.location.replace(url.toString());
+}
+
+// Do not leave the internal cache-busting marker in copied/shared URLs.
+if (typeof window !== "undefined" && window.location.search.includes("__asset_reload")) {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("__asset_reload");
+    window.history.replaceState({}, document.title, cleanUrl.toString());
+}
+
 if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
 }
@@ -800,6 +849,7 @@ router.afterEach((to) => {
 
 router.onError((error, to) => {
     console.error('[SportGo] Router navigation error:', error, to?.fullPath);
+    recoverFromChunkError(error, to);
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sportgo:router-error', {
             detail: { error, to: to?.fullPath || null },

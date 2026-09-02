@@ -289,13 +289,19 @@ class ApplyPolicyAccessRestrictions extends Command
                     $this->info("Updated status of cluster {$cluster->name} to locked (blocked restriction).");
                 }
             } elseif ($limitedRestriction) {
-                if ($cluster->status !== 'locked' || $cluster->status_reason !== $limitedRestriction->reason) {
+                // `limited` is action-level enforcement. It must not turn the
+                // cluster into a full lock; otherwise pricing, booking and
+                // other controllers cannot distinguish it from `blocked`.
+                if ($cluster->status === 'locked'
+                    && trim((string) $cluster->status_reason) === trim((string) $limitedRestriction->reason)) {
                     $cluster->forceFill([
-                        'status' => 'locked',
-                        'status_reason' => $limitedRestriction->reason,
-                        'locked_at' => $limitedRestriction->starts_at ?? Carbon::now(),
+                        'status' => 'active',
+                        'status_reason' => null,
+                        'locked_at' => null,
+                        'locked_until' => null,
+                        'locked_by' => null,
                     ])->save();
-                    $this->info("Updated status of cluster {$cluster->name} to locked (limited restriction).");
+                    $this->info("Restored cluster {$cluster->name} to active (limited restriction).");
                 }
             } else {
                 // If the cluster is locked but the lock reason is from our policy locks,

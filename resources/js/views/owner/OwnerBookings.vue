@@ -317,9 +317,13 @@
             type="number"
             min="1000"
             step="1000"
+            :readonly="isPayLaterBooking(collectBooking)"
             :disabled="collectForm.payment_method === 'sepay' && !!pendingTransfer(collectBooking)"
           />
         </label>
+        <p v-if="isPayLaterBooking(collectBooking)" class="collect-payment-hint">
+          Booking trả sau chỉ được xác nhận một lần với đủ toàn bộ số tiền còn phải thu.
+        </p>
 
         <div class="method-row">
           <button type="button" :class="{ active: collectForm.payment_method === 'cash' }" @click="collectForm.payment_method = 'cash'">
@@ -819,6 +823,7 @@ export default {
         this.notice = 'Đã cập nhật trạng thái booking.';
         await this.loadBookings();
         this.closeStatusAction();
+        this.selectedTimelineItem = null;
       } catch (error) {
         this.error = error.message || 'Không thể cập nhật booking.';
       } finally {
@@ -985,6 +990,10 @@ export default {
     async submitCollectPayment() {
       if (!this.collectBooking || this.collectingPayment) return;
 
+      if (this.isPayLaterBooking(this.collectBooking)) {
+        this.collectForm.amount = this.outstandingAmount(this.collectBooking);
+      }
+
       this.collectingPayment = true;
       this.error = '';
       this.notice = '';
@@ -1042,8 +1051,15 @@ export default {
       }
     },
     canCollectPayment(booking) {
-      return !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status)
+      return booking.status !== 'pending_approval'
+        && !(booking.status === 'pending_payment'
+          && (booking.effective_payment_option || booking.payment_option) === 'no_prepay')
+        && !['cancelled', 'expired', 'rejected', 'no_show'].includes(booking.status)
         && this.outstandingAmount(booking) > 0;
+    },
+    isPayLaterBooking(booking) {
+      return booking?.status === 'confirmed'
+        && (booking?.effective_payment_option || booking?.payment_option) === 'no_prepay';
     },
     bookingHasPendingTransfer(booking) {
       return !!this.pendingTransfer(booking);
@@ -1184,6 +1200,9 @@ export default {
       return this.statusAction === 'reject' ? 'Từ chối booking' : 'Hủy booking';
     },
     collectSubmitLabel() {
+      if (this.collectForm.payment_method !== 'sepay' && this.isPayLaterBooking(this.collectBooking)) {
+        return 'Xác nhận đã nhận đủ tiền mặt';
+      }
       if (this.collectForm.payment_method !== 'sepay') return 'Xác nhận thu';
       return this.pendingTransfer(this.collectBooking)
         ? 'Xem lại thông tin chuyển khoản'

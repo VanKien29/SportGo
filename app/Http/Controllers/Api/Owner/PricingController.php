@@ -23,13 +23,26 @@ class PricingController extends Controller
         $clusterIds = $this->visibleClusterIds($request->user()->id);
 
         $clusters = VenueCluster::query()
-            ->with('bookingConfig')
+            ->with([
+                'bookingConfig',
+                'accessRestrictions' => fn ($query) => $query
+                    ->where('status', 'active')
+                    ->where('starts_at', '<=', now())
+                    ->where(function ($restrictionQuery): void {
+                        $restrictionQuery->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                    })
+                    ->orderByRaw("CASE WHEN access_mode = 'blocked' THEN 0 ELSE 1 END")
+                    ->orderByDesc('starts_at'),
+            ])
             ->whereIn('id', $clusterIds)
             ->orderBy('name')
             ->get()
             ->map(fn (VenueCluster $cluster) => [
                 'id' => $cluster->id,
                 'name' => $cluster->name,
+                'status' => $cluster->status,
+                'status_reason' => $cluster->status_reason,
+                'access_restriction' => $this->activeRestrictionPayload($cluster),
                 'booking_config' => $cluster->bookingConfig ?: [
                     'venue_cluster_id' => $cluster->id,
                     'min_duration_minutes' => 30,
@@ -396,6 +409,20 @@ class PricingController extends Controller
     private function ensureClusterAccess(Request $request, string $venueClusterId): void
     {
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($venueClusterId), 403);
+    }
+
+    private function activeRestrictionPayload(VenueCluster $cluster): ?array
+    {
+        $restriction = $cluster->accessRestrictions->first();
+
+        return $restriction ? [
+            'id' => $restriction->id,
+            'restriction_type' => $restriction->restriction_type,
+            'access_mode' => $restriction->access_mode,
+            'reason' => $restriction->reason,
+            'starts_at' => $restriction->starts_at?->toISOString(),
+            'ends_at' => $restriction->ends_at?->toISOString(),
+        ] : null;
     }
 
     private function ensureCourtTypeBelongsToCluster(string $venueClusterId, int $courtTypeId): void

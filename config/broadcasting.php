@@ -36,10 +36,14 @@ return [
             'secret' => env('REVERB_APP_SECRET'),
             'app_id' => env('REVERB_APP_ID'),
             'options' => [
-                'host' => env('REVERB_HOST'),
-                'port' => env('REVERB_PORT', 443),
-                'scheme' => env('REVERB_SCHEME', 'https'),
-                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+                // Publish from PHP to the local Reverb process. The public
+                // host/port are for browser WebSocket clients and may be
+                // behind Cloudflare, where the Pusher HTTP endpoint is not
+                // available.
+                'host' => env('REVERB_BROADCAST_HOST', env('REVERB_HOST')),
+                'port' => env('REVERB_BROADCAST_PORT', 8080),
+                'scheme' => env('REVERB_BROADCAST_SCHEME', 'http'),
+                'useTLS' => env('REVERB_BROADCAST_SCHEME', 'http') === 'https',
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html

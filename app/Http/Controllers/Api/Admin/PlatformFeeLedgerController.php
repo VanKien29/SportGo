@@ -529,7 +529,7 @@ class PlatformFeeLedgerController extends Controller
                     'status' => 'active',
                 ],
                 [
-                    'access_mode' => 'limited',
+                    'access_mode' => 'blocked',
                     'reason' => $data['reason'],
                     'starts_at' => now(),
                     'ends_at' => null,

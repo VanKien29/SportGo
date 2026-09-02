@@ -2195,10 +2195,14 @@ export default {
             this.loading = true;
             this.error = null;
             try {
+                const previousClusterId = this.selectedCluster?.id || localStorage.getItem("selected_cluster");
                 const res = await venueClusterService.getClusters();
                 this.clusters = res.data || [];
                 if (this.clusters.length > 0) {
-                    this.selectCluster(this.clusters[0]);
+                    const selected = this.clusters.find(
+                        (cluster) => String(cluster.id) === String(previousClusterId),
+                    ) || this.clusters[0];
+                    this.selectCluster(selected);
                 }
             } catch (err) {
                 this.error = err.message || "Lỗi khi tải danh sách cụm sân.";

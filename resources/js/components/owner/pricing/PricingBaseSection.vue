@@ -42,7 +42,7 @@
               min="0"
               step="any"
               :value="getDraftValue(type.id)"
-              :disabled="savingBasePriceId === type.id"
+              :disabled="savingBasePriceId === type.id || isWriteBlocked"
               placeholder="100000"
               class="currency-num-input"
               @input="onInput(type.id, $event.target.value)"
@@ -53,7 +53,7 @@
           <button
             type="button"
             class="btn-save-inline"
-            :disabled="savingBasePriceId === type.id || !isValidPrice(getDraftValue(type.id))"
+            :disabled="savingBasePriceId === type.id || isWriteBlocked || !isValidPrice(getDraftValue(type.id))"
             @click="$emit('save-base-price', type)"
           >
             <template v-if="savingBasePriceId === type.id">
@@ -81,6 +81,7 @@ export default {
     savingBasePriceId: { type: [Number, String], default: null },
     isLoading: { type: Boolean, default: false },
     selectedClusterId: { type: [String, Number], default: '' },
+    isWriteBlocked: { type: Boolean, default: false },
   },
   emits: ['update-draft', 'save-base-price'],
   methods: {
