@@ -383,9 +383,48 @@ class BookingTest extends TestCase
         $lock = SlotLock::query()->where('booking_id', $booking->id)->firstOrFail();
         $this->assertSame('auto', $lock->lock_type);
         $this->assertEquals($booking->id, $lock->booking_id);
-        $this->assertSame('Giữ chỗ chờ chủ sân duyệt trong 15 phút.', $lock->reason);
-        $this->assertGreaterThanOrEqual(14, now()->diffInMinutes($lock->expires_at));
-        $this->assertLessThanOrEqual(15, now()->diffInMinutes($lock->expires_at));
+        $this->assertSame('Giữ chỗ chờ chủ sân duyệt trong 20 phút.', $lock->reason);
+        $this->assertEqualsWithDelta(20 * 60, now()->diffInSeconds($lock->expires_at), 2);
+    }
+
+    public function test_multi_court_booking_uses_one_configured_hold_deadline(): void
+    {
+        $secondCourt = VenueCourt::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'name' => 'Sân Số 2',
+            'status' => 'active',
+            'sort_order' => 2,
+        ]);
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '10:00:00',
+                'end_time' => '10:30:00',
+                'time_ranges' => [
+                    [
+                        'venue_court_id' => $this->court->id,
+                        'start_time' => '10:00:00',
+                        'end_time' => '10:30:00',
+                    ],
+                    [
+                        'venue_court_id' => $secondCourt->id,
+                        'start_time' => '10:00:00',
+                        'end_time' => '10:30:00',
+                    ],
+                ],
+                'payment_option' => 'no_prepay',
+            ])
+            ->assertCreated();
+
+        $bookingId = $response->json('id');
+        $locks = SlotLock::query()->where('booking_id', $bookingId)->get();
+
+        $this->assertCount(2, $locks);
+        $this->assertCount(1, $locks->map(fn (SlotLock $lock) => $lock->expires_at->toDateTimeString())->unique());
+        $this->assertEqualsWithDelta(20 * 60, now()->diffInSeconds($locks->first()->expires_at), 2);
     }
 
     public function test_owner_can_confirm_pay_later_booking_and_release_temporary_hold(): void

@@ -34,14 +34,6 @@
         >
           <span>Đặt theo ngày (Lịch lẻ)</span>
         </button>
-        <button
-          type="button"
-          class="cbw-mode-tab"
-          :class="{ 'is-active': bookingMode === 'recurring' }"
-          @click="setBookingMode('recurring')"
-        >
-          <span>Đặt lịch cố định</span>
-        </button>
       </div>
 
       <!-- INITIAL LOADING STATE -->
@@ -109,6 +101,11 @@
 
           <div v-else-if="scheduleError" class="cbw-state-msg cbw-state-msg--error">
             {{ scheduleError }}
+          </div>
+
+          <div v-else-if="bookingBlocked" class="cbw-access-blocked" role="alert">
+            <strong>{{ bookingAccess.title }}</strong>
+            <span>{{ bookingAccess.message }}</span>
           </div>
 
           <div v-else-if="!courts.length" class="cbw-state-msg">
@@ -626,6 +623,8 @@ export default {
       clusters: [],
       clusterId: "",
       clusterLocked: false,
+      bookingAccess: { can_book: true, code: "available", title: "", message: "" },
+      restrictionNoticeKey: "",
       courtTypeId: "",
       bookingDate: businessDateString(),
       initialLoading: true,
@@ -763,6 +762,7 @@ export default {
       return Math.round(this.recurringSingleSessionAmount * this.recurringEstimatedSessions);
     },
     recurringCanSubmit() {
+      if (this.bookingBlocked) return false;
       if (!this.recurringForm.recurring_start_date || !this.recurringForm.recurring_end_date) return false;
       if (this.recurringForm.recurrence_type === "weekly" && !this.recurringForm.recurrence_days_of_week?.length) return false;
       if (this.recurringPreviewResult?.conflicts?.length && this.recurringForm.conflict_resolution === "abort") return false;
@@ -782,6 +782,9 @@ export default {
     },
     currentCluster() {
       return this.clusters.find(c => String(c.id) === String(this.clusterId)) || null;
+    },
+    bookingBlocked() {
+      return this.bookingAccess?.can_book === false;
     },
     backTarget() {
       const r = String(this.$route.query.return_to || "");
@@ -1022,7 +1025,7 @@ export default {
       ].filter(Boolean);
     },
     canSubmit() {
-      return this.selectedSlotKeys.length > 0 && !this.validationError && !this.submitting;
+      return !this.bookingBlocked && this.selectedSlotKeys.length > 0 && !this.validationError && !this.submitting;
     },
     activeStep() {
       if (this.selectedSlotKeys.length && !this.validationError) return 3;
@@ -1120,8 +1123,11 @@ export default {
 
         this.clusters = res.clusters || [];
         const reqId = q.venue_cluster_id || q.cluster;
-        this.clusterId = this.clusters.find(c => String(c.id) === String(reqId))?.id || this.clusters[0]?.id || "";
+        const requestedCluster = this.clusters.find(c => String(c.id) === String(reqId));
+        const firstBookableCluster = this.clusters.find(c => c.booking_access?.can_book !== false && c.status === "active");
+        this.clusterId = requestedCluster?.id || firstBookableCluster?.id || this.clusters[0]?.id || "";
         this.clusterLocked = Boolean(reqId);
+        this.bookingAccess = requestedCluster?.booking_access || this.bookingAccess;
 
         const reqDate = String(q.booking_date || q.date || this.today);
         this.bookingDate = reqDate >= this.today ? reqDate : this.today;
@@ -1143,6 +1149,42 @@ export default {
           : "Không thể khởi tạo dữ liệu sân. Vui lòng thử lại.";
       } finally {
         this.initialLoading = false;
+      }
+    },
+    applyBookingAccess(access = null) {
+      if (!access) return;
+
+      this.bookingAccess = {
+        can_book: access.can_book !== false,
+        code: access.code || "available",
+        status: access.status || null,
+        access_mode: access.access_mode || "full",
+        title: access.title || "Cụm sân đang bị khóa",
+        message: access.message || "Cụm sân hiện không nhận booking mới.",
+        reason: access.reason || null,
+      };
+
+      if (!this.bookingBlocked) {
+        this.restrictionNoticeKey = "";
+        return;
+      }
+
+      this.availabilityRequestId += 1;
+      this.checking = false;
+      this.selectedSlotKeys = [];
+      this.selectionError = "";
+      this.available = false;
+      this.preview = null;
+      this._venueVouchers = [];
+      this._vipVouchers = [];
+      this.selectedVenueVoucherId = "";
+      this.selectedVipVoucherId = "";
+      this.voucherNotice = "";
+
+      const noticeKey = `${this.clusterId}:${this.bookingAccess.code}:${this.bookingAccess.reason || this.bookingAccess.message}`;
+      if (this.restrictionNoticeKey !== noticeKey) {
+        this.restrictionNoticeKey = noticeKey;
+        this.toast.error(this.bookingAccess.message);
       }
     },
     async loadSchedule(options = {}) {
@@ -1175,8 +1217,13 @@ export default {
         this.courts = res.courts || [];
         this.statuses = res.slot_statuses || [];
         this.operatingHours = res.operating_hours || null;
+        this.applyBookingAccess(res.booking_access || this.currentCluster?.booking_access);
         this.lastScheduleFetchedAt = Date.now();
         this.ensureActivePeriod();
+
+        if (this.bookingBlocked) {
+          return;
+        }
 
         if (prevKeys.length) {
           this.selectedSlotKeys = prevKeys;
@@ -1267,7 +1314,7 @@ export default {
       return this.minutes(slot.start_time) < businessMinutes() + this.minAdvance;
     },
     slotDisabled(courtId, slot) {
-      return this.slotPast(slot) || this.slotTooSoon(slot) || this.slotStatus(courtId, slot)?.is_available === false;
+      return this.bookingBlocked || this.slotPast(slot) || this.slotTooSoon(slot) || this.slotStatus(courtId, slot)?.is_available === false;
     },
     slotDisabledLabel(courtId, slot) {
       const status = this.slotStatus(courtId, slot);
@@ -1300,6 +1347,7 @@ export default {
     },
     slotTitle(court, slot) {
       const status = this.slotStatus(court.id, slot);
+      if (this.bookingBlocked) return this.bookingAccess.message;
       if (this.slotPast(slot)) return "Khung giờ đã trôi qua.";
       if (this.slotTooSoon(slot)) return `Cần đặt trước ít nhất ${this.minAdvance} phút.`;
       if (status?.busy_source === "slot_lock") return status.lock_reason || "Sân đang được chủ sân giữ lịch.";
@@ -1308,6 +1356,10 @@ export default {
     },
     async toggleSlot(court, index) {
       const slot = this.slots[index];
+      if (this.bookingBlocked) {
+        this.toast.error(this.bookingAccess.message);
+        return;
+      }
       if (this.slotDisabled(court.id, slot)) return;
       this.selectionError = "";
       const key = this.slotKey(court.id, slot);
@@ -1366,6 +1418,11 @@ export default {
           )
         );
         if (rid !== this.availabilityRequestId) return;
+        const blockedAccess = responses.find(response => response?.booking_access?.can_book === false)?.booking_access;
+        if (blockedAccess) {
+          this.applyBookingAccess(blockedAccess);
+          return;
+        }
         this.available = responses.every(r => Boolean(r.available));
         const orig = responses.reduce((s, r) => s + Number(r.price_preview?.original_amount || r.total_price || 0), 0);
         const disc = responses.reduce((s, r) => s + Number(r.membership_discount?.discount_amount || r.price_preview?.membership_discount_amount || 0), 0);
@@ -1374,7 +1431,7 @@ export default {
       } catch (err) {
         if (rid !== this.availabilityRequestId) return;
         // Bắt lỗi không làm vỡ trải nghiệm
-        this.available = true;
+        this.available = !this.bookingBlocked;
       } finally {
         if (rid === this.availabilityRequestId) this.checking = false;
       }
@@ -1460,6 +1517,10 @@ export default {
       await this.loadSchedule();
     },
     async submit() {
+      if (this.bookingBlocked) {
+        this.toast.error(this.bookingAccess.message);
+        return;
+      }
       if (!this.canSubmit) return;
       if (!getAuth()) {
         this.submitError = "";
@@ -1696,6 +1757,10 @@ export default {
       this.recurringForm.conflict_resolution = "mixed";
     },
     async submitRecurring() {
+      if (this.bookingBlocked) {
+        this.toast.error(this.bookingAccess.message);
+        return;
+      }
       if (!this.recurringCanSubmit) return;
       if (!getAuth()) {
         this.recurringSubmitError = "";
@@ -2020,6 +2085,27 @@ export default {
 
 .cbw-state-msg--error {
   color: #dc2626;
+}
+
+.cbw-access-blocked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.cbw-access-blocked strong {
+  font-size: 14px;
+}
+
+.cbw-access-blocked span {
+  font-size: 13px;
 }
 
 /* ===== MATRIX TABLE ===== */

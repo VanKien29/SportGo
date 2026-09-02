@@ -672,6 +672,11 @@
             </header>
 
             <div class="sg-booking-form-body">
+              <div v-if="bookingBlocked" class="sg-booking-access-alert" role="alert">
+                <strong>{{ bookingAccess.title || 'Cụm sân đang bị khóa' }}</strong>
+                <span>{{ bookingAccess.message || 'Cụm sân hiện không nhận booking mới.' }}</span>
+              </div>
+
               <!-- Primary CTA to dedicated booking workspace page -->
               <button
                 id="btn-view-schedule"
@@ -679,7 +684,7 @@
                 @click="goToBooking()"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>Mở trang Đặt sân ngay</span>
+                <span>{{ bookingBlocked ? 'Xem trạng thái đặt sân' : 'Mở trang Đặt sân ngay' }}</span>
               </button>
 
               <button
@@ -986,7 +991,14 @@ export default {
       return this.miniScheduleSlots.reduce((acc, slot) => acc + slot.available_count, 0);
     },
     miniScheduleEmptyMessage() {
+      if (this.bookingBlocked) return this.bookingAccess.message || 'Cụm sân hiện không nhận booking mới.';
       return !(this.previewSchedule.time_slots || []).length ? 'Cụm sân không mở cửa ngày này.' : 'Không còn khung giờ trống.';
+    },
+    bookingAccess() {
+      return this.venue?.booking_access || { can_book: true, title: '', message: '' };
+    },
+    bookingBlocked() {
+      return this.bookingAccess?.can_book === false;
     }
   },
   async mounted() {
@@ -1281,6 +1293,9 @@ export default {
         if (requestId !== this.scheduleRequestId) return;
 
         const payload = response.data || response;
+        if (payload.booking_access) {
+          this.venue.booking_access = payload.booking_access;
+        }
         this.previewSchedule = {
           time_slots: payload.time_slots || [],
           courts: payload.courts || [],
@@ -1412,6 +1427,10 @@ export default {
 
     goToBooking(slot = null) {
       if (!this.bookDate) return;
+      if (this.bookingBlocked) {
+        this.toast.error(this.bookingAccess.message || 'Cụm sân hiện không nhận booking mới.');
+        return;
+      }
       const query = {
         venue_cluster_id: this.venue.id,
         cluster: this.venue.id,
@@ -2837,6 +2856,23 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.sg-booking-access-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 13px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sg-booking-access-alert strong {
+  font-size: 13px;
 }
 
 .sg-form-group {

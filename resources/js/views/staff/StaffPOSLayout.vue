@@ -353,6 +353,7 @@ import { getAuth, logout } from '../../stores/auth.js';
 import { staffNavigationSections } from '../../config/staffNavigation.js';
 import { canAccessStaffRoute, firstAccessibleStaffRoute } from '../../config/permissionAccess.js';
 import { BUSINESS_TIMEZONE, businessDateString, businessMinutes, businessTimeString } from '../../utils/businessTime.js';
+import { useToast } from 'vue-toastification';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 const CACHED_CLUSTERS_KEY = 'cached_clusters';
@@ -360,6 +361,9 @@ const CACHED_CLUSTERS_KEY = 'cached_clusters';
 export default {
   name: 'StaffPOSLayout',
   components: { AppIcon, ShiftHandoverModal },
+  setup() {
+    return { toast: useToast() };
+  },
   data() {
     let initialClusters = [];
     try {
@@ -381,6 +385,7 @@ export default {
       isFullscreen: false,
       currentTime: new Date(),
       clockTimer: null,
+      lastRestrictionNoticeKey: '',
     };
   },
   computed: {
@@ -418,7 +423,9 @@ export default {
 
     window.addEventListener('keydown', this.handleGlobalKeydown);
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.addEventListener('focus', this.refreshClusterStatuses);
     window.addEventListener('click', this.handleOutsideClick);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     document.addEventListener('fullscreenchange', this.onFullscreenChange);
 
     await this.loadClusters();
@@ -428,7 +435,9 @@ export default {
     if (this.clockTimer) clearInterval(this.clockTimer);
     window.removeEventListener('keydown', this.handleGlobalKeydown);
     window.removeEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.removeEventListener('focus', this.refreshClusterStatuses);
     window.removeEventListener('click', this.handleOutsideClick);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     document.removeEventListener('fullscreenchange', this.onFullscreenChange);
   },
   methods: {
@@ -444,14 +453,37 @@ export default {
         this.selectedClusterId = String(hasSavedCluster ? savedId : fallback);
         this.persistCluster({ notify: !hasSavedCluster });
         this.ensureCurrentRouteAllowed();
+        this.notifyClusterRestriction();
       } finally {
         this.clusterLoading = false;
+      }
+    },
+    handleVisibilityChange() {
+      if (!document.hidden) this.refreshClusterStatuses();
+    },
+    async refreshClusterStatuses() {
+      if (this.clusterLoading) return;
+
+      try {
+        const response = await venueClusterService.getClusters({ compact: 1 });
+        const latestById = new Map((response.data || []).map((cluster) => [String(cluster.id), cluster]));
+        this.clusters = this.clusters.map((cluster) => {
+          const latest = latestById.get(String(cluster.id));
+          return latest
+            ? { ...cluster, status: latest.status, status_reason: latest.status_reason, access_restriction: latest.access_restriction }
+            : cluster;
+        });
+        localStorage.setItem(CACHED_CLUSTERS_KEY, JSON.stringify(this.clusters));
+        this.notifyClusterRestriction();
+      } catch {
+        // Keep the current POS state if a background refresh is unavailable.
       }
     },
     changeCluster(clusterId) {
       this.selectedClusterId = clusterId;
       this.persistCluster();
       this.ensureCurrentRouteAllowed();
+      this.notifyClusterRestriction();
       this.loadTodayShift();
     },
     persistCluster({ notify = true } = {}) {
@@ -469,7 +501,38 @@ export default {
       this.selectedClusterId = clusterId;
       localStorage.setItem(SELECTED_CLUSTER_KEY, clusterId);
       this.ensureCurrentRouteAllowed();
+      this.notifyClusterRestriction();
       this.loadTodayShift();
+    },
+    notifyClusterRestriction() {
+      const cluster = this.selectedCluster;
+      const restriction = cluster?.access_restriction;
+      const status = cluster?.status;
+      const isRestricted = Boolean(restriction?.access_mode === 'blocked'
+        || restriction?.access_mode === 'limited'
+        || ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'].includes(status));
+
+      if (!cluster || !isRestricted) {
+        this.lastRestrictionNoticeKey = '';
+        return;
+      }
+
+      const reason = String(restriction?.reason || cluster.status_reason || '').trim();
+      let title = 'Cụm sân đang bị hạn chế';
+      if (status === 'pending') title = 'Cụm sân chưa sẵn sàng';
+      else if (restriction?.access_mode === 'limited') title = 'Cụm sân đang bị giới hạn quyền';
+      else if (restriction?.restriction_type === 'platform_fee_overdue') title = 'Cụm sân đang bị khóa do phí nền tảng';
+      else if (['termination_locked', 'termination_processing', 'partner_terminated'].includes(status)
+        || restriction?.restriction_type === 'contract_termination') title = 'Cụm sân đang chấm dứt hợp đồng';
+      else if (restriction?.restriction_type === 'admin_manual') title = 'Cụm sân bị quản trị viên khóa';
+
+      const message = `${cluster.name || 'Cụm sân'}: ${title}.${reason ? ` Lý do: ${reason.replace(/[.\s]+$/, '')}.` : ' Lý do chưa được cập nhật.'}`;
+      const noticeKey = `${cluster.id}:${status}:${restriction?.access_mode || ''}:${reason}`;
+      if (noticeKey === this.lastRestrictionNoticeKey) return;
+      this.lastRestrictionNoticeKey = noticeKey;
+
+      if (restriction?.access_mode === 'limited') this.toast.warning(message, { timeout: 8000 });
+      else this.toast.error(message, { timeout: 8000 });
     },
     ensureCurrentRouteAllowed() {
       const auth = getAuth();

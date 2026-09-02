@@ -421,7 +421,7 @@ class BookingManagementController extends Controller
     public function updateStatus(Request $request, string $id): JsonResponse
     {
         $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
-        $this->ensureClusterCanMutate($request, $booking->venueCluster);
+        $this->ensureClusterCanMutate($request, $booking->venueCluster, true);
         $this->assertBookingCourtAccess($request, $booking);
 
         $validated = $request->validate([
@@ -644,7 +644,7 @@ class BookingManagementController extends Controller
     public function collectPayment(Request $request, string $id): JsonResponse
     {
         $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
-        $this->ensureClusterCanMutate($request, $booking->venueCluster);
+        $this->ensureClusterCanMutate($request, $booking->venueCluster, true);
         $this->assertBookingCourtAccess($request, $booking);
 
         $validated = $request->validate([
@@ -900,13 +900,16 @@ class BookingManagementController extends Controller
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($booking->venue_cluster_id), 403);
     }
 
-    private function ensureClusterCanMutate(Request $request, VenueCluster $cluster): void
+    private function ensureClusterCanMutate(Request $request, VenueCluster $cluster, bool $allowLockedExisting = false): void
     {
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($cluster->id), 403);
 
-        if ($cluster->status === 'locked') {
+        if ($cluster->status === 'locked' && ! $allowLockedExisting) {
+            $reason = trim((string) $cluster->status_reason);
             throw ValidationException::withMessages([
-                'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                'venue_cluster_id' => $reason !== ''
+                    ? 'Cụm sân đang bị khóa. Lý do: '.rtrim($reason, ' .').'.'
+                    : 'Cụm sân đang bị khóa và không thể thực hiện thao tác này.',
             ]);
         }
     }

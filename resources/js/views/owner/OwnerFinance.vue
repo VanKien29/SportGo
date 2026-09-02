@@ -745,9 +745,9 @@ export default {
                 const response = await api("/api/owner/finance/withdrawals", {
                     method: "POST",
                     body: JSON.stringify({
-                        owner_wallet_id: Number(this.withdrawForm.wallet_id),
+                        owner_wallet_id: Number(this.withdrawForm.owner_wallet_id),
                         owner_bank_account_id: Number(
-                            this.withdrawForm.bank_account_id,
+                            this.withdrawForm.owner_bank_account_id,
                         ),
                         amount,
                         owner_note: this.withdrawForm.owner_note,

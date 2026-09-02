@@ -46,15 +46,20 @@ class EnforceVenueAccessRestrictions
 
         $terminationLocked = $cluster->status === 'locked'
             && Str::contains(Str::lower((string) $cluster->status_reason), ['cham dut', 'chấm dứt']);
+        $terminationLocked = $terminationLocked
+            || $blockedRestriction?->restriction_type === 'contract_termination';
 
         if ($terminationLocked || in_array($cluster->status, ['termination_processing', 'termination_locked', 'partner_terminated'], true)) {
             if ($this->isAllowedDuringTermination($request)) {
                 return $next($request);
             }
 
-            throw ValidationException::withMessages([
-                'venue_cluster_id' => 'Cum san dang trong quy trinh cham dut hop dong. Ban chi duoc xu ly booking, hoan tien, rut tien va ho so cham dut.',
-            ]);
+            $this->deny(
+                $cluster,
+                $blockedRestriction,
+                'Cụm sân đang bị khóa vì đang trong quy trình chấm dứt hợp đồng đối tác. Chỉ các luồng booking hiện hữu, hoàn tiền, rút tiền và hồ sơ chấm dứt được phép tiếp tục.',
+                'contract_termination',
+            );
         }
 
         // A limited restriction is deliberately not the same as a locked
@@ -66,28 +71,81 @@ class EnforceVenueAccessRestrictions
                 || trim((string) $cluster->status_reason) === trim((string) $limitedRestriction->reason));
 
         if ($isLimitedOnly && $this->isLimitedAction($request)) {
-            throw ValidationException::withMessages([
-                'venue_cluster_id' => 'Cum san dang bi gioi han theo chinh sach phi. Vui long xu ly phi nen tang truoc khi thuc hien thao tac nay.',
-            ]);
+            $this->deny(
+                $cluster,
+                $limitedRestriction,
+                'Cụm sân đang bị giới hạn quyền quản lý theo chính sách phí nền tảng. Vui lòng xử lý phí nền tảng trước khi thực hiện thao tác này.',
+                'platform_fee_limited',
+            );
         }
 
-        if (in_array($cluster->status, ['locked', 'pending'], true)) {
+        if ($blockedRestriction || in_array($cluster->status, ['locked', 'pending'], true)) {
             if ($blockedRestriction
                 && $blockedRestriction->restriction_type === 'platform_fee_overdue'
                 && $this->isPlatformFeeResolutionAction($request)) {
                 return $next($request);
             }
 
-            $message = $cluster->status === 'locked'
-                ? 'Cum san dang bi khoa. Vui long lien he quan tri vien.'
-                : 'Cum san dang cho hoan tat ky ket hop dong doi tac.';
+            // A cluster lock must not strand operational work that is already
+            // in progress. New setup/booking actions remain blocked, while
+            // collecting an existing booking, processing refunds and making
+            // withdrawals stay available.
+            if ($this->isAllowedOperationalAction($request)) {
+                return $next($request);
+            }
 
-            throw ValidationException::withMessages([
-                'venue_cluster_id' => $message,
-            ]);
+            $message = $cluster->status === 'pending' && ! $blockedRestriction
+                ? 'Cụm sân chưa sẵn sàng nhận booking vì đang chờ hoàn tất ký kết hợp đồng đối tác.'
+                : $this->lockedMessage($cluster, $blockedRestriction);
+
+            $code = $cluster->status === 'pending' && ! $blockedRestriction
+                ? 'cluster_pending'
+                : ($blockedRestriction?->restriction_type ?: 'cluster_locked');
+
+            $this->deny(
+                $cluster,
+                $blockedRestriction,
+                $message,
+                $code,
+            );
         }
 
         return $next($request);
+    }
+
+    private function deny(object $cluster, ?object $restriction, string $message, string $code): void
+    {
+        $reason = trim((string) ($restriction?->reason ?: $cluster->status_reason));
+        if ($reason === '' && ! Str::contains(Str::lower($message), ['lý do', 'ly do'])) {
+            $message .= ' Lý do chưa được cập nhật.';
+        }
+        $fullMessage = $reason !== '' && ! Str::contains(Str::lower($message), Str::lower($reason))
+            ? $message.' Lý do: '.rtrim($reason, " .").'.'
+            : $message;
+
+        throw ValidationException::withMessages([
+            'venue_cluster_id' => $fullMessage,
+            'access_restriction_code' => $code,
+            'access_restriction_reason' => $reason !== '' ? $reason : 'Lý do chưa được cập nhật.',
+        ]);
+    }
+
+    private function lockedMessage(object $cluster, ?object $restriction): string
+    {
+        if ($restriction?->restriction_type === 'platform_fee_overdue') {
+            return 'Cụm sân đang bị khóa vì phí nền tảng quá hạn thanh toán.';
+        }
+
+        if ($restriction?->restriction_type === 'contract_termination'
+            || Str::contains(Str::lower((string) $cluster->status_reason), ['cham dut', 'chấm dứt'])) {
+            return 'Cụm sân đang bị khóa vì đang trong quy trình chấm dứt hợp đồng đối tác.';
+        }
+
+        if ($restriction?->restriction_type === 'admin_manual') {
+            return 'Cụm sân đang bị quản trị viên khóa.';
+        }
+
+        return 'Cụm sân đang bị khóa và không thể thực hiện thao tác quản lý này.';
     }
 
     private function resolveClusterId(Request $request): ?string
@@ -207,6 +265,19 @@ class EnforceVenueAccessRestrictions
                 if ($fromPost) {
                     return (string) $fromPost;
                 }
+            }
+        }
+
+        // A recurring-group payment route uses a group code instead of a
+        // numeric resource id. Resolve it from one of the group's bookings so
+        // a locked cluster cannot be bypassed by omitting the cluster header.
+        $groupCode = $request->route('groupCode');
+        if (Str::contains($path, 'recurring-groups') && is_string($groupCode) && $groupCode !== '') {
+            $fromRecurringGroup = DB::table('bookings')
+                ->where('recurring_group_code', $groupCode)
+                ->value('venue_cluster_id');
+            if ($fromRecurringGroup) {
+                return (string) $fromRecurringGroup;
             }
         }
 
@@ -366,12 +437,29 @@ class EnforceVenueAccessRestrictions
 
     private function isAllowedDuringTermination(Request $request): bool
     {
-        return Str::startsWith(trim($request->path(), '/'), [
+        $path = trim($request->path(), '/');
+
+        return Str::startsWith($path, [
             'api/owner/termination-requests',
             'api/owner/refunds',
             'api/owner/finance/withdrawals',
             'api/owner/wallet',
-            'api/owner/bookings',
-        ]);
+        ]) || $this->isAllowedBookingMaintenance($path);
+    }
+
+    private function isAllowedOperationalAction(Request $request): bool
+    {
+        $path = trim($request->path(), '/');
+
+        return Str::startsWith($path, [
+            'api/owner/refunds',
+            'api/owner/finance/withdrawals',
+            'api/owner/wallet',
+        ]) || $this->isAllowedBookingMaintenance($path);
+    }
+
+    private function isAllowedBookingMaintenance(string $path): bool
+    {
+        return preg_match('#^api/owner/bookings/(?:[^/]+/(?:payments/collect|status)|recurring-groups/[^/]+/payments/collect)$#', $path) === 1;
     }
 }

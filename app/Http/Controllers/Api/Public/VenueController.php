@@ -350,7 +350,6 @@ class VenueController extends Controller
                     $query->with('category')->where('status', 'active')->latest();
                 },
             ])
-            ->where('status', 'active')
             ->where(function ($query) use ($id) {
                 $query->whereKey($id)->orWhere('slug', $id);
             })
@@ -425,7 +424,6 @@ class VenueController extends Controller
     public function schedule(Request $request, string $id): JsonResponse
     {
         $cluster = VenueCluster::query()
-            ->where('status', 'active')
             ->where(function ($query) use ($id) {
                 $query->whereKey($id)->orWhere('slug', $id);
             })
@@ -447,6 +445,7 @@ class VenueController extends Controller
 
     private function summaryPayload(VenueCluster $cluster): array
     {
+        $bookingAccess = $this->bookingService->bookingAccessState((string) $cluster->id);
         $courtTypeIds = $cluster->venueCourts->pluck('court_type_id')->unique()->values();
         $priceCourtTypeIds = $this->courtTypeIdsWithAncestors($courtTypeIds);
 
@@ -507,7 +506,10 @@ class VenueController extends Controller
             'payment_options' => $this->paymentOptions($cluster),
             'has_map' => $cluster->latitude !== null && $cluster->longitude !== null,
             'image_path' => $this->coverImage($cluster),
-            'availability_hint' => $cluster->venueCourts->isNotEmpty() ? 'available' : 'closed',
+            'availability_hint' => ! $bookingAccess['can_book']
+                ? 'blocked'
+                : ($cluster->venueCourts->isNotEmpty() ? 'available' : 'closed'),
+            'booking_access' => $bookingAccess,
         ];
     }
 

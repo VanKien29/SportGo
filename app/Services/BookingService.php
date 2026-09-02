@@ -11,6 +11,7 @@ use App\Models\PaymentLog;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Models\VenueAccessRestriction;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
@@ -25,6 +26,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -261,7 +263,12 @@ class BookingService
                 'booking_type' => 'single',
                 'status' => $status,
                 'approval_deadline_at' => $status === 'pending_approval'
-                    ? $this->bookingApprovals->approvalDeadlineForValues($bookingDate, $startTime, now())
+                    ? $this->bookingApprovals->approvalDeadlineForValues(
+                        $bookingDate,
+                        $startTime,
+                        now(),
+                        $this->configuredSlotHoldMinutes($venueClusterId),
+                    )
                     : null,
                 'created_by' => $customerId,
             ]);
@@ -622,7 +629,7 @@ class BookingService
 
         if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
-                'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                'venue_cluster_id' => $this->clusterBlockedMessage($court),
             ]);
         }
 
@@ -914,20 +921,45 @@ class BookingService
             return collect();
         }
 
-        $existingLocks = SlotLock::query()->where('booking_id', $booking->id)->get();
+        $existingLocks = SlotLock::query()
+            ->where('booking_id', $booking->id)
+            ->where('lock_type', 'auto')
+            ->get();
         if ($existingLocks->isNotEmpty()) {
-            if ($booking->status === 'pending_payment') {
-                $booking->forceFill(['payment_deadline_at' => $existingLocks->min('expires_at')])->save();
+            // One booking can have multiple court locks, but they must share
+            // one booking-level deadline. This prevents the countdown from
+            // depending on which court lock happens to be read first.
+            $deadline = $booking->status === 'pending_approval'
+                ? $booking->approval_deadline_at
+                : $booking->payment_deadline_at;
+            $deadline ??= $existingLocks->min('expires_at');
+
+            if ($deadline) {
+                $deadline = Carbon::parse($deadline)->setTimezone($this->businessTimezone());
+                SlotLock::query()
+                    ->where('booking_id', $booking->id)
+                    ->where('lock_type', 'auto')
+                    ->update(['expires_at' => $deadline]);
             }
 
-            return $existingLocks;
+            if ($booking->status === 'pending_payment' && $deadline) {
+                $booking->forceFill(['payment_deadline_at' => $deadline])->save();
+            }
+
+            return $booking->slotLocks()
+                ->where('lock_type', 'auto')
+                ->get();
         }
 
         $booking->loadMissing('items');
         $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
         $expiresAt = $booking->status === 'pending_approval'
-            ? $this->bookingApprovals->approvalDeadline($booking)
-            : Carbon::now()->addMinutes($slotHoldMinutes);
+            ? ($booking->approval_deadline_at
+                ? Carbon::parse($booking->approval_deadline_at)->setTimezone($this->businessTimezone())
+                : $this->bookingApprovals->approvalDeadline($booking))
+            : ($booking->payment_deadline_at
+                ? Carbon::parse($booking->payment_deadline_at)->setTimezone($this->businessTimezone())
+                : $this->paymentHoldDeadline($booking, $slotHoldMinutes));
         $reason = $this->temporaryHoldReason($booking, $slotHoldMinutes);
         $items = $booking->items->isNotEmpty()
             ? $booking->items
@@ -962,11 +994,32 @@ class BookingService
 
     private function temporaryHoldMinutes(Booking $booking): int
     {
-        if ($booking->status === 'pending_approval') {
-            return BookingApprovalService::APPROVAL_WINDOW_MINUTES;
+        return $this->configuredSlotHoldMinutes($booking->venue_cluster_id);
+    }
+
+    private function configuredSlotHoldMinutes(string $venueClusterId): int
+    {
+        return max(1, (int) ($this->bookingConfigForCluster($venueClusterId)?->slot_hold_minutes ?? 20));
+    }
+
+    private function paymentHoldDeadline(Booking $booking, int $minutes): Carbon
+    {
+        $deadline = $this->businessNow()->addMinutes($minutes);
+
+        if ($booking->booking_date && $booking->start_time) {
+            $sessionStart = $this->businessDateTime(
+                $booking->booking_date instanceof Carbon
+                    ? $booking->booking_date->toDateString()
+                    : (string) $booking->booking_date,
+                (string) $booking->start_time,
+            );
+
+            if ($sessionStart->lessThan($deadline)) {
+                return $sessionStart;
+            }
         }
 
-        return (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+        return $deadline;
     }
 
     private function temporaryHoldReason(Booking $booking, int $minutes): string
@@ -980,13 +1033,15 @@ class BookingService
 
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array
     {
-        $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->first();
+        $cluster = VenueCluster::query()->whereKey($venueClusterId)->first();
 
         if (! $cluster) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân không tồn tại hoặc chưa hoạt động.',
             ]);
         }
+
+        $bookingAccess = $this->bookingAccessStateForCluster($cluster);
 
         $courtsQuery = VenueCourt::query()
             ->with('courtType:id,name')
@@ -1011,7 +1066,9 @@ class BookingService
         foreach ($courts as $court) {
             foreach ($timeSlots as $slot) {
                 $busyInterval = $this->overlappingInterval($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
-                $slotState = $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time']);
+                $slotState = $bookingAccess['can_book']
+                    ? $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time'])
+                    : $this->clusterBlockedSlotState($bookingAccess);
                 $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
                 $durationHours = max(($this->timeToMinutes($slot['end_time']) - $this->timeToMinutes($slot['start_time'])) / 60, 0);
 
@@ -1053,7 +1110,30 @@ class BookingService
             'busy_intervals' => $busyIntervals->values(),
             'slot_statuses' => $slotStatuses,
             'operating_hours' => $operatingHours,
+            'booking_access' => $bookingAccess,
         ];
+    }
+
+    /**
+     * Public booking access state used by the schedule and booking APIs.
+     * Reading a locked venue remains possible so the client can explain why
+     * booking is unavailable instead of showing a generic 404/server error.
+     */
+    public function bookingAccessState(string $venueClusterId): array
+    {
+        $cluster = VenueCluster::query()->whereKey($venueClusterId)->first();
+
+        return $cluster
+            ? $this->bookingAccessStateForCluster($cluster)
+            : [
+                'can_book' => false,
+                'code' => 'cluster_not_found',
+                'status' => null,
+                'access_mode' => 'blocked',
+                'title' => 'Cụm sân không tồn tại',
+                'message' => 'Cụm sân không tồn tại hoặc đã ngừng hoạt động.',
+                'reason' => null,
+            ];
     }
 
     public function meetsMinimumAdvanceNotice(string $venueClusterId, string $bookingDate, string $startTime): bool
@@ -1324,7 +1404,12 @@ class BookingService
             'recurrence_days_of_month' => $data['recurrence_days_of_month'] ?? null,
             'status' => $status,
             'approval_deadline_at' => $status === 'pending_approval'
-                ? $this->bookingApprovals->approvalDeadlineForValues($bookingDate, $startTime, now())
+                ? $this->bookingApprovals->approvalDeadlineForValues(
+                    $bookingDate,
+                    $startTime,
+                    now(),
+                    $this->configuredSlotHoldMinutes($court->venue_cluster_id),
+                )
                 : null,
             'walk_in_name' => $data['walk_in_name'] ?? null,
             'walk_in_phone' => $data['walk_in_phone'] ?? null,
@@ -1560,7 +1645,7 @@ class BookingService
 
         if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
-                'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                'venue_cluster_id' => $this->clusterBlockedMessage($court),
             ]);
         }
 
@@ -2750,7 +2835,7 @@ class BookingService
 
             if ($this->clusterBlocksNewBooking($court)) {
                 throw ValidationException::withMessages([
-                    'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                    'venue_cluster_id' => $this->clusterBlockedMessage($court),
                 ]);
             }
         }
@@ -2760,14 +2845,106 @@ class BookingService
 
     private function clusterBlocksNewBooking(VenueCourt $court): bool
     {
-        return in_array($court->venueCluster?->status, self::BLOCKED_CLUSTER_STATUSES, true);
+        return in_array($court->venueCluster?->status, self::BLOCKED_CLUSTER_STATUSES, true)
+            || $this->activeBlockedRestrictionForCluster($court->venueCluster) !== null;
     }
 
     private function clusterBlockedMessage(VenueCourt $court): string
     {
-        return in_array($court->venueCluster?->status, ['termination_locked', 'termination_processing', 'partner_terminated'], true)
-            ? 'Cum san dang trong quy trinh cham dut hop dong va khong nhan booking moi.'
-            : 'Cum san hien khong nhan booking moi.';
+        return $this->bookingAccessStateForCluster($court->venueCluster)['message'];
+    }
+
+    private function bookingAccessStateForCluster(VenueCluster $cluster): array
+    {
+        $restriction = $this->activeBlockedRestrictionForCluster($cluster);
+        $status = (string) $cluster->status;
+        $reason = trim((string) ($restriction?->reason ?: $cluster->status_reason));
+        $termination = $restriction?->restriction_type === 'contract_termination'
+            || in_array($status, ['termination_locked', 'termination_processing', 'partner_terminated'], true)
+            || ($status === 'locked' && Str::contains(Str::lower((string) $cluster->status_reason), ['cham dut', 'chấm dứt']));
+
+        if ($status === 'active' && ! $restriction) {
+            return [
+                'can_book' => true,
+                'code' => 'available',
+                'status' => $status,
+                'access_mode' => 'full',
+                'title' => 'Có thể đặt sân',
+                'message' => null,
+                'reason' => null,
+            ];
+        }
+
+        if ($termination) {
+            $title = 'Cụm sân đang trong quy trình chấm dứt hợp đồng';
+            $defaultReason = 'Cụm sân không nhận booking mới trong thời gian xử lý chấm dứt hợp đồng đối tác.';
+            $code = 'contract_termination';
+        } elseif ($status === 'pending') {
+            $title = 'Cụm sân chưa sẵn sàng nhận booking';
+            $defaultReason = 'Cụm sân đang chờ hoàn tất ký kết hợp đồng đối tác.';
+            $code = 'cluster_pending';
+        } elseif ($restriction?->restriction_type === 'platform_fee_overdue') {
+            $title = 'Cụm sân đang bị khóa do phí nền tảng';
+            $defaultReason = 'Phí nền tảng đã quá hạn thanh toán theo chính sách.';
+            $code = 'platform_fee_overdue';
+        } elseif ($restriction?->restriction_type === 'admin_manual') {
+            $title = 'Cụm sân đang bị khóa bởi quản trị viên';
+            $defaultReason = 'Quản trị viên tạm khóa cụm sân.';
+            $code = 'admin_manual';
+        } else {
+            $title = 'Cụm sân đang bị khóa';
+            $defaultReason = 'Cụm sân hiện không nhận booking mới.';
+            $code = 'cluster_locked';
+        }
+
+        $message = $title.'. '.($reason !== '' ? 'Lý do: '.rtrim($reason, " .").'.' : $defaultReason);
+
+        return [
+            'can_book' => false,
+            'code' => $code,
+            'status' => $status,
+            'access_mode' => $restriction?->access_mode ?: 'blocked',
+            'title' => $title,
+            'message' => $message,
+            'reason' => $reason !== '' ? $reason : $defaultReason,
+        ];
+    }
+
+    private function activeBlockedRestrictionForCluster(?VenueCluster $cluster): ?VenueAccessRestriction
+    {
+        if (! $cluster || ! Schema::hasTable('venue_access_restrictions')) {
+            return null;
+        }
+
+        if ($cluster->relationLoaded('accessRestrictions')) {
+            return $cluster->accessRestrictions
+                ->filter(fn (VenueAccessRestriction $restriction): bool => $restriction->status === 'active'
+                    && $restriction->access_mode === 'blocked'
+                    && $restriction->starts_at?->lte(now())
+                    && (! $restriction->ends_at || $restriction->ends_at->gt(now())))
+                ->sortByDesc('starts_at')
+                ->first();
+        }
+
+        return VenueAccessRestriction::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'active')
+            ->where('access_mode', 'blocked')
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->orderByDesc('starts_at')
+            ->first();
+    }
+
+    private function clusterBlockedSlotState(array $bookingAccess): array
+    {
+        return [
+            'is_available' => false,
+            'can_book' => false,
+            'slot_status' => 'venue_locked',
+            'status_label' => 'Cụm sân đang bị khóa',
+            'unavailable_reason' => $bookingAccess['message'],
+        ];
     }
 
     private function normalizeTimeRanges(array $data, ?string $defaultCourtId = null): array

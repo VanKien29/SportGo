@@ -3,6 +3,7 @@
 namespace App\Services\Bookings;
 
 use App\Models\Booking;
+use App\Models\BookingConfig;
 use App\Models\Notification;
 use App\Models\Payment;
 use App\Models\PaymentLog;
@@ -39,17 +40,24 @@ class BookingApprovalService
             ? $booking->approval_deadline_at->copy()->setTimezone($timezone)
             : ($lock?->expires_at
                 ? Carbon::parse($lock->expires_at)->setTimezone($timezone)
-                : $booking->created_at->copy()->setTimezone($timezone)->addMinutes(self::APPROVAL_WINDOW_MINUTES));
+                : $booking->created_at->copy()->setTimezone($timezone)->addMinutes($this->approvalWindowMinutes($booking)));
 
         $sessionStart = $this->sessionStart($booking);
 
         return $sessionStart && $sessionStart->lessThan($deadline) ? $sessionStart : $deadline;
     }
 
-    public function approvalDeadlineForValues(string $bookingDate, string $startTime, Carbon $createdAt): Carbon
+    public function approvalDeadlineForValues(
+        string $bookingDate,
+        string $startTime,
+        Carbon $createdAt,
+        ?int $windowMinutes = null,
+    ): Carbon
     {
         $timezone = $this->businessTimezone();
-        $deadline = $createdAt->copy()->setTimezone($timezone)->addMinutes(self::APPROVAL_WINDOW_MINUTES);
+        $deadline = $createdAt->copy()->setTimezone($timezone)->addMinutes(
+            max(1, $windowMinutes ?? self::APPROVAL_WINDOW_MINUTES),
+        );
         $sessionStart = Carbon::createFromFormat(
             'Y-m-d H:i:s',
             $bookingDate.' '.substr($startTime, 0, 8),
@@ -366,5 +374,16 @@ class BookingApprovalService
     private function businessTimezone(): string
     {
         return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function approvalWindowMinutes(Booking $booking): int
+    {
+        $configured = $booking->venue_cluster_id
+            ? BookingConfig::query()
+                ->where('venue_cluster_id', $booking->venue_cluster_id)
+                ->value('slot_hold_minutes')
+            : null;
+
+        return max(1, (int) ($configured ?? self::APPROVAL_WINDOW_MINUTES));
     }
 }
